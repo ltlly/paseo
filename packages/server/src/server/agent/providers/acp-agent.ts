@@ -2731,6 +2731,69 @@ export class ACPAgentSession implements AgentSession, ACPClient {
         sessionId: typeof params.sessionId === "string" ? params.sessionId : undefined,
       });
     }
+
+    if (method === "_x.ai/models/update") {
+      await this.applyXaiModelsUpdate(params);
+    }
+  }
+
+  /**
+   * Grok advertises its live catalog (and later models such as grok-4.7) via
+   * `_x.ai/models/update` after session/new. session/new itself often still
+   * carries the CLI's baked-in list, so a configured model that is missing
+   * there is dropped by warnInvalidSelection. Refresh availableModels, then
+   * retry the configured model. Do not copy params.currentModelId onto the
+   * session: that field is Grok's catalog default, not the user's choice.
+   */
+  private async applyXaiModelsUpdate(params: Record<string, unknown>): Promise<void> {
+    const raw = params.availableModels;
+    if (!Array.isArray(raw) || raw.length === 0) {
+      return;
+    }
+
+    const nextModels: AvailableACPModel[] = [];
+    for (const entry of raw) {
+      if (entry === null || typeof entry !== "object") {
+        continue;
+      }
+      const item = entry as Record<string, unknown>;
+      let modelId: string | null = null;
+      if (typeof item.modelId === "string") {
+        modelId = item.modelId;
+      } else if (typeof item.id === "string") {
+        modelId = item.id;
+      }
+      if (!modelId) {
+        continue;
+      }
+      nextModels.push({
+        modelId,
+        name: typeof item.name === "string" && item.name.length > 0 ? item.name : modelId,
+        description: typeof item.description === "string" ? item.description : null,
+        ...(item._meta !== undefined ? { _meta: item._meta } : {}),
+      } as AvailableACPModel);
+    }
+    if (nextModels.length === 0) {
+      return;
+    }
+
+    this.availableModels = nextModels;
+
+    const configuredModelId = this.config.model;
+    if (!configuredModelId || configuredModelId === this.currentModel) {
+      return;
+    }
+
+    try {
+      await this.setModel(configuredModelId);
+    } catch (error) {
+      if (!this.isModelSelectionUnavailableError(error)) {
+        this.logger.warn(
+          { err: error, value: configuredModelId },
+          `${this.provider} catalog update could not apply the configured model`,
+        );
+      }
+    }
   }
 
   // Cache an asynchronously-delivered slash-command batch and unblock any
