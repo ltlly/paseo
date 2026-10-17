@@ -2716,7 +2716,7 @@ describe("ACPAgentSession", () => {
     await session.extNotification("_x.ai/models/update", {
       currentModelId: "grok-4.7",
       availableModels: [
-        { modelId: "grok-4.7", name: "Grok 4.7", _meta: { totalContextTokens: 256000 } },
+        { modelId: "grok-4.7", name: "Grok 4.7", _meta: 42 },
         { modelId: "grok-4.6", name: "Grok 4.6" },
         { id: "grok-4.5", name: "Grok 4.5" },
       ],
@@ -2732,6 +2732,37 @@ describe("ACPAgentSession", () => {
       modelId: "grok-4.7",
     });
     expect(prepared.internals.currentModel).toBe("grok-4.7");
+  });
+
+  test("does not restore the original Grok config after an explicit model selection", async () => {
+    const session = createSessionWithConfig({ provider: "grok", model: "grok-4.7" });
+    const prepared = prepareConfiguredOverrideSession(session, {
+      currentModel: "grok-4.6",
+      availableModels: [
+        { modelId: "grok-4.6", name: "Grok 4.6", description: null },
+        { modelId: "grok-4.5", name: "Grok 4.5", description: null },
+      ],
+    });
+
+    await session.setModel("grok-4.5");
+    prepared.unstableSetSessionModel.mockClear();
+
+    await session.extNotification("_x.ai/models/update", {
+      currentModelId: "grok-4.7",
+      availableModels: [
+        { modelId: "grok-4.7", name: "Grok 4.7" },
+        { modelId: "grok-4.6", name: "Grok 4.6" },
+        { modelId: "grok-4.5", name: "Grok 4.5" },
+      ],
+    });
+
+    expect(prepared.internals.availableModels?.map((model) => model.modelId)).toEqual([
+      "grok-4.7",
+      "grok-4.6",
+      "grok-4.5",
+    ]);
+    expect(prepared.unstableSetSessionModel).not.toHaveBeenCalled();
+    expect(prepared.internals.currentModel).toBe("grok-4.5");
   });
 
   test("does not switch to Grok catalog default when the session is already on the configured model", async () => {
