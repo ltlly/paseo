@@ -148,10 +148,22 @@ export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
 
   installLatest(options: NpmGlobalOptions = {}): Promise<CommandResult> {
     const prefixArgs = options.prefix ? ["--prefix", options.prefix] : [];
-    return this.runCommand("npm", ["install", "-g", PASEO_CLI_UPDATE_URL, ...prefixArgs], {
-      timeout: NPM_INSTALL_TIMEOUT_MS,
-      maxBuffer: NPM_MAX_BUFFER_BYTES,
-    });
+    // npm 12 requires explicit URL and native install-script opt-ins for this command.
+    return this.runCommand(
+      "npm",
+      [
+        "install",
+        "-g",
+        "--allow-remote=all",
+        "--allow-scripts=esbuild,node-pty,msgpackr-extract,sherpa-onnx-node",
+        PASEO_CLI_UPDATE_URL,
+        ...prefixArgs,
+      ],
+      {
+        timeout: NPM_INSTALL_TIMEOUT_MS,
+        maxBuffer: NPM_MAX_BUFFER_BYTES,
+      },
+    );
   }
 }
 

@@ -121,6 +121,8 @@ describe("DefaultNpmGlobalPaseoCli", () => {
         args: [
           "install",
           "-g",
+          "--allow-remote=all",
+          "--allow-scripts=esbuild,node-pty,msgpackr-extract,sherpa-onnx-node",
           "https://github.com/ltlly/paseo/releases/latest/download/getpaseo-cli.tgz",
         ],
         timeout: 300_000,

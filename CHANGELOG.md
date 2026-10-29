@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.2 - 2026-10-29
+
+- Allow fork release downloads and required native install scripts when self-updating with npm 12, scoped to the update command.
+
 ## 0.14.1 - 2026-10-29
 
 First ltlly fork release. Terminal CLI agents now appear in the shared agent directory and open their bound terminal when selected.
