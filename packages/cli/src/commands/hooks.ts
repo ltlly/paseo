@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { resolveHookReport, type AgentHookReport } from "@getpaseo/server/agent-hooks";
 
 interface HookEnvironment {
+  [name: string]: string | undefined;
   PASEO_TERMINAL_ID?: string;
   PASEO_ACTIVITY_TOKEN?: string;
   PASEO_TERMINAL_ACTIVITY_URL?: string;
@@ -41,6 +42,7 @@ export async function runHooksCommand(
   const report = await resolveHookReport({
     provider: agent,
     event,
+    env: runtime.env,
     input: {
       isTTY: runtime.input.isTTY,
       read: () => readInput(runtime.input),

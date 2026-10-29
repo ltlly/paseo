@@ -85,6 +85,16 @@ function expectPostedState(fetch: RecordingFetch, state: string) {
 }
 
 describe("runHooksCommand", () => {
+  it("does not post a Claude command inherited by Grok", async () => {
+    const fetch = createFetch();
+    await runHooksCommand(claudeProvider.id, "SessionStart", {
+      env: { ...hookEnv, GROK_HOOK_EVENT: "session_start" },
+      input: inputFrom(JSON.stringify({ sessionId: "grok-session" })),
+      fetch: fetch.send,
+    });
+    expect(fetch.calls).toEqual([]);
+  });
+
   it("keeps provider names out of the generic command", () => {
     const source = readFileSync(new URL("./hooks.ts", import.meta.url), "utf8").toLowerCase();
 

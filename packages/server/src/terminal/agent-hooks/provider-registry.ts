@@ -33,6 +33,7 @@ export interface AgentHookActivityRequest {
   provider: string;
   event: string;
   input: AgentHookActivityInput;
+  env?: Readonly<Record<string, string | undefined>>;
 }
 
 export interface RegisteredAgentHookInstallOptions extends AgentHookInstallOptions {
@@ -92,6 +93,9 @@ export interface AgentHookReport {
 export async function resolveHookReport(
   request: AgentHookActivityRequest,
 ): Promise<AgentHookReport | null> {
+  // Grok also loads Claude/Cursor hook settings. Its runner sets this marker for
+  // every hook, including inherited commands; only its own provider may report.
+  if (request.env?.GROK_HOOK_EVENT && request.provider.toLowerCase() !== "grok") return null;
   const observedAt = Date.now();
   let raw: Promise<string | null> | undefined;
   const read = () => (raw ??= request.input.isTTY ? Promise.resolve(null) : request.input.read());

@@ -39,6 +39,55 @@ function createWarningLogger(): WarningLogger {
 }
 
 describe("terminal agent hook provider registry", () => {
+  it("ignores inherited provider commands in the Grok hook runner", async () => {
+    const input = { read: async () => JSON.stringify({ sessionId: "same-session" }) };
+    const env = { GROK_HOOK_EVENT: "session_start" };
+    expect(
+      await resolveHookReport({ provider: "claude", event: "SessionStart", input, env }),
+    ).toBeNull();
+    expect(
+      await resolveHookReport({ provider: "grok", event: "SessionStart", input, env }),
+    ).toMatchObject({ provider: "grok", sessionId: "same-session" });
+    // A Claude child launched by a Grok tool inherits GROK_SESSION_ID, but is not
+    // running inside Grok's hook runner and still owns its own provider identity.
+    expect(
+      await resolveHookReport({
+        provider: "claude",
+        event: "SessionStart",
+        input,
+        env: { GROK_SESSION_ID: "parent-session" },
+      }),
+    ).toMatchObject({ provider: "claude" });
+  });
+
+  it("reports real Grok tool approval notifications even at info level", async () => {
+    const report = await resolveHookReport({
+      provider: "grok",
+      event: "Notification",
+      input: {
+        read: async () =>
+          JSON.stringify({
+            notificationType: "permission_prompt",
+            message: "Tool permission requested",
+            level: "info",
+          }),
+      },
+    });
+    expect(report).toMatchObject({ state: "needs-input" });
+  });
+
+  it("does not let Grok subagent tool completion or exit finish the parent", async () => {
+    for (const event of ["PreToolUse", "PostToolUse", "Stop", "SessionEnd"]) {
+      expect(
+        await resolveHookReport({
+          provider: "grok",
+          event,
+          input: { read: async () => JSON.stringify({ subagentType: "explore" }) },
+        }),
+      ).toBeNull();
+    }
+  });
+
   it("preserves provider session identity and reads hook input once", async () => {
     let reads = 0;
     const report = await resolveHookReport({

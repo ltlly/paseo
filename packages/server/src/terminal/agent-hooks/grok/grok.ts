@@ -69,9 +69,6 @@ export const grokAgentHookProvider: AgentHookProvider = {
       return "needs-input";
     if (event === "Notification") {
       const kind = data.notificationType ?? data.notification_type;
-      // Grok emits this informational notice even when tool approval is bypassed.
-      if (data.message === "Tool permission requested" && (!data.level || data.level === "info"))
-        return null;
       return ["permission_prompt", "idle_prompt", "elicitation_prompt"].includes(String(kind))
         ? "needs-input"
         : null;
