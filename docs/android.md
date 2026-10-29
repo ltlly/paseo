@@ -96,7 +96,7 @@ npm run dev:ios         # Build/install the iOS development app
 `build:apk` writes `artifacts/paseo-dogfood-universal.apk`; `build:apk:arm64` writes
 `artifacts/paseo-dogfood-arm64.apk`. Neither command launches or installs on a device. Both enable
 `PASEO_WATCHDOG_BUILD=1`, the production React profiling renderer, and Android's shell-profileable
-flag. These builds keep the production package ID (`sh.paseo`) and release optimizations. Use this APK for
+flag. These builds keep the production package ID (`sh.paseo.ltlly`) and release optimizations. Use this APK for
 personal dogfooding. Android system-trace spans require the separate `PASEO_PROFILE_BUILD=1` flag;
 watchdog recording does not send duplicate spans to that sink by default. Normal store/release
 workflows leave diagnostics disabled.

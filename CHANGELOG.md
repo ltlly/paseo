@@ -1,6 +1,15 @@
 # Changelog
 
-Not released yet. These changes are on `main` but not in 0.14.0; the next release entry includes them.
+## 0.14.1 - 2026-10-29
+
+First ltlly fork release. Terminal CLI agents now appear in the shared agent directory and open their bound terminal when selected.
+
+- Add Grok hooks and durable terminal-agent identity, workspace metadata, live attention updates and lifecycle reconciliation.
+- Restore terminal mouse tracking, SGR encoding and focus reporting after reconnect.
+- Use fork release assets for daemon/desktop updates; separate Android package identity and disable upstream Expo OTA.
+- Keep GitHub Actions disabled and all GitHub/EAS workflows manual-only.
+
+This release also includes the following upstream changes since 0.14.0.
 
 Added:
 
