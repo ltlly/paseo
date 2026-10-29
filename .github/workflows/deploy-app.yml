@@ -1,12 +1,7 @@
 name: Deploy App
 
+# Fork policy: run only after an explicit user request.
 on:
-  push:
-    tags:
-      - "v*"
-      - "!v*-beta.*"
-      - "app-v*"
-      - "!app-v*-beta.*"
   workflow_dispatch:
 
 jobs:

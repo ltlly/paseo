@@ -1,5 +1,6 @@
 name: Desktop Rollout
 
+# Fork policy: run only after an explicit user request.
 on:
   workflow_dispatch:
     inputs:

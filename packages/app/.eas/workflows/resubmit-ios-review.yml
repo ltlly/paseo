@@ -5,6 +5,7 @@ name: Resubmit iOS for App Store review
 # build; this workflow just runs the fastlane submit_review lane against the
 # latest TestFlight build, without rebuilding or re-uploading.
 
+# Fork policy: run only after an explicit user request.
 on:
   workflow_dispatch:
     inputs:

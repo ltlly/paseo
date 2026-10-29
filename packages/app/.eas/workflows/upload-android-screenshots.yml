@@ -4,6 +4,7 @@ name: Upload Google Play screenshots
 # Replaces the en-US phone and tablet screenshots with the committed renders,
 # without rebuilding or resubmitting the app.
 
+# Fork policy: run only after an explicit user request.
 on:
   workflow_dispatch:
     inputs:

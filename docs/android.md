@@ -4,12 +4,19 @@
 
 Controlled by `APP_VARIANT` in `packages/app/app.config.js` (vanilla Expo, no custom Gradle plugin):
 
-| Variant       | App name    | Package ID       |
-| ------------- | ----------- | ---------------- |
-| `production`  | Paseo       | `sh.paseo`       |
-| `development` | Paseo Debug | `sh.paseo.debug` |
+| Variant       | App name          | Package ID             |
+| ------------- | ----------------- | ---------------------- |
+| `production`  | Paseo ltlly       | `sh.paseo.ltlly`       |
+| `development` | Paseo ltlly Debug | `sh.paseo.ltlly.debug` |
 
 EAS profiles: `development`, `production`, and `production-apk` in `packages/app/eas.json`.
+
+This fork uses a separate package ID and signing identity, so the first installation is a new app and
+requires pairing hosts again. Keep the fork's release signing key for subsequent APK upgrades.
+Expo OTA updates are disabled. The upstream EAS project is disconnected; configure
+`PASEO_EXPO_OWNER` and `PASEO_EXPO_PROJECT_ID` only for a project you own. Distribute APKs from
+[ltlly/paseo releases](https://github.com/ltlly/paseo/releases); there is no in-app APK auto-installer.
+See [fork release policy](release.md#fork-release-policy) before running any workflow.
 
 `development` uses Android `debug`.
 

@@ -69,8 +69,8 @@ function resolveSecretFile(params) {
 
 const variants = {
   production: {
-    name: "Paseo",
-    packageId: "sh.paseo",
+    name: "Paseo ltlly",
+    packageId: "sh.paseo.ltlly",
     googleServicesFile: resolveSecretFile({
       envKey: "GOOGLE_SERVICES_FILE_PROD",
       fallbackRelativePath: "./.secrets/google-services.prod.json",
@@ -81,8 +81,8 @@ const variants = {
     }),
   },
   development: {
-    name: "Paseo Debug",
-    packageId: "sh.paseo.debug",
+    name: "Paseo ltlly Debug",
+    packageId: "sh.paseo.ltlly.debug",
     googleServicesFile: resolveSecretFile({
       envKey: "GOOGLE_SERVICES_FILE_DEBUG",
       fallbackRelativePath: "./.secrets/google-services.debug.json",
@@ -100,7 +100,8 @@ const nativeReleaseVersion = getNativeReleaseVersion(pkg.version);
 export default {
   expo: {
     name: variant.name,
-    slug: "voice-mobile",
+    slug: "paseo-ltlly",
+    updates: { enabled: false },
     version: nativeReleaseVersion.appVersion,
     orientation: "portrait",
     icon: "./assets/images/icon.png",
@@ -196,10 +197,11 @@ export default {
       diagnosticRevision: process.env.PASEO_DIAGNOSTIC_REVISION,
       diagnosticBuildTime: process.env.PASEO_DIAGNOSTIC_BUILD_TIME,
       router: {},
-      eas: {
-        projectId: "0e7f65ce-0367-46c8-a238-2b65963d235a",
-      },
+      ...(process.env.PASEO_EXPO_PROJECT_ID
+        ? { eas: { projectId: process.env.PASEO_EXPO_PROJECT_ID } }
+        : {}),
+      releaseRepository: "ltlly/paseo",
     },
-    owner: "getpaseo",
+    ...(process.env.PASEO_EXPO_OWNER ? { owner: process.env.PASEO_EXPO_OWNER } : {}),
   },
 };

@@ -4,6 +4,9 @@ import { z } from "zod";
 import { execCommand } from "../../../utils/spawn.js";
 
 export const PASEO_CLI_PACKAGE = "@getpaseo/cli";
+// Release assets include all fork workspace dependencies; never fall back to npm latest.
+export const PASEO_CLI_UPDATE_URL =
+  "https://github.com/ltlly/paseo/releases/latest/download/getpaseo-cli.tgz";
 
 const NPM_PROBE_TIMEOUT_MS = 10_000;
 const NPM_INSTALL_TIMEOUT_MS = 300_000;
@@ -145,7 +148,7 @@ export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
 
   installLatest(options: NpmGlobalOptions = {}): Promise<CommandResult> {
     const prefixArgs = options.prefix ? ["--prefix", options.prefix] : [];
-    return this.runCommand("npm", ["install", "-g", `${PASEO_CLI_PACKAGE}@latest`, ...prefixArgs], {
+    return this.runCommand("npm", ["install", "-g", PASEO_CLI_UPDATE_URL, ...prefixArgs], {
       timeout: NPM_INSTALL_TIMEOUT_MS,
       maxBuffer: NPM_MAX_BUFFER_BYTES,
     });

@@ -1,16 +1,8 @@
 name: Desktop Packages
 
+# Fork policy: run only after an explicit user request.
 on:
-  push:
-    branches: [main]
-  # Packaging leaves ordinary PR CI, but a PR that changes what gets packaged
-  # or how it is smoked still proves the real artifacts before merge.
-  pull_request:
-    paths:
-      - "packages/desktop/**"
-      - "plugins/**"
-      - "nix/**"
-      - ".github/workflows/desktop-packages.yml"
+  workflow_dispatch: {}
 
 concurrency:
   group: desktop-packages-${{ github.ref }}

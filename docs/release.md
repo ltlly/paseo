@@ -2,6 +2,39 @@
 
 All workspaces share one version and release together.
 
+## Fork release policy
+
+`ltlly/paseo` is the source for this fork. Repository Actions are disabled, and GitHub/EAS workflows
+accept manual dispatch only. Do not enable Actions, dispatch CI, publish, or deploy until the owner
+requests it. Local build, lint, typecheck and targeted tests are available while CI is off. The
+upstream release playbook below is reference material; its npm publication and automatic CI steps
+do not apply to this fork.
+
+Build a runtime locally with:
+
+```sh
+npm ci
+npm run build:server
+npm run build:daemon-web-ui
+npm run package:fork-runtime -- <release-tag>
+```
+
+The packer stages packages without modifying workspace manifests and pins every internal dependency
+to the same fork release tag. Upload all seven tarballs, the runtime manifest and SHA256SUMS together
+after publication is authorized. Publishing only the CLI tarball leaves its pinned dependencies missing.
+The manual `Fork Runtime Artifacts` workflow produces artifacts without creating a release.
+
+Daemon self-update downloads `getpaseo-cli.tgz` from the latest fork release; desktop update metadata
+also comes from the fork. No official-npm fallback is allowed. Keep the CLI tarball on every release
+marked latest. A release without the asset fails update instead of silently changing distributions.
+Use a new semver version for releases so desktop update comparisons and Android version codes advance.
+
+The existing mac/home/dy `0.14.0-mouse.1` runtime services require a one-time migration to these
+artifacts. Preserve each service's environment, working directory, Paseo home and rollback runtime.
+Installing files does not change a running process; service restart is a separate deployment step.
+The updater supports npm global installs; custom versioned-prefix services remain explicitly managed.
+Android distribution and signing are described in [Android](android.md).
+
 ## Two steps
 
 A release has exactly two steps. The agent does the first, the user authorizes the second.

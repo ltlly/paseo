@@ -1,8 +1,8 @@
 name: Nix
 
+# Fork policy: run only after an explicit user request.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch: {}
 
 permissions:
   contents: read
