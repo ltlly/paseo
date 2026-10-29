@@ -147,6 +147,10 @@ export class TerminalInputModeTracker {
     return this.kittyKeyboardFlags;
   }
 
+  getMouseState(): { protocol: number; encoding: number } {
+    return { protocol: this.mouseProtocol, encoding: this.mouseEncoding };
+  }
+
   supportsModifiedEnter(): boolean {
     return terminalInputModeSupportsModifiedEnter(this.getState());
   }

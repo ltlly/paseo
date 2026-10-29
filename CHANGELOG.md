@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.14.3
+
+- Deliver Android terminal swipes as mouse-wheel reports when the terminal application requests mouse tracking.
+- Open OSC 8 file links outside the workspace, preserve UNC share roots, and accept spaces in explicit file links.
+- Ignore Grok-inherited Claude hooks and preserve real permission attention.
+- Integrate upstream Grok live model updates (#7192), stable agent feature references (#7774), and shared native indicator refreshes (#8001).
+
 ## 0.14.2 - 2026-10-29
 
 - Allow fork release downloads and required native install scripts when self-updating with npm 12, scoped to the update command.

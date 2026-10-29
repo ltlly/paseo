@@ -4,6 +4,7 @@
  */
 
 import type { IBufferCell, IBufferRange, ILink, ILinkProvider, Terminal } from "@xterm/xterm";
+import { parseFileProtocolUrl } from "@/assistant-file-links/parse";
 import {
   detectTerminalLocalLinks,
   type TerminalLinkSuffix,
@@ -33,6 +34,31 @@ export interface TerminalLocalFileLinkProviderOptions {
 }
 
 const MAX_LINE_LENGTH = 2_000;
+
+export function activateTerminalHyperlink(
+  event: MouseEvent,
+  uri: string,
+  callbacks: {
+    onOpenLocalFileLink?: (
+      target: TerminalLocalFileLinkTarget,
+      disposition: "main" | "side",
+    ) => void | Promise<void>;
+    onOpenExternalUrl?: (url: string) => void | Promise<void>;
+  },
+): void {
+  event.preventDefault();
+  if (/^file:/i.test(uri)) {
+    const target = parseFileProtocolUrl(uri);
+    if (target) {
+      void callbacks.onOpenLocalFileLink?.(
+        target,
+        event.ctrlKey || event.metaKey ? "side" : "main",
+      );
+    }
+    return;
+  }
+  void callbacks.onOpenExternalUrl?.(uri);
+}
 const MAX_LINK_LENGTH = 500;
 const MAX_RESOLVED_LINKS_IN_LINE = 10;
 

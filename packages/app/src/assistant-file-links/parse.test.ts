@@ -611,3 +611,12 @@ describe("encoded filename line markers", () => {
     },
   );
 });
+
+it("accepts explicit absolute file links with spaces outside the workspace", () => {
+  expect(
+    classifyAssistantFileLink("/tmp/outside project/notes.md", {
+      workspaceRoot: "/repo",
+      explicitLink: true,
+    }),
+  ).toMatchObject({ kind: "directFile", target: { path: "/tmp/outside project/notes.md" } });
+});

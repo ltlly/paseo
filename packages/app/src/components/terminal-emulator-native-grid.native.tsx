@@ -69,6 +69,7 @@ import {
   type NativeTerminalSizeClaimAction,
 } from "../terminal/native-renderer/terminal-input-resize-policy";
 import { encodeTerminalPaste } from "../terminal/runtime/terminal-paste";
+import { encodeNativeTerminalWheel } from "../terminal/native-renderer/terminal-mouse-wheel";
 import type { TerminalOutputData } from "../terminal/runtime/terminal-emulator-runtime";
 import {
   createTerminalResizePolicy,
@@ -216,6 +217,7 @@ function NativeTerminalEmulator({
     intent: null,
   });
   const inputModeTrackerRef = useRef(new TerminalInputModeTracker());
+  const scrollPointRef = useRef({ x: 0, y: 0 });
   const lastInputModeStateRef = useRef<TerminalInputModeState>({
     ...inputModeTrackerRef.current.getState(),
     applicationCursorKeys: false,
@@ -674,6 +676,24 @@ function NativeTerminalEmulator({
         return;
       }
       const visibleRows = resolveVisibleRows(terminal);
+      const metrics = metricsRef.current;
+      const viewport = terminalScreenRef.current?.viewport;
+      if (metrics && viewport) {
+        const wheel = encodeNativeTerminalWheel({
+          ...inputModeTrackerRef.current.getMouseState(),
+          direction,
+          rows,
+          point: scrollPointRef.current,
+          cellWidth: metrics.cellWidth,
+          cellHeight: metrics.cellHeight,
+          cols: viewport.cols,
+          screenRows: viewport.rows,
+        });
+        if (wheel !== null) {
+          if (wheel) callbacksRef.current.onInput?.(wheel);
+          return;
+        }
+      }
       const screen =
         direction === "up"
           ? model.scrollUp({ rows, visibleRows })
@@ -840,6 +860,7 @@ function NativeTerminalEmulator({
             x: event.nativeEvent.locationX,
             y: event.nativeEvent.locationY,
           };
+          scrollPointRef.current = point;
           const pressStatus = selectionRangeRef.current ? "selecting" : "pressing";
           selectionPressRef.current = {
             startX: point.x,

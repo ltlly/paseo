@@ -171,7 +171,11 @@ export function parseFileProtocolUrl(value: string): InlinePathTarget | null {
     return null;
   }
 
-  const normalizedPath = normalizeFileUrlPath(parsedUrl.pathname);
+  const normalizedPath = normalizeFileUrlPath(
+    parsedUrl.hostname && parsedUrl.hostname !== "localhost"
+      ? `//${parsedUrl.hostname}${parsedUrl.pathname}`
+      : parsedUrl.pathname,
+  );
   if (!normalizedPath) {
     return null;
   }
@@ -229,7 +233,7 @@ export function classifyAssistantFileLink(
     };
   }
 
-  if (/\s/.test(trimmed)) {
+  if (!options.explicitLink && /\s/.test(trimmed)) {
     return null;
   }
 
@@ -728,7 +732,8 @@ function normalizePathInput(value: string | undefined): string | null {
     return null;
   }
 
-  return trimmed.replace(/\\/g, "/").replace(/\/{2,}/g, "/");
+  const normalized = trimmed.replace(/\\/g, "/");
+  return (normalized.startsWith("//") ? "/" : "") + normalized.replace(/\/{2,}/g, "/");
 }
 
 function resolvePathAgainstCwd(pathValue: string, cwd?: string): string | null {

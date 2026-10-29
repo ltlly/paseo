@@ -27,6 +27,7 @@ import {
 import { renderTerminalSnapshotToAnsi } from "./terminal-snapshot";
 import {
   createTerminalLocalFileLinkProvider,
+  activateTerminalHyperlink,
   type TerminalLocalFileLinkSource,
   type TerminalLocalFileLinkTarget,
 } from "../local-links/terminal-local-link-provider";
@@ -508,8 +509,7 @@ export class TerminalEmulatorRuntime {
     this.emitInputModeChange();
 
     const openExternalLink = (event: MouseEvent, uri: string) => {
-      event.preventDefault();
-      void this.callbacks.onOpenExternalUrl?.(uri);
+      activateTerminalHyperlink(event, uri, this.callbacks);
     };
     const terminal = new Terminal({
       allowProposedApi: true,

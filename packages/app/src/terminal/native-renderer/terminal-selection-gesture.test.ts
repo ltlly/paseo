@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { TerminalInputModeTracker } from "@getpaseo/protocol/terminal-input-mode";
+import { encodeNativeTerminalWheel } from "./terminal-mouse-wheel";
 
 import {
   TERMINAL_GESTURE_LONG_PRESS_MS,
@@ -350,5 +352,71 @@ describe("native terminal gesture policy", () => {
         }),
       ).toEqual("none");
     });
+  });
+});
+
+describe("native terminal wheel routing", () => {
+  const geometry = {
+    point: { x: 25, y: 45 },
+    cellWidth: 10,
+    cellHeight: 20,
+    cols: 80,
+    screenRows: 24,
+  };
+  it("sends each accumulated row once, in both directions, and returns to local history after mouse mode exits", () => {
+    const tracker = new TerminalInputModeTracker();
+    const wheel = (direction: "up" | "down", rows: number) =>
+      encodeNativeTerminalWheel({ ...geometry, ...tracker.getMouseState(), direction, rows });
+    expect(wheel("up", 1)).toBeNull();
+    tracker.feed("\x1b[?100");
+    tracker.feed("0;1006h");
+    let state = { lastDy: 0, rowRemainder: 0, didScroll: false };
+    let output = "";
+    for (const currentDy of [13, 25, 39, 45, 20]) {
+      const update = advanceTerminalScrollGesture({ state, currentDy, cellHeight: 20 });
+      state = update.state;
+      output += wheel(update.rowDelta > 0 ? "up" : "down", Math.abs(update.rowDelta));
+    }
+    expect(output).toBe("\x1b[<64;3;3M\x1b[<64;3;3M\x1b[<65;3;3M");
+    const restored = new TerminalInputModeTracker();
+    restored.feed(tracker.getPreamble());
+    expect(restored.getMouseState()).toEqual(tracker.getMouseState());
+    tracker.feed("\x1b[?1000l");
+    expect(wheel("down", 1)).toBeNull();
+  });
+  it.each([1000, 1002, 1003])(
+    "supports legacy wheel reports for mode %s and clamps the pointer to the screen",
+    (protocol) => {
+      expect(
+        encodeNativeTerminalWheel({
+          ...geometry,
+          point: { x: -10, y: 9999 },
+          protocol,
+          encoding: 0,
+          direction: "down",
+          rows: 1,
+        }),
+      ).toBe("\x1b[Ma!8");
+    },
+  );
+  it("uses pixel coordinates for SGR pixel mode and ignores X10's press-only mode", () => {
+    expect(
+      encodeNativeTerminalWheel({
+        ...geometry,
+        protocol: 1003,
+        encoding: 1016,
+        direction: "up",
+        rows: 1,
+      }),
+    ).toBe("\x1b[<64;26;46M");
+    expect(
+      encodeNativeTerminalWheel({
+        ...geometry,
+        protocol: 9,
+        encoding: 1006,
+        direction: "up",
+        rows: 1,
+      }),
+    ).toBeNull();
   });
 });

@@ -36,6 +36,8 @@ function isPathWithinRoot(candidatePath: string, rootPath: string): boolean {
 }
 
 function deriveFilesystemRootFromAbsolutePath(value: string): string | null {
+  const uncRoot = /^(\/\/[^/]+\/[^/]+)/.exec(value.replace(/\\/g, "/"));
+  if (uncRoot?.[1]) return uncRoot[1];
   if (value.startsWith("/")) {
     return "/";
   }

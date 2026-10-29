@@ -72,3 +72,9 @@ describe("resolveFilePreviewReadTarget", () => {
     ).toBeNull();
   });
 });
+
+it("uses the UNC share root when a link targets another workspace", () => {
+  expect(
+    resolveFilePreviewReadTarget({ path: "//server/share/notes.md", workspaceRoot: "C:/repo" }),
+  ).toEqual({ cwd: "//server/share", path: "//server/share/notes.md" });
+});

@@ -1,6 +1,9 @@
 import type { IBufferCell, Terminal } from "@xterm/xterm";
 import { describe, expect, it, vi } from "vitest";
-import { createTerminalLocalFileLinkProvider } from "./terminal-local-link-provider";
+import {
+  activateTerminalHyperlink,
+  createTerminalLocalFileLinkProvider,
+} from "./terminal-local-link-provider";
 
 describe("createTerminalLocalFileLinkProvider", () => {
   it("resolves before exposing a local file link", async () => {
@@ -205,3 +208,33 @@ class FakeBufferCell {
     return false;
   }
 }
+
+describe("OSC 8 hyperlink activation", () => {
+  it.each([
+    ["file:///tmp/outside%20project.md#L12", "/tmp/outside project.md", 12],
+    ["file:///C:/Users/test/notes.md", "C:/Users/test/notes.md", undefined],
+    ["file://server/share/notes.md", "//server/share/notes.md", undefined],
+  ])("opens %s as a host file", (uri, path, lineStart) => {
+    const onOpenLocalFileLink = vi.fn();
+    const onOpenExternalUrl = vi.fn();
+    activateTerminalHyperlink(
+      { preventDefault: vi.fn(), metaKey: true } as unknown as MouseEvent,
+      uri,
+      { onOpenLocalFileLink, onOpenExternalUrl },
+    );
+    expect(onOpenLocalFileLink).toHaveBeenCalledWith(
+      expect.objectContaining({ path, lineStart }),
+      "side",
+    );
+    expect(onOpenExternalUrl).not.toHaveBeenCalled();
+  });
+  it("keeps web URLs external", () => {
+    const onOpenExternalUrl = vi.fn();
+    activateTerminalHyperlink(
+      { preventDefault: vi.fn() } as unknown as MouseEvent,
+      "https://example.com",
+      { onOpenExternalUrl },
+    );
+    expect(onOpenExternalUrl).toHaveBeenCalledWith("https://example.com");
+  });
+});
