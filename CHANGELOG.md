@@ -2,6 +2,8 @@
 
 ## 0.14.4
 
+- Bundle JetBrains Mono and Maple Mono Normal NF CN in Android and register their combined terminal family before React Native starts, including OFL licenses.
+- Keep native terminal typography in a flat style list so displayed text uses the measured font; preserve fractional glyph advances and disable font scaling and ligatures for the terminal grid.
 - Send native terminal taps as complete mouse clicks when the application enables mouse tracking.
 - Keep soft keyboards hidden during terminal focus, tap and selection changes; use the keyboard toolbar button to request typing.
 - Apply explicit keyboard requests after Android mounts the input, so the first toolbar press works.

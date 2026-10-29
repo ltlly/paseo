@@ -39,7 +39,8 @@ export function resolveMeasuredTerminalCellMetrics(
 ): TerminalGridCellMetrics {
   const textLength = Math.max(1, input.measureTextLength);
   return {
-    cellWidth: snapCellMetric(input.measuredTextWidth / textLength, input.roundToNearestPixel),
+    // Rounding each cell compounds across a run; native glyph advances are fractional.
+    cellWidth: Math.max(1, input.measuredTextWidth / textLength),
     cellHeight: snapCellMetric(input.measuredTextHeight, input.roundToNearestPixel),
   };
 }

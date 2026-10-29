@@ -33,7 +33,7 @@ describe("native terminal grid metrics", () => {
   });
 
   it.each([1, 2, 2.75, 3, 3.5])(
-    "aligns cells to the physical pixel grid at density %s",
+    "preserves glyph advances across long runs at density %s",
     (density) => {
       const metrics = resolveMeasuredTerminalCellMetrics({
         measuredTextWidth: 72.246,
@@ -42,7 +42,7 @@ describe("native terminal grid metrics", () => {
         roundToNearestPixel: (value) => Math.round(value * density) / density,
       });
 
-      expect(metrics.cellWidth * density).toBeCloseTo(Math.round(metrics.cellWidth * density), 10);
+      expect(metrics.cellWidth * 100).toBeCloseTo(722.46, 10);
       expect(metrics.cellHeight * density).toBeCloseTo(
         Math.round(metrics.cellHeight * density),
         10,

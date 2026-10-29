@@ -8,14 +8,13 @@ const ANDROID_LOADED_MONO_FAMILIES: ReadonlySet<string> = new Set([
   "sans-serif-monospace",
 ]);
 
+export const BUNDLED_TERMINAL_FONT_FAMILY = "Paseo Terminal Mono";
+
 const IOS_MONO_ALIASES = new Map<string, string>([
   ["sf mono", "Menlo"],
   ["sfmono-regular", "Menlo"],
   ["ui-monospace", "Menlo"],
 ]);
-
-const NATIVE_MONO_FALLBACK =
-  Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }) ?? "monospace";
 
 function stripFontQuotes(family: string): string {
   const trimmed = family.trim();
@@ -35,23 +34,35 @@ function splitFontStack(fontFamily: string): string[] {
     .filter((family) => family.length > 0);
 }
 
-function loadedNativeFontFamily(family: string): string | null {
+function loadedNativeFontFamily(family: string, platform: string): string | null {
   const normalized = family.toLowerCase();
-  if (Platform.OS === "ios") {
+  if (platform === "ios") {
     const alias = IOS_MONO_ALIASES.get(normalized);
     if (alias) return alias;
     return IOS_LOADED_MONO_FAMILIES.has(normalized) ? family : null;
   }
-  if (Platform.OS === "android") {
-    return ANDROID_LOADED_MONO_FAMILIES.has(normalized) ? family : null;
+  if (platform === "android") {
+    if (normalized === "maple mono normal nf cn") return "Maple Mono Normal NF CN";
+    if (
+      normalized === "jetbrains mono" ||
+      normalized === BUNDLED_TERMINAL_FONT_FAMILY.toLowerCase() ||
+      ANDROID_LOADED_MONO_FAMILIES.has(normalized)
+    )
+      return BUNDLED_TERMINAL_FONT_FAMILY;
+    return null;
   }
   return normalized === "monospace" ? family : null;
 }
 
-export function resolveNativeTerminalFontFamily(fontFamily: string | undefined): string {
+export function resolveNativeTerminalFontFamily(
+  fontFamily: string | undefined,
+  platform: string = Platform.OS,
+): string {
   const stack = resolveTerminalFontFamily(fontFamily);
   const loadedFamily = splitFontStack(stack)
-    .map(loadedNativeFontFamily)
+    .map((family) => loadedNativeFontFamily(family, platform))
     .find((family): family is string => family !== null);
-  return loadedFamily ?? NATIVE_MONO_FALLBACK;
+  if (loadedFamily) return loadedFamily;
+  if (platform === "android") return BUNDLED_TERMINAL_FONT_FAMILY;
+  return platform === "ios" ? "Menlo" : "monospace";
 }

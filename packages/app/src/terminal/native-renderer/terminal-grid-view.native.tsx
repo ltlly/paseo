@@ -4,7 +4,9 @@ import {
   Text,
   View,
   type LayoutChangeEvent,
+  type NativeSyntheticEvent,
   type StyleProp,
+  type TextLayoutEventData,
   type TextStyle,
   type ViewStyle,
 } from "react-native";
@@ -64,7 +66,7 @@ interface TerminalGridRunProps {
   run: TerminalRun;
   cellWidth: number;
   cellHeight: number;
-  textStyle: StyleProp<TextStyle>;
+  textStyle: TextStyle;
 }
 
 export interface TerminalGridViewProps {
@@ -112,7 +114,7 @@ function TerminalGridRun({ run, cellWidth, cellHeight, textStyle }: TerminalGrid
     [cellHeight, cellWidth, run.cellCount, run.style.backgroundColor],
   );
   const runTextStyle = useMemo<StyleProp<TextStyle>>(
-    () => [textStyle, run.style],
+    () => [styles.rowText, textStyle, run.style],
     [run.style, textStyle],
   );
 
@@ -121,7 +123,7 @@ function TerminalGridRun({ run, cellWidth, cellHeight, textStyle }: TerminalGrid
       {run.renderKind === "custom-glyph" ? (
         <TerminalGridCustomGlyphRun run={run} cellWidth={cellWidth} cellHeight={cellHeight} />
       ) : (
-        <Text numberOfLines={1} style={runTextStyle}>
+        <Text allowFontScaling={false} numberOfLines={1} style={runTextStyle}>
           {run.text}
         </Text>
       )}
@@ -240,16 +242,13 @@ function TerminalGridRow({
     () => [styles.row, { height: cellHeight }],
     [cellHeight],
   );
-  const textStyle = useMemo<StyleProp<TextStyle>>(
-    () => [
-      styles.rowText,
-      {
-        height: cellHeight,
-        lineHeight: cellHeight,
-        fontFamily,
-        fontSize,
-      },
-    ],
+  const textStyle = useMemo<TextStyle>(
+    () => ({
+      height: cellHeight,
+      lineHeight: cellHeight,
+      fontFamily,
+      fontSize,
+    }),
     [cellHeight, fontFamily, fontSize],
   );
   const accessibilityLabel = useMemo(
@@ -374,10 +373,12 @@ export function TerminalGridView({
   }, [metrics, state.cursor.col, state.cursor.row, resolver.cursorColor]);
 
   const handleMeasure = useCallback(
-    (event: LayoutChangeEvent) => {
+    (event: NativeSyntheticEvent<TextLayoutEventData>) => {
+      const line = event.nativeEvent.lines[0];
+      if (!line) return;
       const nextMetrics = resolveMeasuredTerminalCellMetrics({
-        measuredTextWidth: event.nativeEvent.layout.width,
-        measuredTextHeight: event.nativeEvent.layout.height,
+        measuredTextWidth: line.width,
+        measuredTextHeight: line.height,
         measureTextLength: MEASURE_TEXT.length,
         roundToNearestPixel: (value) => PixelRatio.roundToNearestPixel(value),
       });
@@ -408,7 +409,12 @@ export function TerminalGridView({
   return (
     <View onLayout={handleContainerLayout} pointerEvents="none" style={containerStyle}>
       <View style={gridStyle}>
-        <Text onLayout={handleMeasure} pointerEvents="none" style={measureStyle}>
+        <Text
+          allowFontScaling={false}
+          onTextLayout={handleMeasure}
+          pointerEvents="none"
+          style={measureStyle}
+        >
           {MEASURE_TEXT}
         </Text>
         {rows.map((row) => (
@@ -451,11 +457,13 @@ const styles = StyleSheet.create({
     top: 0,
   },
   rowText: {
+    fontVariant: ["no-common-ligatures", "no-contextual"],
     includeFontPadding: false,
     margin: 0,
     padding: 0,
   },
   measureText: {
+    fontVariant: ["no-common-ligatures", "no-contextual"],
     includeFontPadding: false,
     opacity: 0,
     position: "absolute",
