@@ -2547,6 +2547,13 @@ export const en = {
       },
     },
     about: {
+      macUpdate: {
+        title: "macOS updates",
+        hint: "Download the new DMG from ltlly/paseo and replace the app in Applications.",
+        error: "Could not check for updates. Try again.",
+        current: "No newer macOS app is available.",
+        download: "Download DMG",
+      },
       androidUpdate: {
         title: "Android updates",
         hint: "Download the complete APK from ltlly/paseo. Fonts are included.",

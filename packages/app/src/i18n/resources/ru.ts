@@ -2463,6 +2463,13 @@ export const ru: TranslationResources = {
       },
     },
     about: {
+      macUpdate: {
+        title: "Обновления macOS",
+        hint: "Скачайте новый DMG из ltlly/paseo и замените приложение в папке Applications.",
+        error: "Не удалось проверить обновления. Повторите попытку.",
+        current: "Новая версия для macOS недоступна.",
+        download: "Скачать DMG",
+      },
       androidUpdate: {
         title: "Обновления Android",
         hint: "Скачать полный APK из ltlly/paseo со встроенными шрифтами.",

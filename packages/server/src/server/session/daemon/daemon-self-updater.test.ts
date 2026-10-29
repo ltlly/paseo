@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, onTestFinished, test } from "vitest";
@@ -107,6 +107,64 @@ async function runUpdate(input: {
 }
 
 describe("DaemonSelfUpdater", () => {
+  test("updates both CLI and server inside the dedicated fork runtime without touching npm globals", async () => {
+    const prefix = mkdtempSync(path.join(tmpdir(), "fork runtime "));
+    onTestFinished(() => rmSync(prefix, { recursive: true, force: true }));
+    const cliPath = path.join(prefix, "node_modules", "@getpaseo", "cli");
+    const serverPath = path.join(prefix, "node_modules", "@getpaseo", "server");
+    mkdirSync(cliPath, { recursive: true });
+    mkdirSync(serverPath, { recursive: true });
+    writeFileSync(
+      path.join(prefix, "package.json"),
+      JSON.stringify({ name: "paseo-fork-runtime" }),
+    );
+    writeFileSync(
+      path.join(serverPath, "package.json"),
+      JSON.stringify({ paseoFork: { repository: "ltlly/paseo" } }),
+    );
+    let version = "0.14.0-ltlly.1";
+    const commands: string[][] = [];
+    const npm = new DefaultNpmGlobalPaseoCli(async (_command, args) => {
+      commands.push(args);
+      expect(args).not.toContain("-g");
+      expect(args.slice(-2)).toEqual(["--prefix", prefix]);
+      if (args.includes("install")) {
+        expect(args).toContain(
+          "https://github.com/ltlly/paseo/releases/download/v0.14.0-ltlly.2/getpaseo-cli.tgz",
+        );
+        expect(args).toContain(
+          "https://github.com/ltlly/paseo/releases/download/v0.14.0-ltlly.2/getpaseo-server.tgz",
+        );
+        version = "0.14.0-ltlly.2";
+      }
+      return {
+        exitCode: 0,
+        stderr: "",
+        stdout: JSON.stringify({
+          path: prefix,
+          dependencies: { "@getpaseo/cli": { version, path: cliPath } },
+        }),
+      };
+    });
+    const runtime = {
+      npm,
+      installOrigin: { resolveCurrentServerPackageRoot: () => serverPath },
+      resolveLatestForkTag: async () => "v0.14.0-ltlly.2",
+    };
+    expect((await runUpdate({ runtime, daemonVersion: "0.14.0-ltlly.1" })).result).toEqual({
+      success: true,
+      error: null,
+      newVersion: "0.14.0-ltlly.2",
+    });
+    expect(commands).toHaveLength(3);
+    commands.length = 0;
+    expect((await runUpdate({ runtime, daemonVersion: "0.14.0-ltlly.2" })).result.success).toBe(
+      true,
+    );
+    expect(commands).toHaveLength(1);
+    expect(commands[0]).not.toContain("install");
+  });
+
   test("probes and updates the running install's prefix when npm defaults elsewhere", async () => {
     const prefix = mkdtempSync(path.join(tmpdir(), "custom npm prefix "));
     onTestFinished(() => rmSync(prefix, { recursive: true, force: true }));

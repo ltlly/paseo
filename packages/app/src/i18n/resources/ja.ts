@@ -2442,6 +2442,13 @@ export const ja: TranslationResources = {
       },
     },
     about: {
+      macUpdate: {
+        title: "macOS の更新",
+        hint: "ltlly/paseo から新しい DMG をダウンロードし、アプリケーション内のアプリを置き換えます。",
+        error: "更新を確認できませんでした。再試行してください。",
+        current: "新しい macOS アプリはありません。",
+        download: "DMG をダウンロード",
+      },
       androidUpdate: {
         title: "Android の更新",
         hint: "フォントを含む完全な APK を ltlly/paseo からダウンロードします。",

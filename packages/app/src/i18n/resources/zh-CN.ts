@@ -2396,6 +2396,13 @@ export const zhCN: TranslationResources = {
       },
     },
     about: {
+      macUpdate: {
+        title: "macOS 更新",
+        hint: "从 ltlly/paseo 下载新版 DMG，替换“应用程序”中的应用。",
+        error: "检查更新失败，请重试。",
+        current: "暂无更新的 macOS 安装包。",
+        download: "下载 DMG",
+      },
       androidUpdate: {
         title: "Android 更新",
         hint: "从 ltlly/paseo 下载完整 APK，已包含字体。",

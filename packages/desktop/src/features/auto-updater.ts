@@ -142,7 +142,8 @@ export function shouldInstallAppUpdateOnQuit(input: {
 }): boolean {
   // AppImage's no-relaunch install path blocks while launching the replacement
   // binary, which can hang after the running file has already been replaced.
-  return !(input.platform === "linux" && input.isAppImage);
+  // Fork macOS packages are ad hoc signed; use the repository DMG download flow.
+  return input.platform !== "darwin" && !(input.platform === "linux" && input.isAppImage);
 }
 
 class ElectronAppUpdateRuntime implements AppUpdateRuntime {

@@ -2435,6 +2435,13 @@ export const ko: TranslationResources = {
       },
     },
     about: {
+      macUpdate: {
+        title: "macOS 업데이트",
+        hint: "ltlly/paseo에서 새 DMG를 다운로드하고 응용 프로그램의 앱을 교체하세요.",
+        error: "업데이트를 확인하지 못했습니다. 다시 시도하세요.",
+        current: "새로운 macOS 앱이 없습니다.",
+        download: "DMG 다운로드",
+      },
       androidUpdate: {
         title: "Android 업데이트",
         hint: "글꼴이 포함된 전체 APK를 ltlly/paseo에서 다운로드합니다.",

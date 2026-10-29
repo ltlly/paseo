@@ -1,7 +1,13 @@
+import {
+  FORK_LATEST_RELEASE_API,
+  parseForkVersion,
+  isNewerForkRelease,
+} from "@getpaseo/protocol/fork-release";
 import { getErrorMessage } from "@getpaseo/protocol/error-utils";
 import {
   daemonInstallOriginRuntime,
   resolveNpmGlobalPrefix,
+  resolveForkRuntimePrefix,
   validateDaemonInstallOrigin,
   type DaemonInstallOriginRuntime,
 } from "./install-origin.js";
@@ -30,6 +36,7 @@ export interface DaemonSelfUpdateLogger {
 export interface DaemonSelfUpdateRuntime {
   npm: NpmGlobalPaseoCli;
   installOrigin: DaemonInstallOriginRuntime;
+  resolveLatestForkTag?: () => Promise<string>;
 }
 
 export class DaemonSelfUpdateInProgressError extends Error {
@@ -42,7 +49,27 @@ export class DaemonSelfUpdateInProgressError extends Error {
 const defaultRuntime: DaemonSelfUpdateRuntime = {
   npm: npmGlobalPaseoCli,
   installOrigin: daemonInstallOriginRuntime,
+  resolveLatestForkTag,
 };
+
+async function resolveLatestForkTag(): Promise<string> {
+  const response = await fetch(FORK_LATEST_RELEASE_API, { signal: AbortSignal.timeout(20_000) });
+  if (!response.ok) throw new Error(`Could not check fork release: HTTP ${response.status}`);
+  const release = await response.json();
+  if (
+    release.draft ||
+    release.prerelease ||
+    typeof release.tag_name !== "string" ||
+    !parseForkVersion(release.tag_name)
+  ) {
+    throw new Error("The latest release is not a published fork revision");
+  }
+  const assets = new Set((release.assets ?? []).map((asset: { name: string }) => asset.name));
+  if (!assets.has("getpaseo-cli.tgz") || !assets.has("getpaseo-server.tgz")) {
+    throw new Error("The latest fork release is missing runtime packages");
+  }
+  return release.tag_name;
+}
 
 const DESKTOP_MANAGED_UPDATE_ERROR =
   "This daemon is managed by Paseo Desktop. Update Paseo Desktop on the host.";
@@ -64,11 +91,14 @@ export class DaemonSelfUpdater {
     this.inProgress = true;
     try {
       input.onProgress("starting");
-      const npmOptions = {
-        prefix: resolveNpmGlobalPrefix(
-          this.runtime.installOrigin.resolveCurrentServerPackageRoot(),
-        ),
-      };
+      const serverRoot = this.runtime.installOrigin.resolveCurrentServerPackageRoot();
+      const forkPrefix = resolveForkRuntimePrefix(serverRoot);
+      const releaseTag = forkPrefix
+        ? await (this.runtime.resolveLatestForkTag ?? resolveLatestForkTag)()
+        : undefined;
+      const npmOptions = forkPrefix
+        ? { prefix: forkPrefix, global: false, releaseTag }
+        : { prefix: resolveNpmGlobalPrefix(serverRoot) };
       const install = await this.runtime.npm.inspect(npmOptions);
       const unsupportedReason = validateDaemonInstallOrigin(
         install,
@@ -77,6 +107,11 @@ export class DaemonSelfUpdater {
       );
       if (unsupportedReason) {
         return { success: false, error: unsupportedReason, newVersion: null };
+      }
+
+      if (releaseTag && !isNewerForkRelease(releaseTag, install.version)) {
+        input.onProgress("complete");
+        return { success: true, error: null, newVersion: install.version };
       }
 
       input.onProgress("downloading");

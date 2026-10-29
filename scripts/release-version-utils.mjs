@@ -105,6 +105,10 @@ export function computeNextReleaseVersion(currentVersion, mode) {
     );
   }
 
+  return computeUpstreamReleaseVersion(currentVersion, mode, parsed);
+}
+
+function computeUpstreamReleaseVersion(currentVersion, mode, parsed) {
   if (mode === "patch" || mode === "minor" || mode === "major") {
     if (parsed.isPrerelease) {
       throw new Error(

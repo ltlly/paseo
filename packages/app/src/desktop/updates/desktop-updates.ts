@@ -1,6 +1,6 @@
 import { isElectronRuntime } from "@/desktop/host";
 import { invokeDesktopCommand } from "@/desktop/electron/invoke";
-import { isWeb } from "@/constants/platform";
+import { isWeb, getIsElectronMac } from "@/constants/platform";
 import { i18n } from "@/i18n/i18next";
 
 export interface DesktopAppUpdateCheckResult {
@@ -22,6 +22,7 @@ export interface DesktopAppUpdateInstallResult {
 export interface DesktopRuntimeInfo {
   appVersion: string | null;
   runningUnderARM64Translation: boolean;
+  architecture: "arm64" | "x64" | null;
 }
 
 export type DesktopReleaseChannel = "stable" | "beta";
@@ -62,7 +63,7 @@ function toNumberOr(defaultValue: number, value: unknown): number {
 }
 
 export function shouldShowDesktopUpdateSection(): boolean {
-  return isWeb && isElectronRuntime();
+  return isWeb && isElectronRuntime() && !getIsElectronMac();
 }
 
 export function parseLocalDaemonVersionResult(raw: unknown): LocalDaemonVersionResult {
@@ -86,12 +87,15 @@ export function parseDesktopRuntimeInfo(raw: unknown): DesktopRuntimeInfo {
     return {
       appVersion: null,
       runningUnderARM64Translation: false,
+      architecture: null,
     };
   }
 
   return {
     appVersion: toStringOrNull(raw.appVersion),
     runningUnderARM64Translation: raw.runningUnderARM64Translation === true,
+    architecture:
+      raw.architecture === "arm64" || raw.architecture === "x64" ? raw.architecture : null,
   };
 }
 

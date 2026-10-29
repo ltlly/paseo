@@ -1,6 +1,6 @@
 {
   "name": "paseo",
-  "version": "0.14.0-ltlly.1",
+  "version": "0.14.0-ltlly.2",
   "private": true,
   "description": "Paseo: voice-controlled development environment for local AI coding agents",
   "keywords": [
@@ -124,7 +124,8 @@
     "release:minor": "npm run release:check && npm run version:all:minor && npm run release:publish && npm run release:push",
     "release:major": "npm run release:check && npm run version:all:major && npm run release:publish && npm run release:push",
     "package:fork-runtime": "node scripts/package-fork-runtime.mjs",
-    "version:fork:next": "node scripts/set-release-version.mjs --mode fork-next"
+    "version:fork:next": "node scripts/set-release-version.mjs --mode fork-next",
+    "release:fork": "npm run version:fork:next && npm run release:push"
   },
   "devDependencies": {
     "@types/ws": "^8.5.14",

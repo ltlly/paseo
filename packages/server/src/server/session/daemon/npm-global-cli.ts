@@ -1,4 +1,8 @@
-import { FORK_UPDATE_FEED_URL } from "@getpaseo/protocol/fork-release";
+import {
+  FORK_UPDATE_FEED_URL,
+  FORK_RELEASES_URL,
+  parseForkVersion,
+} from "@getpaseo/protocol/fork-release";
 import { lstatSync } from "node:fs";
 import { getErrorMessage } from "@getpaseo/protocol/error-utils";
 import { z } from "zod";
@@ -59,6 +63,8 @@ export interface NpmGlobalPaseoCli {
 
 interface NpmGlobalOptions {
   prefix?: string;
+  global?: boolean;
+  releaseTag?: string;
 }
 
 export type CommandRunner = (
@@ -128,7 +134,15 @@ export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
     const prefixArgs = options.prefix ? ["--prefix", options.prefix] : [];
     const result = await this.runCommand(
       "npm",
-      ["-g", "ls", PASEO_CLI_PACKAGE, "--json", "--depth=0", "--long", ...prefixArgs],
+      [
+        ...(options.global === false ? [] : ["-g"]),
+        "ls",
+        PASEO_CLI_PACKAGE,
+        "--json",
+        "--depth=0",
+        "--long",
+        ...prefixArgs,
+      ],
       {
         timeout: NPM_PROBE_TIMEOUT_MS,
         maxBuffer: NPM_MAX_BUFFER_BYTES,
@@ -148,15 +162,27 @@ export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
 
   installLatest(options: NpmGlobalOptions = {}): Promise<CommandResult> {
     const prefixArgs = options.prefix ? ["--prefix", options.prefix] : [];
+    if (
+      options.global === false &&
+      (!options.releaseTag || !parseForkVersion(options.releaseTag))
+    ) {
+      throw new Error("A validated fork release tag is required for runtime updates");
+    }
+    const releaseBase = options.releaseTag
+      ? `${FORK_RELEASES_URL}/download/${options.releaseTag}`
+      : FORK_UPDATE_FEED_URL;
+    // The custom runtime declares both packages at its root. Upgrade them together.
+    const packages = [`${releaseBase}/getpaseo-cli.tgz`];
+    if (options.global === false) packages.push(`${releaseBase}/getpaseo-server.tgz`);
     // npm 12 requires explicit URL and native install-script opt-ins for this command.
     return this.runCommand(
       "npm",
       [
         "install",
-        "-g",
+        ...(options.global === false ? ["--omit=dev"] : ["-g"]),
         "--allow-remote=all",
         "--allow-scripts=esbuild,node-pty,msgpackr-extract,sherpa-onnx-node",
-        PASEO_CLI_UPDATE_URL,
+        ...packages,
         ...prefixArgs,
       ],
       {

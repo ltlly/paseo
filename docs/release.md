@@ -4,11 +4,18 @@ All workspaces share one version and release together.
 
 ## Fork release policy
 
-`ltlly/paseo` is the source for this fork. Repository Actions are disabled, and GitHub/EAS workflows
-accept manual dispatch only. Do not enable Actions, dispatch CI, publish, or deploy until the owner
-requests it. Local build, lint, typecheck and targeted tests are available while CI is off. The
-upstream release playbook below is reference material; its npm publication and automatic CI steps
-do not apply to this fork.
+`ltlly/paseo` is the only release source. The `Fork Release` workflow runs when a
+`vX.Y.Z-ltlly.N` tag is pushed or a fork release is published. Ordinary commits, PRs and schedules
+do not trigger builds. The upstream workflows remain manual-only and disabled in this fork.
+
+CI verifies the source, builds the seven runtime packages, Windows x64/ARM64 installers,
+macOS ARM64/x64 DMG and ZIP packages, Linux x64 packages, and signed Android ARM64/universal APKs.
+It uploads a complete release only after every job succeeds and validates updater checksums and
+runtime dependency URLs before moving `latest`. APK signing uses the existing fork identity in
+repository Actions secrets. macOS ad hoc builds use the explicit DMG download flow in Settings → About.
+
+The upstream release playbook below is reference material; its npm publication and automatic
+branch-CI steps do not apply to this fork. Never publish this fork to the upstream npm packages.
 
 Build a runtime locally with:
 
@@ -22,7 +29,7 @@ npm run package:fork-runtime -- <release-tag>
 The packer stages packages without modifying workspace manifests and pins every internal dependency
 to the same fork release tag. Upload all seven tarballs, the runtime manifest and SHA256SUMS together
 after publication is authorized. Publishing only the CLI tarball leaves its pinned dependencies missing.
-The manual `Fork Runtime Artifacts` workflow produces artifacts without creating a release.
+The older manual `Fork Runtime Artifacts` workflow is retained as a reference and disabled.
 
 Daemon self-update downloads `getpaseo-cli.tgz` from the latest fork release; desktop update metadata
 also comes from the fork. No official-npm fallback is allowed. Keep the CLI tarball on every release
@@ -36,7 +43,7 @@ Before marking a release latest, upload the runtime assets, complete `Paseo-VERS
 The existing mac/home/dy `0.14.0-mouse.1` runtime services require a one-time migration to these
 artifacts. Preserve each service's environment, working directory, Paseo home and rollback runtime.
 Installing files does not change a running process; service restart is a separate deployment step.
-The updater supports npm global installs; custom versioned-prefix services remain explicitly managed.
+The updater supports npm global installs and validates dedicated `paseo-fork-runtime` local prefixes before updating both root CLI/server dependencies to the same fork tag. Existing service paths stay stable, including on Windows.
 Android distribution and signing are described in [Android](android.md).
 
 ## Two steps

@@ -2475,6 +2475,13 @@ export const fr: TranslationResources = {
       },
     },
     about: {
+      macUpdate: {
+        title: "Mises à jour macOS",
+        hint: "Téléchargez le nouveau DMG depuis ltlly/paseo et remplacez l’app dans Applications.",
+        error: "Impossible de vérifier les mises à jour. Réessayez.",
+        current: "Aucune nouvelle version macOS disponible.",
+        download: "Télécharger le DMG",
+      },
       androidUpdate: {
         title: "Mises à jour Android",
         hint: "Téléchargez l’APK complet depuis ltlly/paseo, polices incluses.",

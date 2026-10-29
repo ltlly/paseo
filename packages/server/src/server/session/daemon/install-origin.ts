@@ -1,3 +1,4 @@
+import { FORK_REPOSITORY } from "@getpaseo/protocol/fork-release";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,6 +29,23 @@ export function resolveNpmGlobalPrefix(serverPackageRoot: string | null): string
     directory = path.dirname(directory);
   }
   return prefix;
+}
+
+/** Only the dedicated fork runtime layout is eligible for local-prefix updates. */
+export function resolveForkRuntimePrefix(serverPackageRoot: string | null): string | undefined {
+  if (!serverPackageRoot) return undefined;
+  const modules = path.dirname(path.dirname(serverPackageRoot));
+  if (path.basename(modules) !== "node_modules") return undefined;
+  const prefix = path.dirname(modules);
+  try {
+    const root = JSON.parse(readFileSync(path.join(prefix, "package.json"), "utf8"));
+    const server = JSON.parse(readFileSync(path.join(serverPackageRoot, "package.json"), "utf8"));
+    if (root.name !== "paseo-fork-runtime" || server.paseoFork?.repository !== FORK_REPOSITORY)
+      return undefined;
+    return prefix;
+  } catch {
+    return undefined;
+  }
 }
 
 export function validateDaemonInstallOrigin(

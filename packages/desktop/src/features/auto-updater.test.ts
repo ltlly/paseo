@@ -172,10 +172,10 @@ describe("checkForAppUpdate", () => {
 });
 
 describe("shouldInstallAppUpdateOnQuit", () => {
-  it("keeps Linux AppImage updates on the manual install path", () => {
+  it("keeps ad hoc macOS and Linux AppImage updates off the quit installation path", () => {
     expect(shouldInstallAppUpdateOnQuit({ platform: "linux", isAppImage: true })).toBe(false);
     expect(shouldInstallAppUpdateOnQuit({ platform: "linux", isAppImage: false })).toBe(true);
-    expect(shouldInstallAppUpdateOnQuit({ platform: "darwin", isAppImage: false })).toBe(true);
+    expect(shouldInstallAppUpdateOnQuit({ platform: "darwin", isAppImage: false })).toBe(false);
     expect(shouldInstallAppUpdateOnQuit({ platform: "win32", isAppImage: false })).toBe(true);
   });
 });

@@ -2458,6 +2458,13 @@ export const ar: TranslationResources = {
       },
     },
     about: {
+      macUpdate: {
+        title: "تحديثات macOS",
+        hint: "نزّل ملف DMG الجديد من ltlly/paseo واستبدل التطبيق في Applications.",
+        error: "تعذر التحقق من التحديثات. حاول مجددًا.",
+        current: "لا يتوفر تطبيق macOS أحدث.",
+        download: "تنزيل DMG",
+      },
       androidUpdate: {
         title: "تحديثات Android",
         hint: "تنزيل ملف APK الكامل من ltlly/paseo، مع الخطوط المضمنة.",

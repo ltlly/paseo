@@ -2476,6 +2476,13 @@ export const es: TranslationResources = {
       },
     },
     about: {
+      macUpdate: {
+        title: "Actualizaciones de macOS",
+        hint: "Descarga el nuevo DMG de ltlly/paseo y reemplaza la app en Aplicaciones.",
+        error: "No se pudieron buscar actualizaciones. Inténtalo de nuevo.",
+        current: "No hay una app de macOS más reciente.",
+        download: "Descargar DMG",
+      },
       androidUpdate: {
         title: "Actualizaciones de Android",
         hint: "Descarga el APK completo de ltlly/paseo, con las fuentes incluidas.",

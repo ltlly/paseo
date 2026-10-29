@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.0-ltlly.2 - 2026-10-29
+
+- Build and publish all fork runtime, desktop and Android artifacts from GitHub Actions only on fork release tags or published releases; ordinary commits do not trigger CI.
+- Validate all required platform packages, updater hashes and pinned runtime dependency URLs before promoting a release to latest.
+- Support daemon self-update inside the existing custom runtime prefixes, updating CLI/server together without changing the global npm installation.
+- Provide architecture-correct macOS DMG checks/downloads for ad hoc builds; keep native automatic installation for Windows and supported Linux packages.
+- Preserve Android signing identity, embedded JetBrains Mono/Maple Mono CN fonts and monotonic APK build codes.
+
 ## 0.14.0-ltlly.1 - 2026-10-29
 
 - Align fork versions with upstream 0.14.0 and increment only the `-ltlly.N` revision; retain all changes from fork 0.14.1–0.14.4.

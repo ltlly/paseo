@@ -474,6 +474,7 @@ export function createDaemonCommandHandlers(): Record<string, DesktopCommandHand
     desktop_get_runtime_info: () => ({
       appVersion: resolveDesktopAppVersion(),
       runningUnderARM64Translation: isRunningUnderARM64Translation(),
+      architecture: process.arch,
     }),
     desktop_daemon_status: () => resolveDesktopDaemonStatus(),
     desktop_local_credential: async (args) => {
