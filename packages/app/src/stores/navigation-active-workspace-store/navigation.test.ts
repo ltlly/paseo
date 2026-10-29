@@ -105,33 +105,39 @@ describe("workspace navigation", () => {
     expect(remembered).toEqual([{ serverId: "server-1", workspaceId: "workspace-a" }]);
   });
 
-  it("focuses the attention agent's tab when a workspace has one", () => {
-    const workspace = {
-      id: "workspace-a",
-      workspaceDirectory: "/repo/workspace-a",
-    } as WorkspaceDescriptor;
-    const agent = {
-      id: "agent-1",
-      cwd: "/repo/workspace-a",
-      workspaceId: "workspace-a",
-      requiresAttention: true,
-      attentionReason: "permission",
-    } as unknown as Agent;
-    const { deps, openedTabs } = createFakeDeps({
-      getSessionWorkspaces: () => new Map([[workspace.id, workspace]]),
-      getSessionAgents: () => [agent],
-    });
+  it.each([false, true])(
+    "focuses the attention agent execution surface (terminal: %s)",
+    (terminal) => {
+      const workspace = {
+        id: "workspace-a",
+        workspaceDirectory: "/repo/workspace-a",
+      } as WorkspaceDescriptor;
+      const agent = {
+        id: "agent-1",
+        cwd: "/repo/workspace-a",
+        workspaceId: "workspace-a",
+        execution: terminal ? { kind: "terminal", terminalId: "terminal-1" } : undefined,
+        requiresAttention: true,
+        attentionReason: "permission",
+      } as unknown as Agent;
+      const { deps, openedTabs } = createFakeDeps({
+        getSessionWorkspaces: () => new Map([[workspace.id, workspace]]),
+        getSessionAgents: () => [agent],
+      });
 
-    navigateToWorkspace({ serverId: "server-1", workspaceId: "workspace-a" }, deps);
+      navigateToWorkspace({ serverId: "server-1", workspaceId: "workspace-a" }, deps);
 
-    expect(openedTabs).toEqual([
-      {
-        workspaceKey: "server-1:workspace-a",
-        target: { kind: "agent", agentId: "agent-1" },
-        pin: false,
-      },
-    ]);
-  });
+      expect(openedTabs).toEqual([
+        {
+          workspaceKey: "server-1:workspace-a",
+          target: terminal
+            ? { kind: "terminal", terminalId: "terminal-1" }
+            : { kind: "agent", agentId: "agent-1" },
+          pin: false,
+        },
+      ]);
+    },
+  );
 
   it("keeps an explicit tab authoritative over an attention agent", () => {
     const workspace = {

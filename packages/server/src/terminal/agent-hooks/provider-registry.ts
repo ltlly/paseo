@@ -11,6 +11,7 @@ import {
 } from "./agent-hook-installer.js";
 import { claudeAgentHookProvider } from "./claude/claude.js";
 import { codexAgentHookProvider } from "./codex/codex.js";
+import { grokAgentHookProvider } from "./grok/grok.js";
 import { opencodeAgentHookProvider } from "./opencode/opencode.js";
 
 export type {
@@ -22,6 +23,7 @@ export type {
 export const AGENT_HOOK_PROVIDERS = {
   [claudeAgentHookProvider.id]: claudeAgentHookProvider,
   [codexAgentHookProvider.id]: codexAgentHookProvider,
+  [grokAgentHookProvider.id]: grokAgentHookProvider,
   [opencodeAgentHookProvider.id]: opencodeAgentHookProvider,
 } satisfies Record<string, AgentHookProvider>;
 
@@ -69,8 +71,49 @@ export function registeredAgentHooksAreInstalled(options: AgentHookInstallOption
 export async function resolveHookActivity(
   request: AgentHookActivityRequest,
 ): Promise<AgentHookActivityState | null> {
-  const provider = AGENT_HOOK_PROVIDERS[request.provider.toLowerCase()];
+  const provider = Object.hasOwn(AGENT_HOOK_PROVIDERS, request.provider.toLowerCase())
+    ? AGENT_HOOK_PROVIDERS[request.provider.toLowerCase()]
+    : undefined;
   if (!provider) return null;
 
   return provider.resolveActivity({ event: request.event, input: request.input });
+}
+
+export interface AgentHookReport {
+  provider: string;
+  event: string;
+  state: AgentHookActivityState;
+  observedAt: number;
+  sessionId?: string;
+  cwd?: string;
+}
+
+/** Read stdin once: providers and identity extraction share the same bounded input. */
+export async function resolveHookReport(
+  request: AgentHookActivityRequest,
+): Promise<AgentHookReport | null> {
+  const observedAt = Date.now();
+  let raw: Promise<string | null> | undefined;
+  const read = () => (raw ??= request.input.isTTY ? Promise.resolve(null) : request.input.read());
+  const state = await resolveHookActivity({ ...request, input: { ...request.input, read } });
+  if (!state) return null;
+  let payload: Record<string, unknown> = {};
+  try {
+    const value: unknown = JSON.parse((await read()) ?? "{}");
+    if (value && typeof value === "object" && !Array.isArray(value))
+      payload = value as Record<string, unknown>;
+  } catch {
+    /* Missing hook metadata does not prevent activity reporting. */
+  }
+  const sessionId = payload.session_id ?? payload.sessionId ?? payload.sessionID;
+  return {
+    provider: request.provider.toLowerCase(),
+    event: request.event,
+    state,
+    observedAt,
+    ...(typeof sessionId === "string" && sessionId.length > 0 && sessionId.length <= 512
+      ? { sessionId }
+      : {}),
+    ...(typeof payload.cwd === "string" && payload.cwd.length <= 4096 ? { cwd: payload.cwd } : {}),
+  };
 }

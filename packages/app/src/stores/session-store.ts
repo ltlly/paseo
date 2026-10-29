@@ -1,3 +1,4 @@
+import type { TerminalAgentExecution } from "@getpaseo/protocol/agent-execution";
 import equal from "fast-deep-equal";
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
@@ -70,6 +71,7 @@ export interface AgentRuntimeInfo {
 }
 
 export interface Agent {
+  execution?: TerminalAgentExecution;
   serverId: string;
   id: string;
   provider: AgentProvider;
@@ -1893,6 +1895,8 @@ export const useSessionStore = create<SessionStore>()(
             lastActivityAt,
             cwd: agent.cwd,
             provider: agent.provider,
+            execution: agent.execution,
+            workspaceId: agent.workspaceId,
             pendingPermissionCount: agent.pendingPermissions.length,
             requiresAttention: agent.requiresAttention ?? false,
             attentionReason: agent.attentionReason ?? null,

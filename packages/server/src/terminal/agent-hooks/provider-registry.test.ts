@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { installRegisteredAgentHooks } from "./provider-registry.js";
+import { installRegisteredAgentHooks, resolveHookReport } from "./provider-registry.js";
 
 const temporaryDirs: string[] = [];
 
@@ -39,6 +39,55 @@ function createWarningLogger(): WarningLogger {
 }
 
 describe("terminal agent hook provider registry", () => {
+  it("preserves provider session identity and reads hook input once", async () => {
+    let reads = 0;
+    const report = await resolveHookReport({
+      provider: "GROK",
+      event: "PreToolUse",
+      input: {
+        read: async () => {
+          reads++;
+          return JSON.stringify({
+            session_id: "grok-session",
+            cwd: "/work",
+            tool_name: "AskUserQuestion",
+          });
+        },
+      },
+    });
+    expect(reads).toBe(1);
+    expect(report).toMatchObject({
+      provider: "grok",
+      sessionId: "grok-session",
+      cwd: "/work",
+      state: "needs-input",
+    });
+  });
+  it("recognizes Grok startup, completion and permission notifications", async () => {
+    for (const event of ["SessionStart", "Stop", "StopCancelled", "StopFailure", "SessionEnd"]) {
+      expect(
+        await resolveHookReport({
+          provider: "grok",
+          event,
+          input: { isTTY: true, read: async () => null },
+        }),
+      ).toMatchObject({ state: "idle", event });
+    }
+    expect(
+      await resolveHookReport({
+        provider: "grok",
+        event: "Notification",
+        input: { read: async () => JSON.stringify({ notification_type: "permission_prompt" }) },
+      }),
+    ).toMatchObject({ state: "needs-input" });
+    expect(
+      await resolveHookReport({
+        provider: "constructor",
+        event: "Stop",
+        input: { read: async () => null },
+      }),
+    ).toBeNull();
+  });
   it("continues installing provider hooks after one provider fails", () => {
     const root = createTempDir("paseo-agent-hook-registry-");
     const badClaudeConfigDir = join(root, "not-a-directory");
@@ -59,6 +108,7 @@ describe("terminal agent hook provider registry", () => {
 
     expect(results.map((result) => result.configPath)).toEqual([
       join(codexHome, "hooks.json"),
+      join(root, "home", ".grok", "hooks", "paseo-status.json"),
       join(opencodeConfigDir, "plugins", "paseo-terminal-activity.js"),
     ]);
     expect(existsSync(join(codexHome, "hooks.json"))).toBe(true);

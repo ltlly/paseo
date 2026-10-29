@@ -40,6 +40,20 @@ function createFakeNavigators(target: AgentNavTarget): {
 }
 
 describe("resolveNavigateToAgent", () => {
+  it("opens the bound terminal for a terminal agent, including a cold lookup", () => {
+    const { deps, tabNavigations } = createFakeNavigators({
+      agentWorkspaceId: WORKSPACE_ID,
+      terminalId: "pty-1",
+    });
+    resolveNavigateToAgent({ serverId: SERVER_ID, agentId: AGENT_ID }, deps);
+    expect(tabNavigations[0].target).toEqual({ kind: "terminal", terminalId: "pty-1" });
+    const cold = createFakeNavigators({ agentWorkspaceId: null });
+    resolveNavigateToAgent(
+      { serverId: SERVER_ID, agentId: AGENT_ID, workspaceId: WORKSPACE_ID, terminalId: "pty-2" },
+      cold.deps,
+    );
+    expect(cold.tabNavigations[0].target).toEqual({ kind: "terminal", terminalId: "pty-2" });
+  });
   it("opens the workspace tab carried by the agent's workspaceId", () => {
     const { deps, hostNavigations, tabNavigations } = createFakeNavigators({
       agentWorkspaceId: WORKSPACE_ID,

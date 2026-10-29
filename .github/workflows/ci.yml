@@ -1,17 +1,14 @@
 name: CI
 
+# Fork policy: run only after an explicit user request.
 on:
-  push:
-    branches: [main]
-  # Every base branch, so stacked PRs and PRs into any base get the same checks.
-  pull_request:
-  merge_group:
   workflow_dispatch:
 
 # A newer push to the same ref cancels the run still in progress, main included.
 # A full run costs about 200 runner-minutes against the org's 20 concurrent
 # jobs, and a superseded main run only answers a question the newer commit
 # answers again.
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

@@ -9,9 +9,11 @@ export interface NavigateToAgentInput {
   // (cold deep-links). Otherwise the workspace is read from the store.
   workspaceId?: string | null;
   pin?: boolean;
+  terminalId?: string;
 }
 
 export interface AgentNavTarget {
+  terminalId?: string;
   agentWorkspaceId: string | null | undefined;
 }
 
@@ -25,9 +27,9 @@ export function resolveNavigateToAgent(
   input: NavigateToAgentInput,
   deps: NavigateToAgentDeps,
 ): string {
-  const agentWorkspaceId =
-    deps.readAgentNavTarget({ serverId: input.serverId, agentId: input.agentId })
-      .agentWorkspaceId ?? input.workspaceId;
+  const agent = deps.readAgentNavTarget({ serverId: input.serverId, agentId: input.agentId });
+  const agentWorkspaceId = agent.agentWorkspaceId ?? input.workspaceId;
+  const terminalId = agent.terminalId ?? input.terminalId;
   const workspaceId = normalizeWorkspaceOpaqueId(agentWorkspaceId);
 
   if (!workspaceId) {
@@ -39,7 +41,9 @@ export function resolveNavigateToAgent(
   return deps.navigateToWorkspace({
     serverId: input.serverId,
     workspaceId,
-    target: { kind: "agent", agentId: input.agentId },
+    target: terminalId
+      ? { kind: "terminal", terminalId }
+      : { kind: "agent", agentId: input.agentId },
     pin: input.pin,
   });
 }

@@ -1,11 +1,7 @@
 name: Release Mobile
 
+# Fork policy: run only after an explicit user request.
 on:
-  push:
-    tags:
-      - "v*"
-      - "!v*-rc.*"
-      - "!v*-beta.*"
   workflow_dispatch: {}
 
 jobs:

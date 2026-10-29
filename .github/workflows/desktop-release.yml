@@ -1,13 +1,7 @@
 name: Desktop Release
 
+# Fork policy: run only after an explicit user request.
 on:
-  push:
-    tags:
-      - "v*"
-      - "desktop-v*"
-      - "desktop-macos-v*"
-      - "desktop-linux-v*"
-      - "desktop-windows-v*"
   workflow_dispatch:
     inputs:
       tag:

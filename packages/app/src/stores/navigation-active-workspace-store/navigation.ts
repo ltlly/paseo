@@ -110,10 +110,16 @@ export function navigateToWorkspace(
         )
       : [];
     const attentionAgentId = pickAttentionAgent(workspaceAgents);
-    if (attentionAgentId && resolvedWorkspaceId) {
+    const attentionAgent = workspaceAgents.find((agent) => agent.id === attentionAgentId);
+    if (attentionAgent && resolvedWorkspaceId) {
       openTab({
         workspaceKey: `${input.serverId}:${resolvedWorkspaceId}`,
-        target: { kind: "agent", agentId: attentionAgentId },
+        target: attentionAgent.execution
+          ? {
+              kind: "terminal",
+              terminalId: attentionAgent.execution.terminalId,
+            }
+          : { kind: "agent", agentId: attentionAgent.id },
         intent: "reveal",
       });
     } else {

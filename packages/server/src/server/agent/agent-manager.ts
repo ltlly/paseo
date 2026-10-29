@@ -235,6 +235,7 @@ export type {
 } from "./agent-timeline-store-types.js";
 
 export type AgentManagerEvent =
+  | { type: "stored_agent_state"; agentId: string; record: StoredAgentRecord }
   | { type: "agent_state"; agent: ManagedAgent }
   | { type: "provider_subagent"; event: ProviderSubagentStoreEvent }
   | { type: "timeline_replacement"; agentId: string; epoch: string }
@@ -2141,7 +2142,15 @@ export class AgentManager {
     }
   }
 
+  notifyStoredAgentState(record: StoredAgentRecord): void {
+    this.dispatch({ type: "stored_agent_state", agentId: record.id, record });
+  }
+
   private dispatchStoredAgentState(record: StoredAgentRecord): void {
+    if (record.execution) {
+      this.notifyStoredAgentState(record);
+      return;
+    }
     const updatedAt = new Date(record.updatedAt);
     const attention = extractAttention(record);
     this.dispatch({
@@ -5376,7 +5385,7 @@ export class AgentManager {
     for (const subscriber of this.subscribers) {
       if (
         subscriber.agentId &&
-        event.type === "agent_stream" &&
+        (event.type === "agent_stream" || event.type === "stored_agent_state") &&
         subscriber.agentId !== event.agentId
       ) {
         continue;
@@ -5411,6 +5420,7 @@ export class AgentManager {
   }
 
   private eventBelongsToInternalAgent(event: AgentManagerEvent): boolean {
+    if (event.type === "stored_agent_state") return event.record.internal === true;
     if (event.type === "agent_state") return event.agent.internal === true;
     if (event.type === "agent_stream") return this.agents.get(event.agentId)?.internal === true;
     if (event.type !== "provider_subagent") return false;

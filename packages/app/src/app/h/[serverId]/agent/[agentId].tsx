@@ -57,7 +57,7 @@ function HostAgentReadyRouteContent() {
         throw new Error("Target host client is unavailable");
       }
       const result = await client.fetchAgent({ agentId });
-      return result?.agent?.workspaceId ?? null;
+      return result?.agent ?? null;
     },
     enabled: shouldLookupAgent,
     retry: false,
@@ -75,7 +75,7 @@ function HostAgentReadyRouteContent() {
       return { kind: "failed", error: toErrorMessage(lookupQuery.error) };
     }
     if (lookupQuery.isSuccess) {
-      return { kind: "found", workspaceId: lookupQuery.data };
+      return { kind: "found", workspaceId: lookupQuery.data?.workspaceId ?? null };
     }
     return { kind: "fetching" };
   }, [
@@ -114,11 +114,17 @@ function HostAgentReadyRouteContent() {
     handledNavigationRef.current = navigationKey;
 
     if (resolution.kind === "resolved") {
-      navigateToAgent({ serverId, agentId, workspaceId: resolution.workspaceId, pin: true });
+      navigateToAgent({
+        serverId,
+        agentId,
+        workspaceId: resolution.workspaceId,
+        terminalId: lookupQuery.data?.execution?.terminalId,
+        pin: true,
+      });
       return;
     }
     router.replace(resolution.kind === "invalid" ? ("/" as Href) : buildHostRootRoute(serverId));
-  }, [agentId, resolution, router, serverId]);
+  }, [agentId, resolution, router, serverId, lookupQuery.data]);
 
   const handleRetry = useCallback(() => {
     if (resolution.kind === "lookupError") {

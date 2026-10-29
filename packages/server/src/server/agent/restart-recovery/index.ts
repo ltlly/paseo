@@ -10,7 +10,11 @@ export function createRestartRecovery(deps: Dependencies) {
   // Candidates are chosen at startup; each settles once its resume was sent or abandoned.
   const resuming = new Map<string, { promise: Promise<void>; resolve(): void }>();
   const eligible = async (record: StoredAgentRecord) =>
-    !record.archivedAt && !record.internal && !record.owner && (await deps.eligible(record));
+    !record.execution &&
+    !record.archivedAt &&
+    !record.internal &&
+    !record.owner &&
+    (await deps.eligible(record));
   async function resume(agentId: string) {
     const record = await deps.storage.get(agentId);
     if (!record?.resumeOnStartup) return;
@@ -22,6 +26,7 @@ export function createRestartRecovery(deps: Dependencies) {
     /** Choose candidates before anything else reads or repairs persisted running status. */
     async prepareStartup() {
       for (const record of await deps.storage.list()) {
+        if (record.execution) continue;
         const pending =
           deps.settings().enabled &&
           (record.resumeOnStartup === true || record.lastStatus === "running") &&

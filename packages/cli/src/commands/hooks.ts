@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { resolveHookActivity, type AgentHookActivityState } from "@getpaseo/server/agent-hooks";
+import { resolveHookReport, type AgentHookReport } from "@getpaseo/server/agent-hooks";
 
 interface HookEnvironment {
   PASEO_TERMINAL_ID?: string;
@@ -38,7 +38,7 @@ export async function runHooksCommand(
   const target = resolveTarget(runtime.env);
   if (!target) return;
 
-  const state = await resolveHookActivity({
+  const report = await resolveHookReport({
     provider: agent,
     event,
     input: {
@@ -46,9 +46,9 @@ export async function runHooksCommand(
       read: () => readInput(runtime.input),
     },
   });
-  if (!state) return;
+  if (!report) return;
 
-  await postActivity(target, state, runtime.fetch);
+  await postActivity(target, report, runtime.fetch);
 }
 
 function resolveTarget(env: HookEnvironment) {
@@ -63,6 +63,7 @@ function resolveTarget(env: HookEnvironment) {
 async function readInput(input: HookInput): Promise<string | null> {
   const iterator = input[Symbol.asyncIterator]();
   const chunks: string[] = [];
+  let bytes = 0;
 
   while (true) {
     const next = await withTimeout(iterator.next(), 100);
@@ -71,6 +72,8 @@ async function readInput(input: HookInput): Promise<string | null> {
       return null;
     }
     if (next.done) return chunks.join("");
+    bytes += Buffer.byteLength(next.value);
+    if (bytes > 1024 * 1024) return null;
     chunks.push(String(next.value));
   }
 }
@@ -91,7 +94,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null
 
 async function postActivity(
   target: { terminalId: string; token: string; url: string },
-  state: AgentHookActivityState,
+  report: AgentHookReport,
   send: typeof fetch,
 ): Promise<void> {
   const controller = new AbortController();
@@ -104,7 +107,7 @@ async function postActivity(
       body: JSON.stringify({
         terminalId: target.terminalId,
         token: target.token,
-        state,
+        ...report,
       }),
       signal: controller.signal,
     });

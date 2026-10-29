@@ -1,3 +1,4 @@
+import { TerminalAgentExecutionSchema } from "@getpaseo/protocol/agent-execution";
 import { promises as fs, type Dirent } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
@@ -43,6 +44,8 @@ const PERSISTENCE_HANDLE_SCHEMA = z
   .optional();
 
 const STORED_AGENT_SCHEMA = z.object({
+  execution: TerminalAgentExecutionSchema.optional(),
+  lastHookAt: z.number().optional(),
   id: z.string(),
   provider: z.string(),
   cwd: z.string(),

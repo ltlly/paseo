@@ -104,6 +104,12 @@ export async function ensureAgentLoaded(
       throw new AgentNotFoundError(agentId);
     }
 
+    if (record.execution?.kind === "terminal") {
+      throw new Error(
+        `This agent runs in terminal ${record.execution.terminalId}. Open its terminal to interact.`,
+      );
+    }
+
     const validProviders = deps.validProviders ?? deps.agentManager.getRegisteredProviderIds();
     if (!isStoredAgentProviderAvailable(record, validProviders)) {
       throw new Error(`Agent ${agentId} references unavailable provider '${record.provider}'`);

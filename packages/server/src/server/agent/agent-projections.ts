@@ -212,11 +212,11 @@ export function buildStoredAgentPayload(
 ): AgentSnapshotPayload {
   const defaultCapabilities = {
     supportsStreaming: false,
-    supportsSessionPersistence: true,
+    supportsSessionPersistence: !record.execution,
     supportsDynamicModes: false,
     supportsMcpServers: false,
     supportsReasoningStream: false,
-    supportsToolInvocations: true,
+    supportsToolInvocations: !record.execution,
     supportsRewindConversation: false,
     supportsRewindFiles: false,
     supportsRewindBoth: false,
@@ -234,6 +234,7 @@ export function buildStoredAgentPayload(
 
   return {
     id: record.id,
+    execution: record.execution,
     provider: record.provider,
     cwd: record.cwd,
     ...(record.workspaceId ? { workspaceId: record.workspaceId } : {}),
@@ -268,6 +269,8 @@ export function buildStoredAgentPayload(
 export function toAgentListItemPayload(agent: AgentSnapshotPayload): AgentListItemPayload {
   return {
     id: agent.id,
+    execution: agent.execution,
+    workspaceId: agent.workspaceId,
     shortId: agent.id.slice(0, 7),
     title: agent.title,
     provider: agent.provider,

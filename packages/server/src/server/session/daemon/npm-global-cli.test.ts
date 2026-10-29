@@ -118,7 +118,11 @@ describe("DefaultNpmGlobalPaseoCli", () => {
     expect(calls).toEqual([
       {
         command: "npm",
-        args: ["install", "-g", "@getpaseo/cli@latest"],
+        args: [
+          "install",
+          "-g",
+          "https://github.com/ltlly/paseo/releases/latest/download/getpaseo-cli.tgz",
+        ],
         timeout: 300_000,
         maxBuffer: 10 * 1024 * 1024,
       },

@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { relative as relativePath } from "node:path";
 import test from "node:test";
+import { parse as parseYaml } from "yaml";
 import { runInNewContext } from "node:vm";
 
 const repoRoot = new URL("../", import.meta.url);
@@ -93,7 +94,7 @@ test("gated checks are statically named jobs with real job-level gating", () => 
   const jobs = jobBlocks(workflowSource);
   const trigger = workflowSource.split("jobs:", 1)[0];
 
-  assert.match(trigger, /^\s+merge_group:\s*$/m);
+  assert.match(trigger, /^\s+workflow_dispatch:\s*$/m);
   assert.doesNotMatch(workflowSource, /strategy:\s*\n\s+matrix:/);
   assert.doesNotMatch(workflowSource, /RUN_TESTS|Skip unaffected|No .* changes detected/);
 
@@ -108,15 +109,18 @@ test("gated checks are statically named jobs with real job-level gating", () => 
   }
 });
 
-test("pull-request checks run for every base branch, including stacked PRs", () => {
-  for (const workflowPath of [
-    ciWorkflowPath,
-    new URL(".github/workflows/desktop-packages.yml", repoRoot),
-  ]) {
-    const trigger = readFileSync(workflowPath, "utf8").split("jobs:", 1)[0];
-    const pullRequest = trigger.match(/^  pull_request:\n((?:    .*\n)*)/m);
-    assert.ok(pullRequest, `${workflowPath.pathname} runs on pull requests`);
-    assert.doesNotMatch(pullRequest[1], /branches/);
+test("fork GitHub and EAS workflows require explicit manual dispatch", () => {
+  for (const directory of [".github/workflows/", "packages/app/.eas/workflows/"]) {
+    for (const filename of readdirSync(new URL(directory, repoRoot)).filter((name) =>
+      name.endsWith(".yml"),
+    )) {
+      const source = readFileSync(new URL(directory + filename, repoRoot), "utf8");
+      assert.deepEqual(
+        Object.keys(parseYaml(source).on),
+        ["workflow_dispatch"],
+        directory + filename,
+      );
+    }
   }
 });
 
@@ -317,22 +321,21 @@ test("browser and desktop tests have exclusive, directory-owned suites", () => {
   ]);
 });
 
-test("packaging runs on main without allocating pull-request runners", () => {
+test("packaging runs only by manual dispatch", () => {
   for (const workflowPath of [dockerWorkflowPath, nixWorkflowPath]) {
     const source = readFileSync(workflowPath, "utf8");
     const trigger = source.split("jobs:", 1)[0];
-    assert.match(trigger, /push:\s*\n\s+branches: \[main\]/);
+    assert.match(trigger, /workflow_dispatch:/);
     assert.doesNotMatch(trigger, /pull_request/);
     assert.doesNotMatch(source, /dorny\/paths-filter/);
   }
 });
 
-test("desktop packaging smokes main pushes and only the pull requests that touch packaging", () => {
+test("manual desktop packaging keeps pinned actions", () => {
   const source = readFileSync(new URL(".github/workflows/desktop-packages.yml", repoRoot), "utf8");
   const trigger = source.split("jobs:", 1)[0];
-  assert.match(trigger, /push:\s*\n\s+branches: \[main\]/);
-  assert.match(trigger, /pull_request:\s*\n\s+paths:/);
-  assert.match(trigger, /- "packages\/desktop\/\*\*"/);
+  assert.match(trigger, /workflow_dispatch:/);
+  assert.deepEqual(Object.keys(parseYaml(source).on), ["workflow_dispatch"]);
   assert.doesNotMatch(source, /dorny\/paths-filter/);
   for (const action of ["actions/checkout", "actions/setup-node", "actions/upload-artifact"]) {
     assert.match(source, new RegExp(`${action}@[0-9a-f]{40} # v\\d+\\.\\d+\\.\\d+`));

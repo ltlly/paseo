@@ -1,8 +1,7 @@
 name: Deploy Relay
 
+# Fork policy: run only after an explicit user request.
 on:
-  # Manual-only while relay.paseo.sh bridges traffic to the Fly deployment.
-  # A release or main push must not redeploy the temporary Cloudflare bridge.
   workflow_dispatch:
 
 jobs:
