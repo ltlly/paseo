@@ -1,3 +1,4 @@
+import { TerminalAgentExecutionSchema } from "./agent-execution.js";
 import { AgentMessageSchema } from "./agent-message.js";
 import {
   HostsListRequestSchema,
@@ -856,6 +857,7 @@ const AgentActiveTurnPayloadSchema = z.object({
 });
 
 export const AgentSnapshotPayloadSchema = z.object({
+  execution: TerminalAgentExecutionSchema.optional(),
   id: z.string(),
   provider: AgentProviderSchema,
   cwd: z.string(),
@@ -891,6 +893,8 @@ export const AgentSnapshotPayloadSchema = z.object({
 export type AgentSnapshotPayload = z.infer<typeof AgentSnapshotPayloadSchema>;
 
 export const AgentListItemPayloadSchema = z.object({
+  execution: TerminalAgentExecutionSchema.optional(),
+  workspaceId: z.string().optional(),
   id: z.string(),
   shortId: z.string(),
   title: z.string().nullable(),

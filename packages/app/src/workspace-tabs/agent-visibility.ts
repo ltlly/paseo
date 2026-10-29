@@ -14,7 +14,8 @@ export function deriveWorkspaceAgentVisibility(input: {
   agentDetails?: Map<string, Agent> | undefined;
   workspaceId: string | null | undefined;
 }): WorkspaceAgentVisibility {
-  const { sessionAgents, agentDetails } = input;
+  const { agentDetails } = input;
+  const sessionAgents = input.sessionAgents ?? new Map<string, Agent>();
   const workspaceId = normalizeWorkspaceOpaqueId(input.workspaceId);
   if (!workspaceId) {
     return {
@@ -27,7 +28,7 @@ export function deriveWorkspaceAgentVisibility(input: {
   const activeAgentIds = new Set<string>();
   const autoOpenAgentIds = new Set<string>();
   const foreignAgentIds = new Set<string>();
-  for (const agent of sessionAgents?.values() ?? []) {
+  for (const agent of sessionAgents.values()) {
     const ownerId = normalizeWorkspaceOpaqueId(agent.workspaceId);
     if (ownerId !== workspaceId) {
       if (ownerId) {
@@ -35,10 +36,10 @@ export function deriveWorkspaceAgentVisibility(input: {
       }
       continue;
     }
-    if (!agent.archivedAt) {
+    if (!agent.archivedAt && !agent.execution) {
       activeAgentIds.add(agent.id);
       const parentAgent = agent.parentAgentId
-        ? (sessionAgents?.get(agent.parentAgentId) ?? agentDetails?.get(agent.parentAgentId))
+        ? (sessionAgents.get(agent.parentAgentId) ?? agentDetails?.get(agent.parentAgentId))
         : undefined;
       if (isWorkspaceRootAgent(agent, parentAgent)) {
         autoOpenAgentIds.add(agent.id);
@@ -46,7 +47,7 @@ export function deriveWorkspaceAgentVisibility(input: {
     }
   }
   for (const agent of agentDetails?.values() ?? []) {
-    if (sessionAgents?.has(agent.id)) {
+    if (sessionAgents.has(agent.id)) {
       continue;
     }
     const ownerId = normalizeWorkspaceOpaqueId(agent.workspaceId);

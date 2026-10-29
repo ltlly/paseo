@@ -2,11 +2,13 @@ import type { AgentHookActivityState, AgentHookProvider } from "../agent-hook-in
 import { type CodexHooksFile, codexHooksFormat } from "./codex-settings.js";
 
 const CODEX_EVENT_STATES: Record<string, AgentHookActivityState> = {
+  SessionStart: "idle",
   UserPromptSubmit: "running",
   PreToolUse: "running",
   PostToolUse: "running",
   PermissionRequest: "needs-input",
   Stop: "idle",
+  SessionEnd: "idle",
 };
 
 export const codexAgentHookProvider: AgentHookProvider<CodexHooksFile> = {
@@ -17,6 +19,8 @@ export const codexAgentHookProvider: AgentHookProvider<CodexHooksFile> = {
     { event: "PostToolUse" },
     { event: "PermissionRequest" },
     { event: "Stop" },
+    { event: "SessionEnd" },
+    { event: "SessionStart" },
   ],
   install: {
     kind: "config-file",

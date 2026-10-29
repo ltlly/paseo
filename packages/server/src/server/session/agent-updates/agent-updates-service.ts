@@ -292,7 +292,10 @@ export function createAgentUpdatesService(deps: AgentUpdatesServiceDeps): AgentU
 
   async function emitStoredRecord(record: StoredAgentRecord): Promise<AgentSnapshotPayload> {
     const payload = deps.buildStoredAgentPayload(record);
-    await publishPayload(payload);
+    await enqueueAgentUpdate(record.id, async () => {
+      await publishPayload(payload);
+      if (payload.workspaceId) await deps.emitWorkspaceUpdateForWorkspaceId(payload.workspaceId);
+    });
     return payload;
   }
 

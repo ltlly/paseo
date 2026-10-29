@@ -68,6 +68,7 @@ test("opt-out consumes pending recovery and excludes archived, private, owned an
       { id: "private", internal: true },
       { id: "owned", owner: { kind: "daemon", daemonId: "hub", executionId: "run" } },
       { id: "workspace", workspaceId: "archived" },
+      { id: "terminal", execution: { kind: "terminal", terminalId: "terminal-1" } },
     ]) {
       await storage.upsert(
         parseStoredAgentRecord({
@@ -98,6 +99,7 @@ test("opt-out consumes pending recovery and excludes archived, private, owned an
     enabled = true;
     recovery.resumePending();
     expect(dispatched).toEqual([]);
+    expect((await storage.get("terminal"))?.lastStatus).toBe("running");
     expect((await storage.list()).every((record) => !record.resumeOnStartup)).toBe(true);
   } finally {
     await rm(root, { recursive: true, force: true });

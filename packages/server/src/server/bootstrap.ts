@@ -1,3 +1,5 @@
+import { TerminalAgents } from "../terminal/terminal-agents.js";
+import type { AgentHookReport } from "../terminal/agent-hooks/provider-registry.js";
 import { createRestartRecovery } from "./agent/restart-recovery/index.js";
 import { sendPromptToAgent } from "./agent/agent-prompt.js";
 import { createIdleRuntimeCleanup } from "./agent/idle-runtime-cleanup/index.js";
@@ -297,6 +299,11 @@ const TerminalActivityReportSchema = z.object({
   terminalId: z.string().min(1),
   token: z.string().min(1),
   state: z.enum(["running", "idle", "needs-input"]),
+  provider: z.string().min(1).max(80).optional(),
+  event: z.string().min(1).max(128).optional(),
+  sessionId: z.string().max(512).optional(),
+  cwd: z.string().max(4096).optional(),
+  observedAt: z.number().finite().nonnegative().max(8640000000000000).optional(),
 });
 
 const TERMINAL_ACTIVITY_STATE_MAP = {
@@ -313,6 +320,7 @@ function isLoopbackRemoteAddress(remoteAddress: string | undefined): boolean {
 
 export function createTerminalActivityRouteHandler(
   terminalManager: TerminalManager,
+  reportAgent?: (terminalId: string, report: AgentHookReport) => Promise<boolean>,
 ): express.RequestHandler {
   return async (req, res) => {
     if (!isLoopbackRemoteAddress(req.socket.remoteAddress)) {
@@ -336,10 +344,21 @@ export function createTerminalActivityRouteHandler(
     }
 
     try {
-      const updated = await terminalManager.setTerminalActivity(
-        parsed.data.terminalId,
-        TERMINAL_ACTIVITY_STATE_MAP[parsed.data.state],
-      );
+      const { provider, event, observedAt, sessionId, cwd, state, terminalId } = parsed.data;
+      const updated =
+        provider && event && reportAgent
+          ? await reportAgent(terminalId, {
+              provider,
+              event,
+              state,
+              observedAt: observedAt ?? Date.now(),
+              sessionId,
+              cwd,
+            })
+          : await terminalManager.setTerminalActivity(
+              terminalId,
+              TERMINAL_ACTIVITY_STATE_MAP[state],
+            );
       if (!updated) {
         res.status(403).json({ error: "Forbidden" });
         return;
@@ -823,11 +842,16 @@ export async function createPaseoDaemon(
     next();
   });
 
+  let terminalAgents: TerminalAgents | undefined;
+
   // Local, harmless, and token-gated; deliberately skips daemon auth.
   app.post(
     "/api/terminal-activity",
     express.json(),
-    createTerminalActivityRouteHandler(terminalManager),
+    createTerminalActivityRouteHandler(
+      terminalManager,
+      (id, report) => terminalAgents?.report(id, report) ?? Promise.resolve(false),
+    ),
   );
 
   // Serve the bundled browser web UI when enabled. Mounted after service-proxy
@@ -1065,6 +1089,14 @@ export async function createPaseoDaemon(
     workspaceGitService,
     logger,
   });
+  terminalAgents = new TerminalAgents({
+    terminals: terminalManager,
+    storage: agentStorage,
+    agents: agentManager,
+    profiles: () => daemonConfigStore.get().terminalProfiles ?? [],
+    logger,
+  });
+  await terminalAgents.initialize();
   await workspaceLabelService.initialize();
   logger.info({ elapsed: elapsed() }, "Workspace registries bootstrapped");
   const teardownArchivedWorkspaceRuntime = (workspaceId: string): void => {
@@ -1992,6 +2024,7 @@ export async function createPaseoDaemon(
     }).catch((error) => logger.warn({ err: error }, "Plugin lifecycle events did not finish"));
     await agentManager.flushForShutdown().catch(() => undefined);
     detachAgentStoragePersistence();
+    await terminalAgents?.close();
     await agentStorage.flush().catch(() => undefined);
     await agentProviderRuntime.shutdown();
     await pluginRuntime.stopAllPlugins();

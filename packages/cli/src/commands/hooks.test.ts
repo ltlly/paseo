@@ -67,21 +67,21 @@ async function runHook(agent: string, event: string, input = ttyInput()) {
 }
 
 function expectPostedState(fetch: RecordingFetch, state: string) {
-  expect(fetch.calls).toEqual([
-    {
-      url: hookEnv.PASEO_TERMINAL_ACTIVITY_URL,
-      init: {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          terminalId: hookEnv.PASEO_TERMINAL_ID,
-          token: hookEnv.PASEO_ACTIVITY_TOKEN,
-          state,
-        }),
-        signal: expect.any(AbortSignal),
-      },
-    },
-  ]);
+  expect(fetch.calls).toHaveLength(1);
+  expect(fetch.calls[0].url).toBe(hookEnv.PASEO_TERMINAL_ACTIVITY_URL);
+  expect(fetch.calls[0].init).toMatchObject({
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    signal: expect.any(AbortSignal),
+  });
+  expect(JSON.parse(String(fetch.calls[0].init?.body))).toMatchObject({
+    terminalId: hookEnv.PASEO_TERMINAL_ID,
+    token: hookEnv.PASEO_ACTIVITY_TOKEN,
+    state,
+    provider: expect.any(String),
+    event: expect.any(String),
+    observedAt: expect.any(Number),
+  });
 }
 
 describe("runHooksCommand", () => {
@@ -94,10 +94,10 @@ describe("runHooksCommand", () => {
   });
 
   it.each([
-    [claudeProvider.events[0].event, "running"],
-    [claudeProvider.events[1].event, "idle"],
-    [claudeProvider.events[2].event, "idle"],
-    [claudeProvider.events[3].event, "idle"],
+    ["UserPromptSubmit", "running"],
+    ["Stop", "idle"],
+    ["StopFailure", "idle"],
+    ["SessionEnd", "idle"],
   ])("maps Claude %s to %s", async (event, state) => {
     const send = await runHook(claudeProvider.id, event);
 
@@ -131,7 +131,7 @@ describe("runHooksCommand", () => {
   it("maps Claude idle prompt notifications to needs-input", async () => {
     const send = await runHook(
       claudeProvider.id,
-      claudeProvider.events[4].event,
+      "Notification",
       inputFrom(claudeNotification("idle_prompt")),
     );
 
@@ -143,7 +143,7 @@ describe("runHooksCommand", () => {
     async (notificationType) => {
       const send = await runHook(
         claudeProvider.id,
-        claudeProvider.events[4].event,
+        "Notification",
         inputFrom(claudeNotification(notificationType)),
       );
 
@@ -154,7 +154,7 @@ describe("runHooksCommand", () => {
   it("does nothing when terminal activity env is missing", async () => {
     const fetch = createFetch();
 
-    await runHooksCommand(claudeProvider.id, claudeProvider.events[0].event, {
+    await runHooksCommand(claudeProvider.id, "UserPromptSubmit", {
       env: {},
       input: ttyInput(),
       fetch: fetch.send,
@@ -164,7 +164,7 @@ describe("runHooksCommand", () => {
   });
 
   it("does nothing for unknown agents and events", async () => {
-    const unknownAgent = await runHook("unknown-provider", claudeProvider.events[0].event);
+    const unknownAgent = await runHook("unknown-provider", "UserPromptSubmit");
     const unknownEvent = await runHook(claudeProvider.id, "UnknownEvent");
 
     expect(unknownAgent.calls).toEqual([]);
@@ -177,7 +177,7 @@ describe("runHooksCommand", () => {
     }) as typeof fetch;
 
     await expect(
-      runHooksCommand(claudeProvider.id, claudeProvider.events[0].event, {
+      runHooksCommand(claudeProvider.id, "UserPromptSubmit", {
         env: hookEnv,
         input: ttyInput(),
         fetch: send,

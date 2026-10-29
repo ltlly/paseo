@@ -115,3 +115,16 @@ describe("normalizeAgentSnapshot", () => {
     expect(nonString.parentAgentId).toBeNull();
   });
 });
+
+it("keeps the terminal binding through normalization and projection", () => {
+  const snapshot = createSnapshot();
+  snapshot.execution = {
+    kind: "terminal",
+    terminalId: "terminal-1",
+    providerSessionId: "session-1",
+    profileId: "codex",
+  };
+  expect(projectAgentSnapshot(normalizeAgentSnapshot(snapshot, "server-1")).execution).toEqual(
+    snapshot.execution,
+  );
+});

@@ -12,6 +12,7 @@ export function navigateToAgent(input: NavigateToAgentInput): string {
       const agent = session?.agents.get(agentId) ?? session?.agentDetails.get(agentId);
       return {
         agentWorkspaceId: agent?.workspaceId,
+        terminalId: agent?.execution?.terminalId,
       };
     },
     navigateToHostAgent: (route) => {

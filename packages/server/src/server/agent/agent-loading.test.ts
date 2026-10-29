@@ -199,3 +199,34 @@ test("loads an archived agent's history after its working directory is removed",
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("terminal records never launch a second SDK agent", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "terminal-agent-loading-"));
+  const logger = createTestLogger();
+  const storage = new AgentStorage(path.join(root, "agents"), logger);
+  const manager = new AgentManager({
+    clients: createTestAgentClients(),
+    registry: storage,
+    logger,
+  });
+  try {
+    const now = new Date().toISOString();
+    await storage.upsert({
+      id: "terminal-agent",
+      provider: "codex",
+      cwd: root,
+      createdAt: now,
+      updatedAt: now,
+      lastStatus: "running",
+      labels: {},
+      execution: { kind: "terminal", terminalId: "terminal-1" },
+    });
+    await expect(
+      ensureAgentLoaded("terminal-agent", { agentManager: manager, agentStorage: storage, logger }),
+    ).rejects.toThrow("Open its terminal to interact");
+    expect(manager.listAgents()).toEqual([]);
+  } finally {
+    await storage.flush();
+    await rm(root, { recursive: true, force: true });
+  }
+});

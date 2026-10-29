@@ -1,6 +1,6 @@
 # Terminal Activity Indicators
 
-Paseo surfaces terminal activity as a tab indicator (the same "running" dot used by agents).
+Paseo surfaces terminal activity in terminal tabs. Provider hooks also register terminal agents in the shared agent directory.
 
 ## Current state
 
@@ -45,7 +45,7 @@ Terminals receive four environment variables when the daemon creates the shell:
 - `PASEO_TERMINAL_ACTIVITY_URL`
 - `PASEO_HOOK_CLI` — absolute path to the current `paseo` CLI executable.
 
-The generated shell command uses `PASEO_HOOK_CLI` to run the current CLI. `paseo hooks <agent> <event>` then reads the terminal id, token, and activity URL, asks the agent hook provider registry to resolve the event to a coarse activity state, and silently posts `{ terminalId, token, state }` to the activity URL. Missing env, unsupported agents/events, malformed hook input, and daemon/network failures are no-ops so agent hooks never break the user's terminal session.
+The generated shell command uses `PASEO_HOOK_CLI` to run the current CLI. `paseo hooks <agent> <event>` then reads the terminal id, token, and activity URL, asks the agent hook provider registry to resolve the event to a coarse activity state, and silently posts `{ terminalId, token, state, provider, event, observedAt, sessionId?, cwd? }` to the activity URL. Missing env, unsupported agents/events, malformed hook input, and daemon/network failures are no-ops so agent hooks never break the user's terminal session.
 
 Claude hook mapping:
 
@@ -79,6 +79,34 @@ OpenCode uses a server plugin instead of command hooks. Both generations discove
 The plugin translates both event contracts into the existing Paseo hook events. OpenCode 2 disposes its event subscription when the plugin unloads.
 
 The daemon maps hook states onto terminal activity like an agent lifecycle plus unread attention: `running` → `state: working`, `idle` → `state: idle`, and `needs-input` → `state: idle` with `attentionReason: needs_input`. A `working` → `idle` transition records `state: idle` with `attentionReason: finished` until the user focuses that terminal; plain idle terminals still contribute no workspace status.
+
+## Terminal agents
+
+Hook reports with provider metadata create durable agent records. Activity-only reports from older
+CLIs still update the terminal indicator. Install this fork's CLI and client together to get agent
+identity and terminal navigation; an older client can parse the optional binding but cannot use it.
+
+The binding separates the Paseo agent ID, terminal ID, and provider conversation ID. A new conversation
+in the same terminal starts a new record. This follows the identity/lifecycle separation used by
+[Orca](https://github.com/stablyai/orca/blob/main/src/main/agent-hooks/README.md) and the restoration
+boundaries in [cmux](https://github.com/manaflow-ai/cmux/blob/main/Sources/RestorableAgentHookSessionRecord.swift).
+A terminal record never acquires an SDK runtime: sending chat prompts or attempting SDK resume must
+fail with a terminal-directed explanation. Agent links, including plugin links, open the terminal tab.
+
+The terminal worker remains authoritative for activity and attention. The durable record participates
+in existing list, workspace and attention queries. SessionEnd, shell command completion, and terminal
+exit archive it. On daemon reconnect, a surviving terminal supplies its current activity; missing
+terminals are archived. This does not relaunch a CLI after the machine restarts. If a session ends
+while the daemon is offline and its shell survives, reconciliation needs the next hook or shell event.
+
+Grok, Claude, Codex, and OpenCode use the same promotion path. Conversation-level stale-event protection
+requires a provider session ID; OpenCode's current plugin emits activity without that ID. Profiles are
+associated by the terminal's launch name and preserve the profile ID/icon when matched. Renamed or
+plain-shell terminals still register from provider hooks without a profile association.
+
+Grok hooks live in `~/.grok/hooks/paseo-status.json` (or `GROK_HOME/hooks/paseo-status.json`). They cover
+session, prompt, tool and stop events, ignore subagent events, and treat interactive questions as
+needs-input. Informational permission notices alone do not imply a blocked agent.
 
 ## Focus clearing
 

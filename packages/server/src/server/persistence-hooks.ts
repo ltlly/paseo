@@ -107,7 +107,9 @@ export function isStoredAgentProviderAvailable(
   record: StoredAgentRecord,
   validProviders?: Iterable<AgentProvider>,
 ): boolean {
-  return isProviderRegistered(validProviders, record.provider);
+  return (
+    record.execution?.kind === "terminal" || isProviderRegistered(validProviders, record.provider)
+  );
 }
 
 /**

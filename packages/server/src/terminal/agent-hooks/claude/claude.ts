@@ -2,6 +2,7 @@ import type { AgentHookActivityState, AgentHookProvider } from "../agent-hook-in
 import { type ClaudeSettings, claudeSettingsFormat } from "./claude-settings.js";
 
 const CLAUDE_EVENT_STATES: Record<string, AgentHookActivityState> = {
+  SessionStart: "idle",
   UserPromptSubmit: "running",
   Stop: "idle",
   StopFailure: "idle",
@@ -16,6 +17,7 @@ export const claudeAgentHookProvider: AgentHookProvider<ClaudeSettings> = {
     { event: "StopFailure" },
     { event: "SessionEnd" },
     { event: "Notification" },
+    { event: "SessionStart" },
   ],
   install: {
     kind: "config-file",

@@ -2,6 +2,7 @@ import type { Agent } from "@/stores/session-store";
 
 export type AgentDirectoryEntry = Pick<
   Agent,
+  | "execution"
   | "id"
   | "serverId"
   | "title"

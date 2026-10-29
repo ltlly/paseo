@@ -1992,6 +1992,16 @@ export class Session {
           return;
         }
 
+        if (event.type === "stored_agent_state") {
+          void this.agentUpdates.emitStoredRecord(event.record).catch((err) => {
+            this.sessionLogger.error(
+              { err, agentId: event.agentId },
+              "Failed to emit stored agent update",
+            );
+          });
+          return;
+        }
+
         if (event.type === "agent_state") {
           this.sessionLogger.trace(
             {
@@ -7652,6 +7662,9 @@ export class Session {
             record.requiresAttention !== true
           ) {
             continue;
+          }
+          if (record.execution) {
+            await this.terminalManager?.clearTerminalAttention(record.execution.terminalId);
           }
           const nextRecord: StoredAgentRecord = {
             ...record,

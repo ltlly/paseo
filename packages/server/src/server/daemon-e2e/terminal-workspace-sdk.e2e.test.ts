@@ -269,3 +269,83 @@ test.runIf(process.platform !== "win32")(
     expect((await sdk.terminals.list({ workspaceId })).entries).toEqual([]);
   },
 );
+
+test("terminal hooks appear in the SDK agent directory and publish live updates", async () => {
+  const workspaceId = await createWorkspace("Grok workspace");
+  await sdk.config.patch({
+    terminalProfiles: [{ id: "grok", name: "Grok Build", command: "grok", icon: "bot" }],
+  });
+  const observed: string[] = [];
+  const off = sdk.agents.subscribe((update) => {
+    if (update.kind === "upsert" && update.agent.execution) observed.push(update.agent.status);
+  });
+  const directory = await sdk.agents.list({ includeBackground: true, subscribe: {} });
+  const hooksUrl = new URL("../../../../cli/dist/commands/hooks.js", import.meta.url).href;
+  const terminal = await sdk.terminals.create({
+    workspaceId,
+    name: "Grok Build",
+    command: process.execPath,
+    args: [
+      "--input-type=module",
+      "-e",
+      `
+      import { createInterface } from 'node:readline';
+      import { Readable } from 'node:stream';
+      const { runHooksCommand } = await import(${JSON.stringify(hooksUrl)});
+      console.log('READY');
+      for await (const event of createInterface({ input: process.stdin })) {
+        if (event === 'finish-shell-command') { process.stdout.write('\\x1b]633;D;0\\x07'); continue; }
+        await runHooksCommand('grok', event, { env: process.env, fetch,
+          input: Readable.from([JSON.stringify({ session_id: 'sdk-conversation', cwd: process.cwd(), tool_name: 'AskUserQuestion' })]) });
+        console.log('HOOK:' + event);
+      }
+    `,
+    ],
+  });
+  const send = async (event: string) => {
+    terminal.write(event + "\n");
+    await expect
+      .poll(async () => (await terminal.capture({ stripAnsi: true })).lines.join("\n"))
+      .toContain("HOOK:" + event);
+  };
+  const list = async () => (await sdk.agents.list({ includeBackground: true })).entries;
+  try {
+    await expect
+      .poll(async () => (await terminal.capture({ stripAnsi: true })).lines.join("\n"))
+      .toContain("READY");
+    await send("UserPromptSubmit");
+    await expect.poll(list).toMatchObject([
+      {
+        agent: {
+          provider: "grok",
+          workspaceId,
+          status: "running",
+          execution: {
+            kind: "terminal",
+            terminalId: terminal.id,
+            providerSessionId: "sdk-conversation",
+            profileId: "grok",
+          },
+        },
+      },
+    ]);
+    await expect.poll(() => observed).toContain("running");
+    await send("PreToolUse");
+    expect(await list()).toMatchObject([
+      { agent: { requiresAttention: true, attentionReason: "permission" } },
+    ]);
+    await send("PostToolUse");
+    await send("Stop");
+    expect(await list()).toMatchObject([
+      { agent: { status: "idle", attentionReason: "finished" } },
+    ]);
+    terminal.write("finish-shell-command\n");
+    await expect.poll(list).toEqual([]);
+    // Shell command completion retires the agent while the terminal itself survives.
+    expect(await terminal.refresh()).not.toBeNull();
+  } finally {
+    off();
+    await directory.subscription.release();
+    await terminal.kill();
+  }
+}, 30_000);

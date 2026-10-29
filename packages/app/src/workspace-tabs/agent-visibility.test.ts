@@ -665,3 +665,14 @@ describe("workspace agent visibility", () => {
     });
   });
 });
+
+it("uses the terminal tab for terminal agents without opening a duplicate chat tab", () => {
+  const agent = makeAgent({ id: "terminal-agent", cwd: "/repo", workspaceId: "workspace-1" });
+  agent.execution = { kind: "terminal", terminalId: "terminal-1" };
+  const visibility = deriveWorkspaceAgentVisibility({
+    sessionAgents: new Map([[agent.id, agent]]),
+    workspaceId: "workspace-1",
+  });
+  expect(visibility.activeAgentIds.size).toBe(0);
+  expect(visibility.autoOpenAgentIds.size).toBe(0);
+});
