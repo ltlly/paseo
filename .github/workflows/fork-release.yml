@@ -81,6 +81,9 @@ jobs:
       - run: npx vitest run packages/protocol/src/fork-release.test.ts packages/server/src/server/session/daemon/daemon-self-updater.test.ts packages/server/src/server/session/daemon/npm-global-cli.test.ts packages/desktop/src/features/auto-updater.test.ts packages/desktop/src/features/app-update-service.test.ts
       - working-directory: packages/app
         run: npx vitest run native-release-version.test.ts src/updates/android-update.test.ts src/updates/fork-package-update.test.ts src/desktop/updates/desktop-updates.test.ts
+      - run: npx playwright install --with-deps chromium --only-shell
+      - working-directory: packages/app
+        run: npx vitest run src/terminal/runtime/terminal-emulator-runtime.browser.test.ts src/terminal/runtime/terminal-emulator-runtime.test.ts
 
   runtime:
     needs: prepare
@@ -112,7 +115,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-15
+          - runner: macos-26
             platform: macos-arm64
             flags: --mac --arm64 -c.mac.identity=- -c.mac.notarize=false -c.mac.hardenedRuntime=false
           - runner: macos-15-intel
@@ -198,6 +201,8 @@ jobs:
         with:
           packages: platform-tools
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: false
       - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
       - run: node scripts/npm-retry.mjs ci
       - name: Build the complete embedded-font APK

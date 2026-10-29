@@ -34,6 +34,7 @@ import {
 import { isFindShortcut, type FindShortcutPlatform } from "@/pane-find/find-shortcut";
 import { isMacUserAgent } from "@/utils/mac-user-agent";
 import { resolveBrowserTerminalFontFamily, resolveTerminalFontSize } from "./terminal-font";
+import { attachTerminalWheelHandler } from "./terminal-wheel";
 import { imageExtension, readTerminalFile, type TerminalFile } from "../file-paste";
 
 export type TerminalOutputData = Uint8Array;
@@ -712,6 +713,7 @@ export class TerminalEmulatorRuntime {
     });
 
     this.attachKeyEventHandler(terminal);
+    attachTerminalWheelHandler(terminal);
 
     // Cmd+V and context-menu paste arrive as DOM paste events. Take file-only
     // pastes before xterm's own listener consumes them as empty text.

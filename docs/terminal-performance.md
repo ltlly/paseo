@@ -29,6 +29,7 @@ Terminal frames share the daemon main event loop with all agent traffic. The `ev
 - **Find preserves the inspected xterm viewport, including at the live bottom.** Keep its output anchor inside the existing batched write path. Serializing output to preserve a search result would add terminal latency.
 - **Retained terminal tabs in the focused workspace keep their streams.** Hidden mounted terminals continue applying output, so switching tabs does not resubscribe or request a fresh snapshot. The retained-panel LRU bounds the number of live streams; terminals in an unfocused workspace detach.
 - **Terminal size has one daemon-owned claimant.** Focus and direct interaction send a `claim`; later geometry changes from that connection send `update`. A claim transfers ownership even when the dimensions are unchanged, while an update from any other connection is ignored. This lets an owning pane follow splits and keyboard insets without allowing an idle phone or browser to steal the PTY size.
+- **Desktop wheel input preserves distance.** The xterm 6.1 beta.292 application-mode handler collapses multiple rows into one report and damps small trackpad deltas. `terminal-wheel.ts` accumulates pixel/line/page deltas and routes whole rows through xterm's own encoder. Keep ordinary scrollback local, preserve fractional trackpad movement and direction changes, and avoid sending the original event twice. Native Android touch scrolling has its own gesture path.
 
 ## Measuring
 

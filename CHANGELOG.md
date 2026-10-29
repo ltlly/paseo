@@ -2,6 +2,7 @@
 
 ## 0.14.0-ltlly.2 - 2026-10-29
 
+- Preserve Windows mouse-wheel line counts and macOS trackpad distances in mouse-aware terminal applications and alternate screens.
 - Build and publish all fork runtime, desktop and Android artifacts from GitHub Actions only on fork release tags or published releases; ordinary commits do not trigger CI.
 - Validate all required platform packages, updater hashes and pinned runtime dependency URLs before promoting a release to latest.
 - Support daemon self-update inside the existing custom runtime prefixes, updating CLI/server together without changing the global npm installation.

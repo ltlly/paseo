@@ -1,3 +1,4 @@
+import "@xterm/xterm/css/xterm.css";
 import { page, userEvent } from "@vitest/browser/context";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TerminalInputModeState } from "@getpaseo/protocol/terminal-input-mode";
@@ -271,6 +272,23 @@ function writeLines(mounted: MountedTerminal, lines: string[]): Promise<void> {
   });
 }
 
+function dispatchTerminalWheel(mounted: MountedTerminal, event: WheelEventInit): void {
+  const screen = mounted.host.querySelector<HTMLElement>(".xterm-screen")!;
+  const bounds = screen.getBoundingClientRect();
+  const wheel = new WheelEvent("wheel", {
+    bubbles: true,
+    cancelable: true,
+    clientX: bounds.left + 1,
+    clientY: bounds.top + 1,
+    deltaMode: WheelEvent.DOM_DELTA_LINE,
+    ...event,
+  });
+  // Chromium's synthetic event has a legacy wheelDeltaY sign unlike native input.
+  // The viewport still reads it; provide the native sign for this browser fixture.
+  Object.defineProperty(wheel, "wheelDeltaY", { value: -(event.deltaY ?? 0) });
+  screen.dispatchEvent(wheel);
+}
+
 async function clickTerminalLink(input: {
   host: HTMLElement;
   row: number;
@@ -301,6 +319,71 @@ afterEach(() => {
 });
 
 describe("terminal emulator runtime in a real browser", () => {
+  it("preserves all wheel lines sent to a mouse-aware terminal application", async () => {
+    await page.viewport(900, 600);
+    const mounted = createTerminalHost({ width: 720, height: 360 });
+    await writeLines(mounted, ["\x1b[?1000h\x1b[?1006h"]);
+    dispatchTerminalWheel(mounted, { deltaY: 3 });
+    expect(mounted.inputs.join("")).toBe("\x1b[<65;1;1M".repeat(3));
+  });
+
+  it("accumulates trackpad pixels without damping or losing fast wheel movement", async () => {
+    await page.viewport(900, 600);
+    const mounted = createTerminalHost({ width: 720, height: 360, isMac: true });
+    await writeLines(mounted, ["\x1b[?1000h\x1b[?1006h"]);
+    const screen = mounted.host.querySelector<HTMLElement>(".xterm-screen")!;
+    const cellHeight = screen.getBoundingClientRect().height / getBrowserTerminal().rows;
+    const scroll = (rows: number) =>
+      dispatchTerminalWheel(mounted, {
+        deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+        deltaY: rows * cellHeight,
+      });
+    scroll(0.25);
+    scroll(0.25);
+    scroll(0.25);
+    expect(mounted.inputs).toEqual([]);
+    scroll(0.25);
+    expect(mounted.inputs.join("")).toBe("\x1b[<65;1;1M");
+    mounted.inputs.length = 0;
+    scroll(3);
+    expect(mounted.inputs.join("")).toBe("\x1b[<65;1;1M".repeat(3));
+    mounted.inputs.length = 0;
+    scroll(0.5);
+    scroll(-1);
+    expect(mounted.inputs.join("")).toBe("\x1b[<64;1;1M");
+  });
+
+  it("preserves wheel distance in alternate-screen applications without mouse tracking", async () => {
+    await page.viewport(900, 600);
+    const mounted = createTerminalHost({ width: 720, height: 360 });
+    await writeLines(mounted, ["\x1b[?1049h\x1b[?1h"]);
+    dispatchTerminalWheel(mounted, { deltaY: -3 });
+    expect(mounted.inputs.join("")).toBe("\x1bOA".repeat(3));
+  });
+
+  it("leaves normal scrollback wheel gestures local after mouse tracking stops", async () => {
+    await page.viewport(900, 600);
+    const mounted = createTerminalHost({ width: 720, height: 360 });
+    // Viewport scrolling needs real renderer dimensions, unlike the input-only cases.
+    const { WebglAddon } =
+      await vi.importActual<typeof import("@xterm/addon-webgl")>("@xterm/addon-webgl");
+    const terminal = window.__paseoTerminal!;
+    terminal.loadAddon(new WebglAddon());
+    await writeLines(mounted, ["\x1b[?1000h\x1b[?1006h"]);
+    dispatchTerminalWheel(mounted, { deltaY: 3 });
+    await writeLines(mounted, [
+      "\x1b[?1000l",
+      ...Array.from({ length: 100 }, (_, i) => `line ${i}`),
+    ]);
+    terminal.scrollToBottom();
+    await nextFrame();
+    const before = terminal.buffer.active.viewportY;
+    mounted.inputs.length = 0;
+    dispatchTerminalWheel(mounted, { deltaY: -120, deltaMode: WheelEvent.DOM_DELTA_PIXEL });
+    await waitFor({ predicate: () => terminal.buffer.active.viewportY < before });
+    expect(mounted.inputs).toEqual([]);
+  });
+
   it("passes configured scrollback to xterm", async () => {
     await page.viewport(900, 600);
     createTerminalHost({ width: 720, height: 360, scrollback: 42_000 });

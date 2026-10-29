@@ -73,6 +73,7 @@ vi.mock("@xterm/xterm", () => ({
       return { dispose: () => undefined };
     }
     attachCustomKeyEventHandler(): void {}
+    attachCustomWheelEventHandler(): void {}
     dispose(): void {}
     refresh(): void {}
   },
