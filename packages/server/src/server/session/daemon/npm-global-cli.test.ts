@@ -141,6 +141,32 @@ describe("DefaultNpmGlobalPaseoCli", () => {
     await expect(cli.inspect()).rejects.toThrow("npm: command not found");
   });
 
+  test("updates both runtime packages using the prefix's native script policy", async () => {
+    const calls: string[][] = [];
+    const cli = new DefaultNpmGlobalPaseoCli(async (_command, args) => {
+      calls.push(args);
+      return { exitCode: 0, stdout: "updated runtime", stderr: "" };
+    });
+
+    await cli.installLatest({
+      global: false,
+      prefix: "/runtime",
+      releaseTag: "v0.14.0-ltlly.2",
+    });
+
+    expect(calls).toEqual([
+      [
+        "install",
+        "--omit=dev",
+        "--allow-remote=all",
+        "https://github.com/ltlly/paseo/releases/download/v0.14.0-ltlly.2/getpaseo-cli.tgz",
+        "https://github.com/ltlly/paseo/releases/download/v0.14.0-ltlly.2/getpaseo-server.tgz",
+        "--prefix",
+        "/runtime",
+      ],
+    ]);
+  });
+
   test("reports missing global cli when npm output has no cli dependency", async () => {
     const cli = new DefaultNpmGlobalPaseoCli(async () => ({
       exitCode: 1,

@@ -13,6 +13,8 @@ macOS ARM64/x64 DMG and ZIP packages, Linux x64 packages, and signed Android ARM
 It uploads a complete release only after every job succeeds and validates updater checksums and
 runtime dependency URLs before moving `latest`. APK signing uses the existing fork identity in
 repository Actions secrets. macOS ad hoc builds use the explicit DMG download flow in Settings → About.
+If hosted ARM Mac capacity is unavailable, `FORK_MACOS_ARM_RUNNER` can temporarily select a
+repository runner label. Use an ephemeral runner and remove the override after the release.
 
 The upstream release playbook below is reference material; its npm publication and automatic
 branch-CI steps do not apply to this fork. Never publish this fork to the upstream npm packages.

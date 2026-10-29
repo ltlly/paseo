@@ -174,14 +174,17 @@ export class DefaultNpmGlobalPaseoCli implements NpmGlobalPaseoCli {
     // The custom runtime declares both packages at its root. Upgrade them together.
     const packages = [`${releaseBase}/getpaseo-cli.tgz`];
     if (options.global === false) packages.push(`${releaseBase}/getpaseo-server.tgz`);
-    // npm 12 requires explicit URL and native install-script opt-ins for this command.
+    // npm 12 accepts script opt-ins on the command line only for global installs.
+    // Dedicated runtime prefixes retain their package.json allowScripts policy.
     return this.runCommand(
       "npm",
       [
         "install",
         ...(options.global === false ? ["--omit=dev"] : ["-g"]),
         "--allow-remote=all",
-        "--allow-scripts=esbuild,node-pty,msgpackr-extract,sherpa-onnx-node",
+        ...(options.global === false
+          ? []
+          : ["--allow-scripts=esbuild,node-pty,msgpackr-extract,sherpa-onnx-node"]),
         ...packages,
         ...prefixArgs,
       ],
