@@ -74,6 +74,9 @@ export class TerminalInputModeTracker {
   private win32InputMode = false;
   private applicationCursorKeys = false;
   private bracketedPaste = false;
+  private mouseProtocol = 0;
+  private mouseEncoding = 0;
+  private focusReporting = false;
   private readonly kittyKeyboardStack: number[] = [];
   private pending = "";
 
@@ -124,6 +127,9 @@ export class TerminalInputModeTracker {
     this.win32InputMode = false;
     this.applicationCursorKeys = false;
     this.bracketedPaste = false;
+    this.mouseProtocol = 0;
+    this.mouseEncoding = 0;
+    this.focusReporting = false;
     this.kittyKeyboardStack.length = 0;
     this.pending = "";
   }
@@ -159,6 +165,9 @@ export class TerminalInputModeTracker {
     if (this.bracketedPaste) {
       parts.push("\x1b[?2004h");
     }
+    if (this.mouseProtocol) parts.push(`\x1b[?${this.mouseProtocol}h`);
+    if (this.mouseEncoding) parts.push(`\x1b[?${this.mouseEncoding}h`);
+    if (this.focusReporting) parts.push("\x1b[?1004h");
     return parts.join("");
   }
 
@@ -223,6 +232,23 @@ export class TerminalInputModeTracker {
       changed = this.bracketedPaste !== previous || changed;
     }
 
+    for (const mode of modes) {
+      const enabled = final === "h";
+      if ([9, 1000, 1002, 1003].includes(mode)) {
+        const previous = this.mouseProtocol;
+        if (enabled) this.mouseProtocol = mode;
+        else if (this.mouseProtocol === mode) this.mouseProtocol = 0;
+        changed = changed || previous !== this.mouseProtocol;
+      } else if ([1006, 1016].includes(mode)) {
+        const previous = this.mouseEncoding;
+        if (enabled) this.mouseEncoding = mode;
+        else if (this.mouseEncoding === mode) this.mouseEncoding = 0;
+        changed = changed || previous !== this.mouseEncoding;
+      } else if (mode === 1004) {
+        changed = changed || this.focusReporting !== enabled;
+        this.focusReporting = enabled;
+      }
+    }
     return changed;
   }
 }

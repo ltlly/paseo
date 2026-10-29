@@ -126,3 +126,15 @@ describe("TerminalInputModeTracker", () => {
     expect(tracker.supportsModifiedEnter()).toBe(false);
   });
 });
+it("replays mouse tracking, SGR encoding and focus reporting after a restore", () => {
+  const tracker = new TerminalInputModeTracker();
+  tracker.feed("\x1b[?1003;1006;1004h");
+  expect(tracker.getPreamble()).toBe("\x1b[?1003h\x1b[?1006h\x1b[?1004h");
+  tracker.feed("\x1b[?1000l");
+  expect(tracker.getPreamble()).toContain("\x1b[?1003h");
+  tracker.feed("\x1b[?1003;1006;1004l");
+  expect(tracker.getPreamble()).toBe("");
+  tracker.feed("\x1b[?9;1016;1004h");
+  tracker.reset();
+  expect(tracker.getPreamble()).toBe("");
+});
