@@ -5,6 +5,19 @@ const name = `Paseo-${version}-arm64.apk`;
 const url = `https://github.com/ltlly/paseo/releases/download/v${version}/${name}`;
 const release = { tag_name: `v${version}`, assets: [{ name, browser_download_url: url }] };
 describe("Android fork updates", () => {
+  it("prefers the universal APK when the release supports multiple architectures", () => {
+    const universal = `Paseo-${version}-universal.apk`;
+    const universalUrl = `https://github.com/ltlly/paseo/releases/download/v${version}/${universal}`;
+    expect(
+      parseAndroidUpdate(
+        {
+          ...release,
+          assets: [...release.assets, { name: universal, browser_download_url: universalUrl }],
+        },
+        "0.14.4",
+      ),
+    ).toEqual({ version, url: universalUrl, hasUpdate: true });
+  });
   it("finds the full APK and migrates the old fork numbering", () => {
     expect(parseAndroidUpdate(release, "0.14.4")).toEqual({ version, url, hasUpdate: true });
     expect(parseAndroidUpdate(release, version)?.hasUpdate).toBe(false);
