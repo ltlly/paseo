@@ -192,6 +192,30 @@ describe("native terminal typed input", () => {
     ).toEqual("focus");
   });
 
+  it("keeps a dismissed keyboard hidden when a tap only requests terminal focus", () => {
+    expect(
+      resolveTerminalInputFocusRequest({
+        isInputFocused: true,
+        isKeyboardVisible: false,
+        showKeyboard: false,
+      }),
+    ).toBe("none");
+    expect(
+      resolveTerminalInputFocusRequest({
+        isInputFocused: false,
+        isKeyboardVisible: false,
+        showKeyboard: false,
+      }),
+    ).toBe("focus");
+    expect(
+      resolveTerminalInputFocusRequest({
+        isInputFocused: true,
+        isKeyboardVisible: false,
+        showKeyboard: true,
+      }),
+    ).toBe("refocus");
+  });
+
   it("accepts the same keyboard clipboard item after terminal focus synchronization", () => {
     const input = createTerminalTextInputState();
 

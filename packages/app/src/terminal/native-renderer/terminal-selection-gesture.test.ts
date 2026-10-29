@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TerminalInputModeTracker } from "@getpaseo/protocol/terminal-input-mode";
-import { encodeNativeTerminalWheel } from "./terminal-mouse-wheel";
+import { encodeNativeTerminalTap, encodeNativeTerminalWheel } from "./terminal-mouse-wheel";
 
 import {
   TERMINAL_GESTURE_LONG_PRESS_MS,
@@ -419,4 +419,47 @@ describe("native terminal wheel routing", () => {
       }),
     ).toBeNull();
   });
+});
+
+it("turns a short tap into a complete left click at its grid cell, while long presses stay local", () => {
+  const input = {
+    protocol: 1000,
+    encoding: 1006,
+    point: { x: 25, y: 45 },
+    cellWidth: 10,
+    cellHeight: 20,
+    cols: 80,
+    screenRows: 24,
+  };
+  expect(encodeNativeTerminalTap(input)).toBe("\x1b[<0;3;3M\x1b[<0;3;3m");
+  expect(encodeNativeTerminalTap({ ...input, encoding: 0 })).toBe("\x1b[M ##\x1b[M###");
+  expect(encodeNativeTerminalTap({ ...input, protocol: 9 })).toBe("\x1b[<0;3;3M");
+  expect(encodeNativeTerminalTap({ ...input, encoding: 1016 })).toBe(
+    "\x1b[<0;26;46M\x1b[<0;26;46m",
+  );
+  expect(encodeNativeTerminalTap({ ...input, protocol: 0 })).toBeNull();
+  expect(encodeNativeTerminalTap({ ...input, point: { x: 10, y: 9999 } })).toBe("");
+  expect(
+    resolveTerminalGestureReleaseAction({
+      status: "selecting",
+      startedWithSelection: true,
+      didScroll: false,
+      didNavigate: false,
+      movedBeyondTapTolerance: false,
+      pressDurationMs: 20,
+      longPressMs: 450,
+      scrollMode: "following",
+    }),
+  ).toBe("clear");
+  expect(
+    resolveTerminalGestureReleaseAction({
+      status: "pressing",
+      didScroll: false,
+      didNavigate: false,
+      movedBeyondTapTolerance: false,
+      pressDurationMs: 500,
+      longPressMs: 450,
+      scrollMode: "following",
+    }),
+  ).toBe("select");
 });

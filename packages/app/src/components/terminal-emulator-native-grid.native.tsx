@@ -69,7 +69,10 @@ import {
   type NativeTerminalSizeClaimAction,
 } from "../terminal/native-renderer/terminal-input-resize-policy";
 import { encodeTerminalPaste } from "../terminal/runtime/terminal-paste";
-import { encodeNativeTerminalWheel } from "../terminal/native-renderer/terminal-mouse-wheel";
+import {
+  encodeNativeTerminalTap,
+  encodeNativeTerminalWheel,
+} from "../terminal/native-renderer/terminal-mouse-wheel";
 import type { TerminalOutputData } from "../terminal/runtime/terminal-emulator-runtime";
 import {
   createTerminalResizePolicy,
@@ -634,11 +637,27 @@ function NativeTerminalEmulator({
     [claimActiveTerminalSizeForAction],
   );
 
-  const focusTerminalFromTap = useCallback(() => {
-    clearSelection();
-    inputRef.current?.focus();
-    claimActiveTerminalSizeForAction("focus");
-  }, [claimActiveTerminalSizeForAction, clearSelection]);
+  const focusTerminalFromTap = useCallback(
+    (point: { x: number; y: number }) => {
+      clearSelection();
+      const metrics = metricsRef.current;
+      const viewport = terminalScreenRef.current?.viewport;
+      if (metrics && viewport) {
+        const click = encodeNativeTerminalTap({
+          ...inputModeTrackerRef.current.getMouseState(),
+          point,
+          cellWidth: metrics.cellWidth,
+          cellHeight: metrics.cellHeight,
+          cols: viewport.cols,
+          screenRows: viewport.rows,
+        });
+        if (click) callbacksRef.current.onInput?.(click);
+      }
+      inputRef.current?.focus();
+      claimActiveTerminalSizeForAction("focus");
+    },
+    [claimActiveTerminalSizeForAction, clearSelection],
+  );
 
   useEffect(() => {
     if (resizeRequestToken <= 0) return;
@@ -968,8 +987,10 @@ function NativeTerminalEmulator({
             beginSelectionAtPoint({ x: selectionPress.startX, y: selectionPress.startY });
             return;
           }
-          if (releaseAction === "focus" || releaseAction === "clear") {
-            focusTerminalFromTap();
+          if (releaseAction === "clear") {
+            clearSelection();
+          } else if (releaseAction === "focus" && selectionPress) {
+            focusTerminalFromTap({ x: selectionPress.startX, y: selectionPress.startY });
           }
         },
         onPanResponderTerminate: () => {
@@ -988,6 +1009,7 @@ function NativeTerminalEmulator({
     [
       beginSelectionAtPoint,
       clearSelectionLongPressTimeout,
+      clearSelection,
       focusTerminalFromTap,
       handlePanResponderScroll,
       updateSelectionAtPoint,

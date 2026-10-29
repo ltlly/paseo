@@ -1,4 +1,12 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   StyleSheet,
   type NativeSyntheticEvent,
@@ -95,11 +103,12 @@ function resolveCompositionEdit(previousText: string, text: string): string {
 export function resolveTerminalInputFocusRequest(input: {
   isInputFocused: boolean;
   isKeyboardVisible: boolean;
+  showKeyboard?: boolean;
 }): TerminalInputFocusRequest {
   if (!input.isInputFocused) {
     return "focus";
   }
-  return input.isKeyboardVisible ? "none" : "refocus";
+  return input.isKeyboardVisible || input.showKeyboard === false ? "none" : "refocus";
 }
 
 export function createTerminalTextInputState(): TerminalTextInputState {
@@ -187,6 +196,7 @@ export const TerminalInput = forwardRef<TerminalInputHandle, TerminalInputProps>
     const inputRef = useRef<EditingTextInputHandle>(null);
     const isFocusedRef = useRef(false);
     const pendingFocusFrameRef = useRef<number | null>(null);
+    const [showSoftInputOnFocus, setShowSoftInputOnFocus] = useState(false);
     const inputState = useMemo(() => createTerminalTextInputState(), []);
     const inputStyle = useMemo(() => [styles.input, style], [style]);
 
@@ -214,6 +224,7 @@ export const TerminalInput = forwardRef<TerminalInputHandle, TerminalInputProps>
       // do not emit a text change when a clipboard item replaces identical
       // stale input, so clear the buffer even when focus is already correct.
       resetNativeInput();
+      setShowSoftInputOnFocus(true);
 
       const focusRequest = resolveTerminalInputFocusRequest({
         isInputFocused: isFocusedRef.current || input.isFocused(),
@@ -223,14 +234,11 @@ export const TerminalInput = forwardRef<TerminalInputHandle, TerminalInputProps>
         return;
       }
 
-      if (focusRequest === "focus") {
-        input.focus();
-        return;
+      if (focusRequest === "refocus") {
+        input.blur();
+        isFocusedRef.current = false;
       }
-
-      input.blur();
-      isFocusedRef.current = false;
-      input.focus();
+      // Let Fabric apply showSoftInputOnFocus before asking native to focus.
       pendingFocusFrameRef.current = requestAnimationFrame(() => {
         pendingFocusFrameRef.current = null;
         inputRef.current?.focus();
@@ -241,12 +249,32 @@ export const TerminalInput = forwardRef<TerminalInputHandle, TerminalInputProps>
       clearPendingFocus();
       inputRef.current?.blur();
       isFocusedRef.current = false;
+      setShowSoftInputOnFocus(false);
       resetNativeInput();
     }, [clearPendingFocus, resetNativeInput]);
 
     const focusNativeInput = useCallback(() => {
-      showNativeKeyboard();
-    }, [showNativeKeyboard]);
+      clearPendingFocus();
+      const input = inputRef.current;
+      if (!input) return;
+      if (!isKeyboardVisible) setShowSoftInputOnFocus(false);
+      if (
+        resolveTerminalInputFocusRequest({
+          isInputFocused: isFocusedRef.current || input.isFocused(),
+          isKeyboardVisible,
+          showKeyboard: false,
+        }) === "none"
+      )
+        return;
+      pendingFocusFrameRef.current = requestAnimationFrame(() => {
+        pendingFocusFrameRef.current = null;
+        inputRef.current?.focus();
+      });
+    }, [clearPendingFocus, isKeyboardVisible]);
+
+    useEffect(() => {
+      if (!isKeyboardVisible) setShowSoftInputOnFocus(false);
+    }, [isKeyboardVisible]);
 
     useEffect(() => clearPendingFocus, [clearPendingFocus]);
 
@@ -325,7 +353,7 @@ export const TerminalInput = forwardRef<TerminalInputHandle, TerminalInputProps>
         onBlur={handleBlur}
         onFocus={handleFocus}
         onKeyPress={handleKeyPress}
-        showSoftInputOnFocus={true}
+        showSoftInputOnFocus={showSoftInputOnFocus}
         spellCheck={false}
         style={inputStyle}
         testID="terminal-native-input"

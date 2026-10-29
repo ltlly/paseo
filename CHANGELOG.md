@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.4
+
+- Send native terminal taps as complete mouse clicks when the application enables mouse tracking.
+- Keep soft keyboards hidden during terminal focus, tap and selection changes; use the keyboard toolbar button to request typing.
+
 ## 0.14.3
 
 - Deliver Android terminal swipes as mouse-wheel reports when the terminal application requests mouse tracking.
