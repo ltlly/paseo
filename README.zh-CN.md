@@ -1,3 +1,5 @@
+> **ltlly 维护分支：** 桌面安装包和完整 Android APK 均从 [ltlly/paseo 发布页](https://github.com/ltlly/paseo/releases/latest)下载。版本沿用上游基线，格式为 `0.14.0-ltlly.N`。Android 已内嵌字体；官方商店和 npm 包属于另一发行版。见[本分支发布规则](docs/release.md#fork-release-policy)。
+
 <p align="center">
   <img src="packages/website/public/logo.svg" width="64" height="64" alt="Paseo logo">
 </p>
@@ -15,8 +17,8 @@
   <a href="https://github.com/getpaseo/paseo/stargazers">
     <img src="https://img.shields.io/github/stars/getpaseo/paseo?style=flat&logo=github" alt="GitHub stars">
   </a>
-  <a href="https://github.com/getpaseo/paseo/releases">
-    <img src="https://img.shields.io/github/v/release/getpaseo/paseo?style=flat&logo=github" alt="GitHub release">
+  <a href="https://github.com/ltlly/paseo/releases">
+    <img src="https://img.shields.io/github/v/release/ltlly/paseo?style=flat&logo=github" alt="GitHub release">
   </a>
   <a href="https://x.com/moboudra">
     <img src="https://img.shields.io/badge/%40moboudra-555?logo=x" alt="X">
@@ -80,7 +82,7 @@ Paseo 会运行一个名为 daemon 的本地服务，用来管理你的 coding a
 
 ### 桌面 app（推荐）
 
-从 [paseo.sh/download](https://paseo.sh/zh-CN/download) 或 [GitHub releases 页面](https://github.com/getpaseo/paseo/releases)下载。打开 app 后 daemon 会自动启动，不需要再安装其他东西。
+从 [paseo.sh/download](https://paseo.sh/zh-CN/download) 或 [GitHub releases 页面](https://github.com/ltlly/paseo/releases)下载。打开 app 后 daemon 会自动启动，不需要再安装其他东西。
 
 如果要从手机连接，在 Settings 中扫描显示的二维码。
 
@@ -89,7 +91,7 @@ Paseo 会运行一个名为 daemon 的本地服务，用来管理你的 coding a
 安装 CLI 并启动 Paseo：
 
 ```bash
-npm install -g @getpaseo/cli
+npm install -g --allow-remote=all --allow-scripts=esbuild,node-pty,msgpackr-extract,sherpa-onnx-node https://github.com/ltlly/paseo/releases/latest/download/getpaseo-cli.tgz
 paseo
 ```
 

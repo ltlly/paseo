@@ -1,3 +1,5 @@
+> **ltlly fork:** Download this fork's desktop installers and complete Android APK from [ltlly/paseo releases](https://github.com/ltlly/paseo/releases/latest). Versions follow the upstream base as `0.14.0-ltlly.N`. Android fonts are embedded; official store builds and npm packages are different distributions. See [fork release policy](docs/release.md#fork-release-policy).
+
 <p align="center">
   <img src="packages/website/public/logo.svg" width="64" height="64" alt="Paseo logo">
 </p>
@@ -15,8 +17,8 @@
   <a href="https://github.com/getpaseo/paseo/stargazers">
     <img src="https://img.shields.io/github/stars/getpaseo/paseo?style=flat&logo=github" alt="GitHub stars">
   </a>
-  <a href="https://github.com/getpaseo/paseo/releases">
-    <img src="https://img.shields.io/github/v/release/getpaseo/paseo?style=flat&logo=github" alt="GitHub release">
+  <a href="https://github.com/ltlly/paseo/releases">
+    <img src="https://img.shields.io/github/v/release/ltlly/paseo?style=flat&logo=github" alt="GitHub release">
   </a>
   <a href="https://x.com/moboudra">
     <img src="https://img.shields.io/badge/%40moboudra-555?logo=x" alt="X">
@@ -80,7 +82,7 @@ Paseo はコーディングエージェントを管理するローカルサー�
 
 ### デスクトップアプリ（推奨）
 
-[paseo.sh/download](https://paseo.sh/download) または [GitHub のリリースページ](https://github.com/getpaseo/paseo/releases)からダウンロードしてください。アプリを開くとデーモンが自動的に起動します。追加のインストールは不要です。
+[paseo.sh/download](https://github.com/ltlly/paseo/releases/latest) または [GitHub のリリースページ](https://github.com/ltlly/paseo/releases)からダウンロードしてください。アプリを開くとデーモンが自動的に起動します。追加のインストールは不要です。
 
 スマートフォンから接続するには、Settings 画面に表示される QR コードをスキャンしてください。
 
@@ -89,7 +91,7 @@ Paseo はコーディングエージェントを管理するローカルサー�
 CLI をインストールして Paseo を起動します。
 
 ```bash
-npm install -g @getpaseo/cli
+npm install -g --allow-remote=all --allow-scripts=esbuild,node-pty,msgpackr-extract,sherpa-onnx-node https://github.com/ltlly/paseo/releases/latest/download/getpaseo-cli.tgz
 paseo
 ```
 

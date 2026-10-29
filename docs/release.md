@@ -27,7 +27,11 @@ The manual `Fork Runtime Artifacts` workflow produces artifacts without creating
 Daemon self-update downloads `getpaseo-cli.tgz` from the latest fork release; desktop update metadata
 also comes from the fork. No official-npm fallback is allowed. Keep the CLI tarball on every release
 marked latest. A release without the asset fails update instead of silently changing distributions.
-Use a new semver version for releases so desktop update comparisons and Android version codes advance.
+Use `UPSTREAM-ltlly.N` versions (starting at `0.14.0-ltlly.1`). Keep the upstream base until actually syncing a new upstream version. Preview the next revision with `node scripts/set-release-version.mjs --mode fork-next --print`; `npm run version:fork:next` creates the next version commit/tag through the normal version lifecycle. Never reuse a published revision. Legacy fork versions `0.14.1`–`0.14.4` migrate to this series.
+
+The `-ltlly.N` suffix belongs to our stable feed: publish the GitHub release with `prerelease=false` and explicitly mark the completed release latest. Ordinary semver ordering would otherwise consider the legacy `0.14.4` newer. Desktop and Android compare the fork revision, and Android uses a separate monotonically increasing numeric build code.
+
+Before marking a release latest, upload the runtime assets, complete `Paseo-VERSION-arm64.apk` (or universal APK), and desktop packages/metadata for the supported platforms. Android Settings → About reads this repository's latest release and opens the complete APK download; Android's system installer performs the installation. Upstream Expo OTA remains disabled. Desktop uses `latest.yml` / `latest-mac.yml` from this repository. macOS automatic installation additionally requires a consistent signing identity; ad hoc builds can be downloaded and installed manually.
 
 The existing mac/home/dy `0.14.0-mouse.1` runtime services require a one-time migration to these
 artifacts. Preserve each service's environment, working directory, Paseo home and rollback runtime.
