@@ -33,7 +33,7 @@ import {
 } from "../local-links/terminal-local-link-provider";
 import { isFindShortcut, type FindShortcutPlatform } from "@/pane-find/find-shortcut";
 import { isMacUserAgent } from "@/utils/mac-user-agent";
-import { resolveTerminalFontFamily, resolveTerminalFontSize } from "./terminal-font";
+import { resolveBrowserTerminalFontFamily, resolveTerminalFontSize } from "./terminal-font";
 import { imageExtension, readTerminalFile, type TerminalFile } from "../file-paste";
 
 export type TerminalOutputData = Uint8Array;
@@ -238,6 +238,7 @@ export class TerminalEmulatorRuntime {
     alt: false,
   };
   private terminal: Terminal | null = null;
+  private requestedFont: { fontFamily?: string; fontSize?: number } = {};
   private fitAddon: FitAddon | null = null;
   private searchAddon: SearchAddon | null = null;
   private findResult = { resultIndex: -1, resultCount: 0 };
@@ -511,12 +512,16 @@ export class TerminalEmulatorRuntime {
     const openExternalLink = (event: MouseEvent, uri: string) => {
       activateTerminalHyperlink(event, uri, this.callbacks);
     };
+    this.requestedFont = { fontFamily: input.fontFamily, fontSize: input.fontSize };
     const terminal = new Terminal({
       allowProposedApi: true,
       convertEol: false,
       cursorBlink: true,
       cursorStyle: "bar",
-      fontFamily: resolveTerminalFontFamily(input.fontFamily),
+      fontFamily: resolveBrowserTerminalFontFamily(
+        input.fontFamily,
+        resolveTerminalFontSize(input.fontSize),
+      ),
       fontSize: resolveTerminalFontSize(input.fontSize),
       // OSC 8 hyperlinks; without a handler xterm prompts and calls window.open().
       linkHandler: { activate: openExternalLink },
@@ -761,12 +766,16 @@ export class TerminalEmulatorRuntime {
 
     const fontSet = document.fonts;
     const fontReadyHandler = () => {
-      fitAndEmitResize({ forceRefresh: true, shouldClaim: false });
+      if (this.terminal !== terminal) return;
+      // xterm caches cell metrics and ignores an unchanged font option. A
+      // loaded web font can keep its name while changing its actual width.
+      terminal.options.fontFamily = `${terminal.options.fontFamily}, monospace`;
+      this.setFont(this.requestedFont);
     };
     fontSet?.addEventListener?.("loadingdone", fontReadyHandler);
     void fontSet?.ready
       .then(() => {
-        fitAndEmitResize({ forceRefresh: true, shouldClaim: false });
+        fontReadyHandler();
         return;
       })
       .catch(() => {
@@ -966,13 +975,17 @@ export class TerminalEmulatorRuntime {
   }
 
   setFont(input: { fontFamily?: string; fontSize?: number }): void {
+    this.requestedFont = { ...input };
     const terminal = this.terminal;
     if (!terminal) {
       return;
     }
 
     try {
-      terminal.options.fontFamily = resolveTerminalFontFamily(input.fontFamily);
+      terminal.options.fontFamily = resolveBrowserTerminalFontFamily(
+        input.fontFamily,
+        resolveTerminalFontSize(input.fontSize),
+      );
       terminal.options.fontSize = resolveTerminalFontSize(input.fontSize);
     } catch {
       // ignore

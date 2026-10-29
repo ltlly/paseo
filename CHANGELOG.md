@@ -4,6 +4,8 @@
 
 - Send native terminal taps as complete mouse clicks when the application enables mouse tracking.
 - Keep soft keyboards hidden during terminal focus, tap and selection changes; use the keyboard toolbar button to request typing.
+- Apply explicit keyboard requests after Android mounts the input, so the first toolbar press works.
+- Validate terminal font metrics and fall back to an available monospace stack when a shared custom font is missing; remeasure after fonts load.
 
 ## 0.14.3
 

@@ -226,23 +226,12 @@ export const TerminalInput = forwardRef<TerminalInputHandle, TerminalInputProps>
       resetNativeInput();
       setShowSoftInputOnFocus(true);
 
-      const focusRequest = resolveTerminalInputFocusRequest({
-        isInputFocused: isFocusedRef.current || input.isFocused(),
-        isKeyboardVisible,
-      });
-      if (focusRequest === "none") {
-        return;
-      }
-
-      if (focusRequest === "refocus") {
-        input.blur();
-        isFocusedRef.current = false;
-      }
-      // Let Fabric apply showSoftInputOnFocus before asking native to focus.
-      pendingFocusFrameRef.current = requestAnimationFrame(() => {
-        pendingFocusFrameRef.current = null;
-        inputRef.current?.focus();
-      });
+      if (isKeyboardVisible) return;
+      // Fabric can run focus commands before the updated soft-input prop is
+      // mounted, even in the next animation frame. The editing input carries
+      // focus across reset via autoFocus, after the new native view attaches.
+      input.reset();
+      input.focus();
     }, [clearPendingFocus, isKeyboardVisible, resetNativeInput]);
 
     const blurNativeInput = useCallback(() => {
