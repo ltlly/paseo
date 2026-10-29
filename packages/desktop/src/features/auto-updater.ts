@@ -1,3 +1,8 @@
+import {
+  FORK_UPDATE_FEED_URL,
+  isLegacyForkVersion,
+  isNewerForkRelease,
+} from "@getpaseo/protocol/fork-release";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -150,12 +155,16 @@ class ElectronAppUpdateRuntime implements AppUpdateRuntime {
     // Electron's built-in handler would install an older download without checking
     // whether a newer release has superseded it.
     autoUpdater.autoInstallOnAppQuit = false;
-    autoUpdater.allowPrerelease = input.releaseChannel === "beta";
+    // Our stable fork versions carry the ltlly suffix. The feed only exposes our chosen release.
+    autoUpdater.allowPrerelease = true;
     autoUpdater.channel = input.releaseChannel === "beta" ? "beta" : "latest";
-    autoUpdater.allowDowngrade = false;
+    autoUpdater.allowDowngrade = isLegacyForkVersion(app.getVersion());
     autoUpdater.isUserWithinRollout = async (info) => {
       try {
-        return await input.shouldAdmitUpdate(info as RuntimeUpdateInfo);
+        return (
+          isNewerForkRelease(info.version, app.getVersion()) &&
+          (await input.shouldAdmitUpdate(info as RuntimeUpdateInfo))
+        );
       } catch {
         return true;
       }
@@ -163,6 +172,8 @@ class ElectronAppUpdateRuntime implements AppUpdateRuntime {
 
     if (this.configured) return;
     this.configured = true;
+    // Override packaged metadata too: older desktop installs may retain an upstream app-update.yml.
+    autoUpdater.setFeedURL({ provider: "generic", url: FORK_UPDATE_FEED_URL });
 
     // electron-updater logs every emitted error before consumers can classify it.
     // Paseo reports genuine check, runtime, and install failures through the

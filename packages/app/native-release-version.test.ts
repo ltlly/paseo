@@ -44,3 +44,22 @@ describe("native release version", () => {
     ]);
   });
 });
+
+describe("fork native release version", () => {
+  it("allows APK upgrades from the old fork version and between revisions", () => {
+    const first = getNativeReleaseVersion("0.14.0-ltlly.1");
+    const next = getNativeReleaseVersion("0.14.0-ltlly.2");
+    expect(first.appVersion).toBe("0.14.0");
+    expect(first.androidVersionCode).toBe(14000001);
+    expect(first.androidVersionCode).toBeGreaterThan(
+      getNativeReleaseVersion("0.14.4").androidVersionCode,
+    );
+    expect(next.androidVersionCode).toBeGreaterThan(first.androidVersionCode);
+    expect(Number(first.iosBuildNumber)).toBeGreaterThan(
+      Number(getNativeReleaseVersion("0.14.4").iosBuildNumber),
+    );
+    expect(getNativeReleaseVersion("0.14.1-ltlly.1").androidVersionCode).toBeGreaterThan(
+      next.androidVersionCode,
+    );
+  });
+});

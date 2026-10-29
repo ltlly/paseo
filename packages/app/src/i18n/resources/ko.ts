@@ -2435,6 +2435,13 @@ export const ko: TranslationResources = {
       },
     },
     about: {
+      androidUpdate: {
+        title: "Android 업데이트",
+        hint: "글꼴이 포함된 전체 APK를 ltlly/paseo에서 다운로드합니다.",
+        error: "업데이트를 확인하지 못했습니다. 다시 시도하세요.",
+        current: "새로운 APK가 없습니다.",
+        download: "APK 다운로드",
+      },
       title: "정보",
       appVersion: "앱 버전",
       whatsNewHint: "모든 버전의 릴리스 노트",

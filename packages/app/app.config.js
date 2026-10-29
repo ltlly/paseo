@@ -122,6 +122,7 @@ export default {
       buildNumber: nativeReleaseVersion.iosBuildNumber,
     },
     android: {
+      version: pkg.version,
       adaptiveIcon: {
         backgroundColor: "#000000",
         foregroundImage: "./assets/images/android-icon-foreground.png",

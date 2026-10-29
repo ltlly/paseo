@@ -2396,6 +2396,13 @@ export const zhCN: TranslationResources = {
       },
     },
     about: {
+      androidUpdate: {
+        title: "Android 更新",
+        hint: "从 ltlly/paseo 下载完整 APK，已包含字体。",
+        error: "检查更新失败，请重试。",
+        current: "暂无更新的 APK。",
+        download: "下载 APK",
+      },
       title: "关于",
       appVersion: "应用版本",
       whatsNewHint: "每个版本的发布说明",

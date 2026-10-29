@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.0-ltlly.1 - 2026-10-29
+
+- Align fork versions with upstream 0.14.0 and increment only the `-ltlly.N` revision; retain all changes from fork 0.14.1–0.14.4.
+- Route desktop updates explicitly to ltlly/paseo even when old packaged metadata remains; recognize legacy fork versions during migration.
+- Add Android update checks and complete APK downloads from ltlly/paseo in Settings → About. Embedded JetBrains Mono and Maple Mono CN remain enabled by default.
+- Use monotonically increasing Android build codes so existing installations can upgrade without uninstalling.
+- Keep Actions disabled and release workflows manual.
+
 ## 0.14.4
 
 - Bundle JetBrains Mono and Maple Mono Normal NF CN in Android and register their combined terminal family before React Native starts, including OFL licenses.

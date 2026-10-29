@@ -2547,6 +2547,13 @@ export const en = {
       },
     },
     about: {
+      androidUpdate: {
+        title: "Android updates",
+        hint: "Download the complete APK from ltlly/paseo. Fonts are included.",
+        error: "Could not check for updates. Try again.",
+        current: "No newer APK is available.",
+        download: "Download APK",
+      },
       title: "About",
       appVersion: "App version",
       whatsNewHint: "Release notes for every version",

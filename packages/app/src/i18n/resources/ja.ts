@@ -2442,6 +2442,13 @@ export const ja: TranslationResources = {
       },
     },
     about: {
+      androidUpdate: {
+        title: "Android の更新",
+        hint: "フォントを含む完全な APK を ltlly/paseo からダウンロードします。",
+        error: "更新を確認できませんでした。再試行してください。",
+        current: "新しい APK はありません。",
+        download: "APK をダウンロード",
+      },
       title: "アプリ情報",
       appVersion: "アプリバージョン",
       whatsNewHint: "各バージョンのリリースノート",

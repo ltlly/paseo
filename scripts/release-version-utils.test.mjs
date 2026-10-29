@@ -51,3 +51,10 @@ test("emits beta release info from tags", () => {
 test("rejects non-beta prerelease versions", () => {
   assert.throws(() => parseReleaseVersion("0.1.60-canary.1"), /Expected beta prerelease versions/);
 });
+
+test("fork revisions keep the upstream base and publish to the stable fork feed", () => {
+  assert.equal(computeNextReleaseVersion("0.14.0-ltlly.1", "fork-next"), "0.14.0-ltlly.2");
+  assert.equal(getReleaseInfoFromSourceTag("v0.14.0-ltlly.1").releaseType, "release");
+  assert.equal(getReleaseInfoFromSourceTag("v0.14.0-ltlly.1").releaseChannel, "latest");
+  assert.throws(() => computeNextReleaseVersion("0.14.0-ltlly.1", "patch"), /fork-next/);
+});

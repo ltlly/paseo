@@ -1,3 +1,4 @@
+import { FORK_UPDATE_FEED_URL } from "@getpaseo/protocol/fork-release";
 import { lstatSync } from "node:fs";
 import { getErrorMessage } from "@getpaseo/protocol/error-utils";
 import { z } from "zod";
@@ -5,8 +6,7 @@ import { execCommand } from "../../../utils/spawn.js";
 
 export const PASEO_CLI_PACKAGE = "@getpaseo/cli";
 // Release assets include all fork workspace dependencies; never fall back to npm latest.
-export const PASEO_CLI_UPDATE_URL =
-  "https://github.com/ltlly/paseo/releases/latest/download/getpaseo-cli.tgz";
+export const PASEO_CLI_UPDATE_URL = `${FORK_UPDATE_FEED_URL}/getpaseo-cli.tgz`;
 
 const NPM_PROBE_TIMEOUT_MS = 10_000;
 const NPM_INSTALL_TIMEOUT_MS = 300_000;

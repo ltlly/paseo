@@ -2458,6 +2458,13 @@ export const ar: TranslationResources = {
       },
     },
     about: {
+      androidUpdate: {
+        title: "تحديثات Android",
+        hint: "تنزيل ملف APK الكامل من ltlly/paseo، مع الخطوط المضمنة.",
+        error: "تعذر التحقق من التحديثات. حاول مجددًا.",
+        current: "لا يتوفر ملف APK أحدث.",
+        download: "تنزيل APK",
+      },
       title: "عن",
       appVersion: "نسخة التطبيق",
       whatsNewHint: "ملاحظات الإصدار لكل نسخة",

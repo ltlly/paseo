@@ -2463,6 +2463,13 @@ export const ru: TranslationResources = {
       },
     },
     about: {
+      androidUpdate: {
+        title: "Обновления Android",
+        hint: "Скачать полный APK из ltlly/paseo со встроенными шрифтами.",
+        error: "Не удалось проверить обновления. Повторите попытку.",
+        current: "Новая версия APK недоступна.",
+        download: "Скачать APK",
+      },
       title: "О приложении",
       appVersion: "Версия приложения",
       whatsNewHint: "Заметки о выпуске для каждой версии",

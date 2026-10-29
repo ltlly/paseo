@@ -25,9 +25,12 @@ export function parseReleaseVersion(version) {
   const betaMatch = prerelease?.match(/^beta\.(?<beta>\d+)$/) ?? null;
   const betaNumber = betaMatch?.groups?.beta ? Number.parseInt(betaMatch.groups.beta, 10) : null;
 
-  if (prerelease !== null && betaNumber === null) {
+  const forkMatch = prerelease?.match(/^ltlly\.(?<revision>[1-9]\d*)$/) ?? null;
+  const forkRevision = forkMatch?.groups?.revision ? Number(forkMatch.groups.revision) : null;
+
+  if (prerelease !== null && betaNumber === null && forkRevision === null) {
     throw new Error(
-      `Unsupported release version "${version}". Expected beta prerelease versions like 0.1.41-beta.1.`,
+      `Unsupported release version "${version}". Expected beta prerelease versions like 0.1.41-beta.1 or fork versions like 0.14.0-ltlly.1.`,
     );
   }
 
@@ -45,7 +48,9 @@ export function parseReleaseVersion(version) {
     patch,
     prerelease,
     baseVersion: `${major}.${minor}.${patch}`,
-    isPrerelease: prerelease !== null,
+    // A fork revision belongs to our stable channel, despite the semver suffix.
+    isPrerelease: betaNumber !== null,
+    ...(forkRevision === null ? {} : { forkRevision }),
     isBeta: betaNumber !== null,
     betaNumber,
   };
@@ -89,6 +94,16 @@ export function getReleaseInfoFromSourceTag(sourceTag) {
 
 export function computeNextReleaseVersion(currentVersion, mode) {
   const parsed = parseReleaseVersion(currentVersion);
+
+  if (mode === "fork-next") {
+    return `${parsed.baseVersion}-ltlly.${(parsed.forkRevision ?? 0) + 1}`;
+  }
+
+  if (parsed.forkRevision != null && ["patch", "minor", "major", "promote"].includes(mode)) {
+    throw new Error(
+      "Use fork-next for local patches; update the upstream base only after syncing upstream.",
+    );
+  }
 
   if (mode === "patch" || mode === "minor" || mode === "major") {
     if (parsed.isPrerelease) {

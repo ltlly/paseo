@@ -2476,6 +2476,13 @@ export const es: TranslationResources = {
       },
     },
     about: {
+      androidUpdate: {
+        title: "Actualizaciones de Android",
+        hint: "Descarga el APK completo de ltlly/paseo, con las fuentes incluidas.",
+        error: "No se pudieron buscar actualizaciones. Inténtalo de nuevo.",
+        current: "No hay un APK más reciente.",
+        download: "Descargar APK",
+      },
       title: "Acerca de",
       appVersion: "Versión de la aplicación",
       whatsNewHint: "Notas de versión de cada release",

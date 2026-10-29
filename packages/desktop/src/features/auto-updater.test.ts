@@ -16,6 +16,7 @@ const { autoUpdaterMock } = vi.hoisted(() => {
         warn: vi.fn(),
       },
       checkForUpdates: vi.fn(),
+      setFeedURL: vi.fn(),
       downloadUpdate: vi.fn(),
       on: vi.fn((event: string, handler: (value: unknown) => void) => {
         handlers.set(event, handler);
@@ -28,6 +29,7 @@ const { autoUpdaterMock } = vi.hoisted(() => {
 vi.mock("electron", () => ({
   app: {
     getPath: vi.fn(),
+    getVersion: vi.fn(() => "0.14.0-ltlly.1"),
     isPackaged: true,
   },
 }));
@@ -45,6 +47,33 @@ import {
   shouldAdmitToRollout,
   shouldInstallAppUpdateOnQuit,
 } from "./auto-updater";
+
+describe("fork update feed", () => {
+  it("uses the fork stable feed and excludes older or unrelated versions", async () => {
+    await checkForAppUpdate({
+      currentVersion: "0.14.0-ltlly.1",
+      releaseChannel: "stable",
+      intent: "manual",
+    });
+    expect(autoUpdaterMock.setFeedURL).toHaveBeenCalledWith({
+      provider: "generic",
+      url: "https://github.com/ltlly/paseo/releases/latest/download",
+    });
+    expect(autoUpdaterMock).toMatchObject({
+      allowPrerelease: true,
+      allowDowngrade: false,
+      channel: "latest",
+    });
+    const gate = (
+      autoUpdaterMock as unknown as {
+        isUserWithinRollout(info: { version: string }): Promise<boolean>;
+      }
+    ).isUserWithinRollout;
+    expect(await gate({ version: "0.14.0-ltlly.2" })).toBe(true);
+    expect(await gate({ version: "0.14.0-ltlly.1" })).toBe(false);
+    expect(await gate({ version: "0.14.4" })).toBe(false);
+  });
+});
 
 describe("checkForAppUpdate", () => {
   it("treats an unpublished channel manifest as an unavailable update", async () => {

@@ -39,6 +39,8 @@ publish:
   provider: github
   owner: ltlly
   repo: paseo
+  channel: latest
+  releaseType: release
 mac:
   artifactName: "Paseo-${version}-${arch}.${ext}"
   minimumSystemVersion: "13.0.0"

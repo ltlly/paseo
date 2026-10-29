@@ -2475,6 +2475,13 @@ export const fr: TranslationResources = {
       },
     },
     about: {
+      androidUpdate: {
+        title: "Mises à jour Android",
+        hint: "Téléchargez l’APK complet depuis ltlly/paseo, polices incluses.",
+        error: "Impossible de vérifier les mises à jour. Réessayez.",
+        current: "Aucun APK plus récent disponible.",
+        download: "Télécharger l’APK",
+      },
       title: "À propos",
       appVersion: "Version de l’application",
       whatsNewHint: "Les nouveautés de chaque version",
