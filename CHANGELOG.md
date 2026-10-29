@@ -6,6 +6,7 @@
 - Keep soft keyboards hidden during terminal focus, tap and selection changes; use the keyboard toolbar button to request typing.
 - Apply explicit keyboard requests after Android mounts the input, so the first toolbar press works.
 - Validate terminal font metrics and fall back to an available monospace stack when a shared custom font is missing; remeasure after fonts load.
+- Prefer Cascadia Mono, Cascadia Code and Consolas on Windows, and protect the DOM terminal renderer from global interface-font styles.
 
 ## 0.14.3
 

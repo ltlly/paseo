@@ -1,7 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_TERMINAL_FONT_FAMILY, resolveTerminalFontFamily } from "./terminal-font";
+import {
+  DEFAULT_TERMINAL_FONT_FAMILY,
+  WINDOWS_TERMINAL_FONT_FAMILY,
+  resolveTerminalFontFamily,
+} from "./terminal-font";
 
 describe("terminal font fallback", () => {
+  it("prefers installed Windows programming fonts when the configured stack is proportional", () => {
+    expect(
+      resolveTerminalFontFamily(
+        "Missing Font, Microsoft YaHei UI",
+        (family, text) => {
+          if (family === WINDOWS_TERMINAL_FONT_FAMILY) return 8.2;
+          return text === "i" ? 3 : 14;
+        },
+        WINDOWS_TERMINAL_FONT_FAMILY,
+      ),
+    ).toBe(WINDOWS_TERMINAL_FONT_FAMILY);
+  });
   it("rejects a missing custom font falling through to proportional CJK UI text", () => {
     const requested = "CaskaydiaCove NFM, Microsoft YaHei UI, monospace";
     const measure = (family: string, text: string) =>

@@ -20,19 +20,23 @@ export const DEFAULT_TERMINAL_FONT_FAMILY = [
   "monospace",
 ].join(", ");
 
+export const WINDOWS_TERMINAL_FONT_FAMILY =
+  '"Cascadia Mono", "Cascadia Code", Consolas, "Symbols Nerd Font", monospace';
+
 export function resolveTerminalFontFamily(
   fontFamily: string | undefined,
   measureText?: (family: string, text: string) => number,
+  fallbackFamily = DEFAULT_TERMINAL_FONT_FAMILY,
 ): string {
   const trimmed = fontFamily?.trim();
-  const requested = trimmed && trimmed.length > 0 ? trimmed : DEFAULT_TERMINAL_FONT_FAMILY;
+  const requested = trimmed && trimmed.length > 0 ? trimmed : fallbackFamily;
   if (!measureText) return requested;
 
   // Font preferences can travel between machines. A missing developer font
   // followed by a CJK UI font silently gives xterm proportional Latin glyphs.
   // Check the resolved stack, not document.fonts.check(), which also succeeds
   // for absent system fonts. Only Latin cells must be equal; CJK can be wide.
-  for (const family of [requested, DEFAULT_TERMINAL_FONT_FAMILY, "monospace"]) {
+  for (const family of [requested, fallbackFamily, "monospace"]) {
     const widths = ["W", "i", "0", " "].map((text) => measureText(family, text));
     if (
       widths.every((width) => Number.isFinite(width) && width > 0) &&
@@ -58,6 +62,9 @@ export function resolveBrowserTerminalFontFamily(
           return context.measureText(text).width;
         }
       : undefined,
+    typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent)
+      ? WINDOWS_TERMINAL_FONT_FAMILY
+      : DEFAULT_TERMINAL_FONT_FAMILY,
   );
 }
 
