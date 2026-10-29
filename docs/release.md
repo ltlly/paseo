@@ -15,6 +15,8 @@ runtime dependency URLs before moving `latest`. APK signing uses the existing fo
 repository Actions secrets. macOS ad hoc builds use the explicit DMG download flow in Settings → About.
 If hosted ARM Mac capacity is unavailable, `FORK_MACOS_ARM_RUNNER` can temporarily select a
 repository runner label. Use an ephemeral runner and remove the override after the release.
+Keep the override unchanged between attempts: GitHub reevaluates the matrix when failed jobs
+are rerun, so changing it can rebuild an already successful platform.
 
 The upstream release playbook below is reference material; its npm publication and automatic
 branch-CI steps do not apply to this fork. Never publish this fork to the upstream npm packages.
@@ -42,10 +44,23 @@ The `-ltlly.N` suffix belongs to our stable feed: publish the GitHub release wit
 
 Before marking a release latest, upload the runtime assets, complete `Paseo-VERSION-arm64.apk` (or universal APK), and desktop packages/metadata for the supported platforms. Android Settings → About reads this repository's latest release and opens the complete APK download; Android's system installer performs the installation. Upstream Expo OTA remains disabled. Desktop uses `latest.yml` / `latest-mac.yml` from this repository. macOS automatic installation additionally requires a consistent signing identity; ad hoc builds can be downloaded and installed manually.
 
-The existing mac/home/dy `0.14.0-mouse.1` runtime services require a one-time migration to these
-artifacts. Preserve each service's environment, working directory, Paseo home and rollback runtime.
-Installing files does not change a running process; service restart is a separate deployment step.
+The mac/home/dy services use dedicated runtime prefixes. Preserve each service's environment,
+working directory, Paseo home and rollback runtime when switching prefixes. Installing files does
+not change a running process; service restart is a separate deployment step.
 The updater supports npm global installs and validates dedicated `paseo-fork-runtime` local prefixes before updating both root CLI/server dependencies to the same fork tag. Existing service paths stay stable, including on Windows.
+
+For a manual macOS service switch, disable the LaunchAgent with `launchctl disable gui/$UID/LABEL`
+before `paseo daemon stop --keep-terminals`, then quit the desktop app and boot out the job. A
+`KeepAlive` job can otherwise restart between the graceful stop and `bootout`; the new process's
+SIGTERM closes the preserved terminals. After replacing files, enable and bootstrap the job, wait
+for `paseo daemon status` to report the intended version, then reopen the app. Quitting an app that
+owns the daemon before the graceful stop also closes its terminals. See [Terminal worker](terminal-worker.md).
+
+Run Windows NSIS installers in the signed-in user's interactive session, including silent `/S`
+installs. An SSH Session 0 launch can wait indefinitely before invoking the old uninstaller.
+For remote deployment, use a temporary scheduled task with the desktop task's interactive
+principal, verify the installer exit code and installed `app.asar`, then remove the temporary task.
+Windows PE version fields omit the fork suffix; read the packaged application version instead.
 Android distribution and signing are described in [Android](android.md).
 
 ## Two steps

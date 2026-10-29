@@ -203,7 +203,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           cache-read-only: false
-      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'
+      - name: Install Android SDK and NDK with download retries
+        run: |
+          for attempt in 1 2 3; do
+            if sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006'; then
+              exit 0
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              echo "::warning::SDK installation failed; retrying download (attempt $((attempt + 1))/3)."
+              sleep "$((attempt * 10))"
+            fi
+          done
+          echo '::error::SDK installation failed after three attempts.'
+          exit 1
       - run: node scripts/npm-retry.mjs ci
       - name: Build the complete embedded-font APK
         env:
