@@ -11,6 +11,48 @@
 
 - 新增采用 `subject.operation.position` 命名的 `server.addHook` 和在 setup 及 Agent 之前等待的 `worktree.create.after` 钩子，弃用原有的插件钩子注册方法并保留原有行为 ([#8081](https://github.com/getpaseo/paseo/pull/8081))
 
+## 0.14.0-ltlly.3 - 2026-10-31
+
+### 新增
+
+- 工作区下显示内置和终端 Agent，保留空闲图标，工作时显示转圈，点击可跳转到对应标签页（[分支改动](https://github.com/ltlly/paseo/commit/9465c1dd2)）
+- 可从单个 Agent 图标的菜单手动改名，或使用少量近期对话重新起名（[分支改动](https://github.com/ltlly/paseo/commit/93f2304eb)）
+- 多个会话可复用已运行的 OpenCode v2 服务（[#7435](https://github.com/getpaseo/paseo/pull/7435)，由 [@mcowger](https://github.com/mcowger) 贡献）
+- 手机终端支持拖动手柄调整文本选区（[#8348](https://github.com/getpaseo/paseo/pull/8348)）
+- 点击 Agent 建议的命令可将其填入输入框，无需立即发送（[#8371](https://github.com/getpaseo/paseo/pull/8371)）
+- 可为主机关闭用量检查，对连接该主机的所有客户端生效（[#8181](https://github.com/getpaseo/paseo/pull/8181)）
+
+### 改进
+
+- 终端重连后保留最多 10,000 行历史（[#8282](https://github.com/getpaseo/paseo/pull/8282)）
+- 分页读取 Codex 历史，避免一次请求整个会话（[#8171](https://github.com/getpaseo/paseo/pull/8171)）
+- 协商分块传输大消息，并限制超大时间线条目的内容（[#8302](https://github.com/getpaseo/paseo/pull/8302)、[#8274](https://github.com/getpaseo/paseo/pull/8274)）
+- 守护进程和插件请求遵循 HTTP_PROXY、HTTPS_PROXY 和 NO_PROXY（[#8177](https://github.com/getpaseo/paseo/pull/8177)）
+- 父对话显示子 Agent 的启动标记，具体活动保留在子 Agent 的时间线中（[#8276](https://github.com/getpaseo/paseo/pull/8276)）
+- 手机和平板遵循系统旋转设置（[#8256](https://github.com/getpaseo/paseo/pull/8256)）
+
+### 修复
+
+- Pi 启动期间保持工作状态指示，并支持 Windows 原生终端 hooks（[分支改动](https://github.com/ltlly/paseo/commit/6da81486a)）
+- 终端切换会话后更新当前聚焦对话的名称，图标提示显示 Agent 的工作标题（[分支改动](https://github.com/ltlly/paseo/commit/93f2304eb)）
+- 工作区根目录不存在目标文件时，可打开嵌套仓库中的相对文件链接（[#8361](https://github.com/getpaseo/paseo/pull/8361)，由 [@apple-ouyang](https://github.com/apple-ouyang) 贡献）
+- 插件提供商回退对话后移除已放弃的历史分支（[#8368](https://github.com/getpaseo/paseo/pull/8368)）
+- Pi 工具返回的图片可实时显示，重新打开对话后也能恢复（[#8280](https://github.com/getpaseo/paseo/pull/8280)）
+- 原生终端文本与光标按单元格对齐（[#8336](https://github.com/getpaseo/paseo/pull/8336)）
+- 修复 Android 后台折叠切换后的布局及旋转后的标题渐变宽度（[#8285](https://github.com/getpaseo/paseo/pull/8285)、[#8349](https://github.com/getpaseo/paseo/pull/8349)）
+- 聊天历史加载失败后保留错误和手动重试入口（[#8278](https://github.com/getpaseo/paseo/pull/8278)）
+- 删除 Agent 后同步移除其他已连接窗口中的标签（[#8248](https://github.com/getpaseo/paseo/pull/8248)）
+- Windows 短暂文件占用后可恢复终端记录更新（[#8155](https://github.com/getpaseo/paseo/pull/8155)）
+- 自定义 Codex 提供商可使用保留名称，并修复 MiniMax Code 可执行文件的解析（[#6954](https://github.com/getpaseo/paseo/pull/6954)、[#8201](https://github.com/getpaseo/paseo/pull/8201)，由 [@Peanut-HZM](https://github.com/Peanut-HZM) 贡献）
+- 隐藏窗口期间系统主题变化后正确刷新对话颜色（[#8199](https://github.com/getpaseo/paseo/pull/8199)）
+- Claude、Codex 和 Pi 均可读取技能调用参数（[#8252](https://github.com/getpaseo/paseo/pull/8252)，由 [@AspireOne](https://github.com/AspireOne) 贡献）
+
+### 说明
+
+- 自动起名只使用一次模型请求和长度受限的近期文本；手动改名不调用模型
+- 插件对话回退会重新加载保留的原生历史，长对话可能耗时更久
+- 手机大文件上传仍受平台限制，此版本不提供无限大小上传
+
 ## 0.14.0 - 2026-10-29
 
 插件现在可以为单个 Agent 添加工具，并在会话打开时配置其 MCP 服务器。
