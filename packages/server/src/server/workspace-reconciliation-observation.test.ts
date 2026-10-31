@@ -244,8 +244,12 @@ class ObservedPlacements {
     this.activeWatch(root)?.onError(new Error("watch failed"));
   }
 
-  change(root: string, filename: string | null): void {
+  change(root: string, filename: string | Buffer | null): void {
     this.activeWatch(root)?.onChange("rename", filename);
+  }
+
+  rootPath(root: string): string {
+    return this.absolute(root);
   }
 
   makeProjectGit(projectId: string, branch = "main"): void {
@@ -458,6 +462,22 @@ describe("observed workspace placement", () => {
     observed.change("repo", ".git");
     observed.change("repo", null);
     await observed.advanceBy(DEBOUNCE_MS);
+    expect(observed.gitReads).toBe(1);
+    observed.dispose();
+  });
+
+  test("closes a renamed project root watch immediately and rearms the current directory", async () => {
+    const observed = new ObservedPlacements([{ id: "project-one", root: "repo" }]);
+    await observed.start();
+
+    observed.change("repo", Buffer.from(observed.rootPath("repo")));
+
+    expect(observed.watchedRoots()).toEqual([]);
+    expect(observed.closedRoots()).toEqual(["repo"]);
+
+    await observed.advanceBy(DEBOUNCE_MS);
+
+    expect(observed.watchedRoots()).toEqual(["repo"]);
     expect(observed.gitReads).toBe(1);
     observed.dispose();
   });

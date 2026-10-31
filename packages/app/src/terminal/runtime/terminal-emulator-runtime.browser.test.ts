@@ -326,6 +326,19 @@ describe("terminal emulator runtime in a real browser", () => {
     expect(mounted.inputs.join("")).toBe("\x1b[<65;1;1M".repeat(3));
   });
 
+  it("sends a fast wheel gesture as one input batch without a DOM event per row", async () => {
+    await page.viewport(900, 600);
+    const mounted = createTerminalHost({ width: 720, height: 360 });
+    await writeLines(mounted, ["\x1b[?1000h\x1b[?1006h"]);
+    const wheelEvents: Event[] = [];
+    mounted.host.addEventListener("wheel", (event) => wheelEvents.push(event), true);
+
+    dispatchTerminalWheel(mounted, { deltaY: 48 });
+
+    expect(mounted.inputs).toEqual(["\x1b[<65;1;1M".repeat(48)]);
+    expect(wheelEvents).toHaveLength(2);
+  });
+
   it("accumulates trackpad pixels without damping or losing fast wheel movement", async () => {
     await page.viewport(900, 600);
     const mounted = createTerminalHost({ width: 720, height: 360, isMac: true });

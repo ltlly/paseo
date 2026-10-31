@@ -1,5 +1,6 @@
 import { watch as watchPath } from "node:fs";
 import { stat } from "node:fs/promises";
+import { basename } from "node:path";
 import { setImmediate as yieldToLoop } from "node:timers/promises";
 import type { ProjectCheckoutLitePayload } from "@getpaseo/protocol/messages";
 import type pino from "pino";
@@ -489,15 +490,27 @@ export class WorkspaceReconciliationService {
         watcher = this.watchProjectRoot(
           project.rootPath,
           { recursive: false },
-          (_event, filename) => {
-            if (filename === null || filename.toString() === ".git") {
+          (event, filename) => {
+            const changedPath = filename === null ? null : filename.toString();
+            const rootWasRenamed =
+              event === "rename" &&
+              changedPath !== null &&
+              (areEquivalentPaths(project.rootPath, changedPath) ||
+                areEquivalentPaths(basename(project.rootPath), changedPath));
+            if (rootWasRenamed) {
+              // Windows can report a deleted watch root continuously, using its
+              // namespace-prefixed absolute path rather than a child filename.
+              // Release the native handle before the debounced reconciliation.
+              this.closeProjectRootWatch(watcher);
+              this.scheduleObservedReconciliation();
+              return;
+            }
+            if (changedPath === null || changedPath === ".git") {
               this.scheduleObservedReconciliation();
             }
           },
           (error) => {
-            watcher.close();
-            const index = this.watchers.findIndex((target) => target.watcher === watcher);
-            if (index >= 0) this.watchers.splice(index, 1);
+            this.closeProjectRootWatch(watcher);
             this.logger.warn(
               { err: error, rootPath: project.rootPath },
               "Project root watch failed",
@@ -514,6 +527,13 @@ export class WorkspaceReconciliationService {
         );
       }
     }
+  }
+
+  private closeProjectRootWatch(watcher: ProjectRootWatcher): void {
+    const index = this.watchers.findIndex((target) => target.watcher === watcher);
+    if (index < 0) return;
+    watcher.close();
+    this.watchers.splice(index, 1);
   }
 
   private scheduleObservedReconciliation(): void {

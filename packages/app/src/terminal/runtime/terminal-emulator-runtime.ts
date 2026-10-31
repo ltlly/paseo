@@ -704,15 +704,16 @@ export class TerminalEmulatorRuntime {
 
     fitAndEmitResize({ forceRefresh: true, shouldClaim: false });
 
-    const inputDisposable = terminal.onData((data) => {
-      if (this.suppressInput) {
-        return;
-      }
-      this.callbacks.onInput?.(data);
-    });
+    const inputDisposable = terminal.onData(
+      attachTerminalWheelHandler(terminal, (data) => {
+        if (this.suppressInput) {
+          return;
+        }
+        this.callbacks.onInput?.(data);
+      }),
+    );
 
     this.attachKeyEventHandler(terminal);
-    attachTerminalWheelHandler(terminal);
 
     // Cmd+V and context-menu paste arrive as DOM paste events. Take file-only
     // pastes before xterm's own listener consumes them as empty text.
