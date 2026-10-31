@@ -72,6 +72,40 @@ class TerminalRowLayoutTest {
     }
   }
 
+  @Test
+  fun selectionCompositesOverCellAndTerminalBackgroundsWithoutChangingForeground() {
+    val red = 0xffff0000.toInt()
+    val green = 0xff00aa00.toInt()
+    val overlay = 0x472684ff
+    val source = TerminalRowSource.decode("1,1;1,4294901760,4278233600,0;M")
+    val layout = TerminalRowLayout(source, font, TerminalCustomGlyphs.EMPTY)
+    paints.selectionBackground = overlay
+    for (terminalBackground in listOf(0xffffffff.toInt(), 0xff000000.toInt())) {
+      val actual = raster { canvas ->
+        canvas.drawColor(terminalBackground)
+        layout.drawSelected(canvas, 0, TerminalSelection(TerminalSelectionRecord()), paints)
+      }
+      val expected = raster { canvas ->
+        canvas.drawColor(terminalBackground)
+        canvas.drawColor(green)
+        canvas.drawColor(overlay)
+      }
+      assertEquals(expected.getPixel(0, 0), actual.getPixel(0, 0))
+      assertTrue("selected glyph retains its red foreground", (0 until font.cellHeightPx).any { y ->
+        (0 until font.cellWidthPx).any { x -> actual.getPixel(x, y) == red }
+      })
+    }
+    val defaultBackground = TerminalRowLayout(TerminalRowSource.decode("1,1;1,4294901760,0,0;M"), font, TerminalCustomGlyphs.EMPTY)
+    for (terminalBackground in listOf(0xffffffff.toInt(), 0xff000000.toInt())) {
+      val actual = raster { canvas ->
+        canvas.drawColor(terminalBackground)
+        defaultBackground.drawSelected(canvas, 0, TerminalSelection(TerminalSelectionRecord()), paints)
+      }
+      val expected = raster { canvas -> canvas.drawColor(terminalBackground); canvas.drawColor(overlay) }
+      assertEquals(expected.getPixel(0, 0), actual.getPixel(0, 0))
+    }
+  }
+
   private fun starts(row: JSONObject, key: String): List<Int> =
     row.getJSONArray(key).let { starts -> List(starts.length()) { starts.getInt(it) } }
 
