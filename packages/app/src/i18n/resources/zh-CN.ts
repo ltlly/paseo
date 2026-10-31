@@ -2,6 +2,13 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const zhCN: TranslationResources = {
+  conversationNaming: {
+    action: "重新起名",
+    pending: "正在起名…",
+    budget: "仅使用少量近期对话，调用一次模型。",
+    updated: "对话名称已更新",
+    retry: "重试",
+  },
   paneFind: {
     connectionFailure: "无法搜索此聊天。请检查主机连接后重试。",
     historyChangedFailure: "搜索期间聊天已更改。请重新搜索。",

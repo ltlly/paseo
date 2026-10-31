@@ -13,7 +13,11 @@ import {
   type AttemptFirstAgentBranchAutoNameResult,
 } from "./paseo-worktree-service.js";
 import { createNoopWorkspaceGitService } from "./test-utils/workspace-git-service-stub.js";
-import { generateBranchNameFromFirstAgentContext } from "./worktree-branch-name-generator.js";
+import {
+  generateBranchNameFromFirstAgentContext,
+  generateConversationTitle,
+  CONVERSATION_TITLE_CONTEXT_CHARS,
+} from "./worktree-branch-name-generator.js";
 import {
   writePaseoWorktreeFirstAgentBranchAutoNameMetadata,
   writePaseoWorktreeMetadata,
@@ -424,3 +428,45 @@ function createTempDir(prefix: string): string {
 function writeConfig(repoRoot: string, config: unknown): void {
   writeFileSync(path.join(repoRoot, "paseo.json"), `${JSON.stringify(config)}\n`);
 }
+
+test("conversation naming bounds text and makes one attempt with one model", async () => {
+  const structured = createStructuredGenerator({
+    title: "Repair terminal activity",
+    branch: "ignored",
+  });
+  const options = {
+    agentManager: {} as AgentManager,
+    cwd: "/repo",
+    firstAgentContext: { prompt: "x".repeat(10_000) },
+    logger: createLogger(),
+    providerSnapshotManager: {
+      listProviders: async () => [
+        {
+          provider: "mock",
+          status: "ready" as const,
+          enabled: true,
+          models: [
+            { provider: "mock", id: "small", label: "Small" },
+            { provider: "mock", id: "large", label: "Large" },
+          ],
+        },
+      ],
+    },
+    daemonConfig: {
+      metadataGeneration: {
+        providers: [
+          { provider: "mock", model: "small" },
+          { provider: "mock", model: "large" },
+        ],
+      },
+    },
+    deps: { generateStructuredAgentResponseWithFallback: structured.generateStructured },
+  };
+  await expect(generateConversationTitle(options)).resolves.toBe("Repair terminal activity");
+  expect(structured.calls).toHaveLength(1);
+  expect(structured.calls[0].providers).toEqual([{ provider: "mock", model: "small" }]);
+  expect(structured.calls[0].maxRetries).toBe(0);
+  expect(
+    structured.calls[0].prompt.match(/<user-prompt>\n([\s\S]*?)\n<\/user-prompt>/)?.[1],
+  ).toHaveLength(CONVERSATION_TITLE_CONTEXT_CHARS);
+});

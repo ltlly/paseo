@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { registerPiActivityHooks, type PiHookMetadata } from "./pi/pi.js";
 import { installRegisteredAgentHooks, resolveHookReport } from "./provider-registry.js";
 
 const temporaryDirs: string[] = [];
@@ -159,6 +160,7 @@ describe("terminal agent hook provider registry", () => {
       join(codexHome, "hooks.json"),
       join(root, "home", ".grok", "hooks", "paseo-status.json"),
       join(opencodeConfigDir, "plugins", "paseo-terminal-activity.js"),
+      join(root, "home", ".pi", "agent", "extensions", "paseo-terminal-activity.ts"),
     ]);
     expect(existsSync(join(codexHome, "hooks.json"))).toBe(true);
     expect(existsSync(join(opencodeConfigDir, "plugins", "paseo-terminal-activity.js"))).toBe(true);
@@ -168,5 +170,65 @@ describe("terminal agent hook provider registry", () => {
         message: "Failed to install terminal activity hook provider",
       },
     ]);
+  });
+});
+
+describe("Pi terminal extension", () => {
+  it("reports preparation, final settlement, and new conversation identity", async () => {
+    type HookHandler = Parameters<Parameters<typeof registerPiActivityHooks>[0]["on"]>[1];
+    const handlers = new Map<string, HookHandler>();
+    const reports: Array<{ event: string; metadata: PiHookMetadata }> = [];
+    registerPiActivityHooks(
+      {
+        on: (event, handler) => {
+          handlers.set(event, handler);
+        },
+      },
+      (event, metadata) => {
+        reports.push({ event, metadata });
+      },
+    );
+    let sessionId = "pi-session-1";
+    let idle = true;
+    const context = {
+      cwd: "/repo",
+      isIdle: () => idle,
+      sessionManager: {
+        getSessionId: () => sessionId,
+        getSessionName: () => undefined,
+      },
+    };
+    await handlers.get("session_start")!({}, context);
+    idle = false;
+    await handlers.get("before_agent_start")!({ prompt: "Fix Pi status" }, context);
+    await handlers.get("agent_start")!({}, context);
+    expect(handlers.has("agent_end")).toBe(false);
+    idle = true;
+    await handlers.get("agent_settled")!({}, context);
+    sessionId = "pi-session-2";
+    await handlers.get("session_start")!({}, context);
+    expect(
+      reports.map(({ event, metadata }) => [event, metadata.sessionId, metadata.state]),
+    ).toEqual([
+      ["SessionStart", "pi-session-1", "idle"],
+      ["UserPromptSubmit", "pi-session-1", "running"],
+      ["UserPromptSubmit", "pi-session-1", "running"],
+      ["Stop", "pi-session-1", "idle"],
+      ["SessionStart", "pi-session-2", "idle"],
+    ]);
+    expect(
+      await resolveHookReport({
+        provider: "pi",
+        event: "UserPromptSubmit",
+        input: {
+          read: async () => JSON.stringify(reports[1].metadata),
+        },
+      }),
+    ).toMatchObject({
+      provider: "pi",
+      state: "running",
+      sessionId: "pi-session-1",
+      prompt: "Fix Pi status",
+    });
   });
 });

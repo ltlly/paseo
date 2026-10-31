@@ -66,6 +66,18 @@ function agent(input: {
 }
 
 describe("workspace agent activity index", () => {
+  it("keeps a working terminal agent running without an SDK turn", () => {
+    const terminalAgent = agent({
+      id: "pi-terminal",
+      workspaceId: "workspace-pi",
+      status: "running",
+      updatedAt: "2026-10-31T00:00:00.000Z",
+    });
+    terminalAgent.execution = { kind: "terminal", terminalId: "pi-terminal" };
+    terminalAgent.turn = { phase: "idle", cancellationRequestId: null };
+    const result = buildWorkspaceAgentActivityIndex(new Map([[terminalAgent.id, terminalAgent]]));
+    expect(result.get("workspace-pi")?.status).toBe("running");
+  });
   it("uses turn liveness for running while preserving protocol lifecycle states", () => {
     const result = buildWorkspaceAgentActivityIndex(
       new Map([
@@ -319,4 +331,26 @@ describe("workspace agent activity index", () => {
       enteredAt: new Date("2026-06-01T10:05:00.000Z"),
     });
   });
+});
+
+it("does not let a newer idle agent hide another agent's running turn", () => {
+  const working = agent({
+    id: "working",
+    workspaceId: "workspace-a",
+    status: "running",
+    updatedAt: "2026-10-31T01:00:00.000Z",
+  });
+  const idle = agent({
+    id: "idle",
+    workspaceId: "workspace-a",
+    status: "idle",
+    updatedAt: "2026-10-31T02:00:00.000Z",
+  });
+  const result = buildWorkspaceAgentActivityIndex(
+    new Map([
+      [working.id, working],
+      [idle.id, idle],
+    ]),
+  );
+  expect(result.get("workspace-a")?.status).toBe("running");
 });

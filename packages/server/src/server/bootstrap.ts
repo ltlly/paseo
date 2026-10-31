@@ -1,4 +1,5 @@
 import { TerminalAgents } from "../terminal/terminal-agents.js";
+import { generateConversationTitle } from "./worktree-branch-name-generator.js";
 import type { AgentHookReport } from "../terminal/agent-hooks/provider-registry.js";
 import { createRestartRecovery } from "./agent/restart-recovery/index.js";
 import { sendPromptToAgent } from "./agent/agent-prompt.js";
@@ -303,6 +304,8 @@ const TerminalActivityReportSchema = z.object({
   event: z.string().min(1).max(128).optional(),
   sessionId: z.string().max(512).optional(),
   cwd: z.string().max(4096).optional(),
+  title: z.string().max(80).optional(),
+  prompt: z.string().max(4096).optional(),
   observedAt: z.number().finite().nonnegative().max(8640000000000000).optional(),
 });
 
@@ -344,7 +347,8 @@ export function createTerminalActivityRouteHandler(
     }
 
     try {
-      const { provider, event, observedAt, sessionId, cwd, state, terminalId } = parsed.data;
+      const { provider, event, observedAt, sessionId, cwd, state, terminalId, title, prompt } =
+        parsed.data;
       const updated =
         provider && event && reportAgent
           ? await reportAgent(terminalId, {
@@ -354,6 +358,8 @@ export function createTerminalActivityRouteHandler(
               observedAt: observedAt ?? Date.now(),
               sessionId,
               cwd,
+              title,
+              prompt,
             })
           : await terminalManager.setTerminalActivity(
               terminalId,
@@ -1096,6 +1102,18 @@ export async function createPaseoDaemon(
     storage: agentStorage,
     agents: agentManager,
     profiles: () => daemonConfigStore.get().terminalProfiles ?? [],
+    generateTitle: async ({ cwd, prompt, provider }) => {
+      return generateConversationTitle({
+        agentManager,
+        cwd,
+        workspaceGitService,
+        providerSnapshotManager,
+        daemonConfig: daemonConfigStore.get(),
+        currentSelection: { provider },
+        firstAgentContext: { prompt },
+        logger,
+      });
+    },
     logger,
   });
   await terminalAgents.initialize();

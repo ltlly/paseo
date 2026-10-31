@@ -2,6 +2,13 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ru: TranslationResources = {
+  conversationNaming: {
+    action: "Создать новое название",
+    pending: "Создание названия…",
+    budget: "Используется короткий фрагмент беседы и один запрос к модели.",
+    updated: "Название беседы обновлено",
+    retry: "Повторить",
+  },
   paneFind: {
     connectionFailure:
       "Не удалось выполнить поиск в чате. Проверьте подключение к хосту и повторите попытку.",

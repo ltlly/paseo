@@ -2565,7 +2565,8 @@ export class AgentManager {
       return;
     }
 
-    await this.writeStoredMetadata(agentId, updates);
+    const record = await this.writeStoredMetadata(agentId, updates);
+    this.dispatchStoredAgentState(record);
   }
 
   private async runLifecycleMutation<T>(agentId: string, mutation: () => Promise<T>): Promise<T> {

@@ -488,6 +488,7 @@ function parseStructuredBranchNamePrompt(
       text.includes('"branch"'));
   if (
     !hasBranchNamePrompt &&
+    !text.includes("Name this conversation with a short, specific title") &&
     !(
       text.includes("You must respond with JSON only that matches this JSON Schema") &&
       text.includes('"title"') &&

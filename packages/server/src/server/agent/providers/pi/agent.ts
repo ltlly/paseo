@@ -2480,7 +2480,12 @@ export class PiRpcAgentSession implements AgentSession {
           ),
         });
       }
-      if (!this.activeTurnStarted) {
+      if (
+        !this.activeTurnStarted &&
+        event.message.display !== false &&
+        this.activeNoTurnPromptText &&
+        this.parseSlashCommandInput(this.activeNoTurnPromptText)
+      ) {
         this.completeTurn(turnId, []);
       }
       return;

@@ -2,6 +2,13 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const fr: TranslationResources = {
+  conversationNaming: {
+    action: "Régénérer le nom",
+    pending: "Création du nom…",
+    budget: "Utilise un court extrait récent et une seule requête au modèle.",
+    updated: "Nom de la conversation mis à jour",
+    retry: "Réessayer",
+  },
   paneFind: {
     connectionFailure:
       "Impossible de rechercher dans cette conversation. Vérifiez la connexion à l’hôte et réessayez.",

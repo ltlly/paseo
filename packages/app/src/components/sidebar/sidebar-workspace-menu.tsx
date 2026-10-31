@@ -36,6 +36,12 @@ import {
 import { Shortcut } from "@/components/ui/shortcut";
 import { OpenInFileManagerMenuItem } from "@/workspace/open-in-file-manager/menu-item";
 import { resolveSidebarWorkspaceAccessibilityLabel } from "@/components/sidebar/sidebar-workspace-title";
+import { useSidebarWorkspaceAgents } from "./use-sidebar-workspace-agents";
+import { useRegenerateAgentTitle } from "./use-regenerate-agent-title";
+import { SidebarWorkspaceAgentIcons } from "./sidebar-workspace-agent-icons";
+import { PressHighlight } from "@/components/ui/press-highlight";
+import { densityIconBox } from "@/styles/density";
+import { View } from "react-native";
 import {
   workspaceServiceLabelKey,
   type WorkspaceServiceSummary,
@@ -86,6 +92,8 @@ export interface SidebarWorkspaceMenuProps {
   onCopyPath?: () => void;
   onCopyBranchName?: () => void;
   onRename?: () => void;
+  onRegenerateTitle?: () => void;
+  regeneratingTitle?: boolean;
   onMarkAsRead?: () => void;
   onMarkAsUnread?: () => void;
   onArchive: () => void;
@@ -134,6 +142,8 @@ function SidebarWorkspaceMenuItems({
   onCopyPath,
   onCopyBranchName,
   onRename,
+  onRegenerateTitle,
+  regeneratingTitle,
   onMarkAsRead,
   onMarkAsUnread,
   onArchive,
@@ -185,6 +195,18 @@ function SidebarWorkspaceMenuItems({
           onSelect={onRename}
         >
           {t("sidebar.workspace.actions.rename")}
+        </WorkspaceMenuItem>
+      ) : null}
+      {onRegenerateTitle ? (
+        <WorkspaceMenuItem
+          surface={surface}
+          testID={`sidebar-workspace-menu-regenerate-title-${workspaceKey}`}
+          leading={renameLeadingIcon}
+          onSelect={onRegenerateTitle}
+          status={regeneratingTitle ? "pending" : "idle"}
+          pendingLabel={t("conversationNaming.pending")}
+        >
+          {t("conversationNaming.action")}
         </WorkspaceMenuItem>
       ) : null}
       {onMarkAsRead ? (
@@ -270,6 +292,8 @@ export function SidebarWorkspaceMenu({
   onOpenChange,
 }: SidebarWorkspaceMenuProps) {
   const { t } = useTranslation();
+  const { activeAgent } = useSidebarWorkspaceAgents(serverId ?? "", workspaceId ?? "");
+  const naming = useRegenerateAgentTitle(serverId, activeAgent?.agentId);
   const workspaceTarget = useMemo<WorkspaceLabelTarget | null>(
     () =>
       serverId && workspaceId ? { serverId, workspaceId, labels: workspaceLabels ?? [] } : null,
@@ -277,44 +301,49 @@ export function SidebarWorkspaceMenu({
   );
   const pages = useWorkspaceLabelMenuPages(workspaceTarget);
   return (
-    <DropdownMenu compactMode="sheet" open={open} onOpenChange={onOpenChange}>
-      <DropdownMenuTrigger
-        hitSlop={8}
-        style={triggerStyle}
-        accessibilityRole={isWeb ? undefined : "button"}
-        accessibilityLabel={t("sidebar.workspace.actions.menu")}
-        testID={`sidebar-workspace-kebab-${workspaceKey}`}
-      >
-        {renderTriggerIcon}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        width={260}
-        pages={pages}
-        sheetTitle={t("sidebar.workspace.actions.menu")}
-      >
-        <SidebarWorkspaceMenuItems
-          surface="dropdown"
-          workspaceKey={workspaceKey}
-          serverId={serverId}
-          workspaceId={workspaceId}
-          workspaceLabels={workspaceLabels}
-          onCopyPath={onCopyPath}
-          onCopyBranchName={onCopyBranchName}
-          onRename={onRename}
-          onMarkAsRead={onMarkAsRead}
-          onMarkAsUnread={onMarkAsUnread}
-          onArchive={onArchive}
-          archiveLabel={archiveLabel}
-          archiveStatus={archiveStatus}
-          archivePendingLabel={archivePendingLabel}
-          archiveShortcutKeys={archiveShortcutKeys}
-          isPinned={isPinned}
-          onTogglePin={onTogglePin}
-          openInFileManagerPath={openInFileManagerPath}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu compactMode="sheet" open={open} onOpenChange={onOpenChange}>
+        <DropdownMenuTrigger
+          hitSlop={8}
+          style={triggerStyle}
+          accessibilityRole={isWeb ? undefined : "button"}
+          accessibilityLabel={t("sidebar.workspace.actions.menu")}
+          testID={`sidebar-workspace-kebab-${workspaceKey}`}
+        >
+          {renderTriggerIcon}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          width={260}
+          pages={pages}
+          sheetTitle={t("sidebar.workspace.actions.menu")}
+        >
+          <SidebarWorkspaceMenuItems
+            surface="dropdown"
+            workspaceKey={workspaceKey}
+            serverId={serverId}
+            workspaceId={workspaceId}
+            workspaceLabels={workspaceLabels}
+            onCopyPath={onCopyPath}
+            onCopyBranchName={onCopyBranchName}
+            onRename={onRename}
+            onRegenerateTitle={naming.onRegenerate}
+            regeneratingTitle={naming.pending}
+            onMarkAsRead={onMarkAsRead}
+            onMarkAsUnread={onMarkAsUnread}
+            onArchive={onArchive}
+            archiveLabel={archiveLabel}
+            archiveStatus={archiveStatus}
+            archivePendingLabel={archivePendingLabel}
+            archiveShortcutKeys={archiveShortcutKeys}
+            isPinned={isPinned}
+            onTogglePin={onTogglePin}
+            openInFileManagerPath={openInFileManagerPath}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {naming.dialog}
+    </>
   );
 }
 
@@ -370,8 +399,15 @@ export function SidebarWorkspaceContextMenu({
         context: getForgePresentation(normalizeForge(workspace.prHint.forge)).changeRequestContext,
       })
     : null;
+  const {
+    title: focusedAgentTitle,
+    agents,
+    activeAgent,
+  } = useSidebarWorkspaceAgents(workspace.serverId, workspace.workspaceId);
+  const naming = useRegenerateAgentTitle(workspace.serverId, activeAgent?.agentId);
   const rowAccessibilityLabel = resolveSidebarWorkspaceAccessibilityLabel({
     workspace,
+    focusedAgentTitle,
     workspaceTitleSource,
     leadingProjectName,
     hostBadgeLabel,
@@ -392,43 +428,62 @@ export function SidebarWorkspaceContextMenu({
   const pages = useWorkspaceLabelMenuPages(workspaceTarget);
 
   return (
-    <ContextMenu open={contextMenuOpen} onOpenChange={onContextMenuOpenChange}>
-      <ContextMenuTrigger
-        {...triggerProps}
-        enabledOnMobile={false}
-        accessibilityLabel={accessibilityLabel ?? rowAccessibilityLabel}
-        highlightStyle={highlightStyle}
-      >
-        {children}
-      </ContextMenuTrigger>
-      <ContextMenuContent
-        align="start"
-        width={260}
-        testID={`sidebar-workspace-context-menu-${workspaceKey}`}
-        pages={pages}
-      >
-        <SidebarWorkspaceMenuItems
-          surface="context"
-          workspaceKey={workspaceKey}
-          serverId={workspaceTarget.serverId}
-          workspaceId={workspaceTarget.workspaceId}
-          workspaceLabels={workspaceTarget.labels}
-          onCopyPath={onCopyPath}
-          onCopyBranchName={onCopyBranchName}
-          onRename={onRename}
-          onMarkAsRead={onMarkAsRead}
-          onMarkAsUnread={onMarkAsUnread}
-          onArchive={onArchive}
-          archiveLabel={archiveLabel}
-          archiveStatus={archiveStatus}
-          archivePendingLabel={archivePendingLabel}
-          archiveShortcutKeys={archiveShortcutKeys}
-          isPinned={isPinned}
-          onTogglePin={onTogglePin}
-          openInFileManagerPath={openInFileManagerPath}
-        />
-      </ContextMenuContent>
-    </ContextMenu>
+    <>
+      <ContextMenu open={contextMenuOpen} onOpenChange={onContextMenuOpenChange}>
+        <ContextMenuTrigger
+          contextOnly
+          enabledOnMobile={false}
+          disabled={triggerProps.disabled}
+          style={triggerProps.style}
+        >
+          <PressHighlight
+            {...triggerProps}
+            accessibilityLabel={accessibilityLabel ?? rowAccessibilityLabel}
+            highlightStyle={highlightStyle}
+            style={styles.rowAction}
+          >
+            {children}
+          </PressHighlight>
+          <View style={styles.agentFooter}>
+            <SidebarWorkspaceAgentIcons
+              agents={agents}
+              serverId={workspace.serverId}
+              workspaceId={workspace.workspaceId}
+            />
+          </View>
+        </ContextMenuTrigger>
+        <ContextMenuContent
+          align="start"
+          width={260}
+          testID={`sidebar-workspace-context-menu-${workspaceKey}`}
+          pages={pages}
+        >
+          <SidebarWorkspaceMenuItems
+            surface="context"
+            workspaceKey={workspaceKey}
+            serverId={workspaceTarget.serverId}
+            workspaceId={workspaceTarget.workspaceId}
+            workspaceLabels={workspaceTarget.labels}
+            onCopyPath={onCopyPath}
+            onCopyBranchName={onCopyBranchName}
+            onRename={onRename}
+            onRegenerateTitle={naming.onRegenerate}
+            regeneratingTitle={naming.pending}
+            onMarkAsRead={onMarkAsRead}
+            onMarkAsUnread={onMarkAsUnread}
+            onArchive={onArchive}
+            archiveLabel={archiveLabel}
+            archiveStatus={archiveStatus}
+            archivePendingLabel={archivePendingLabel}
+            archiveShortcutKeys={archiveShortcutKeys}
+            isPinned={isPinned}
+            onTogglePin={onTogglePin}
+            openInFileManagerPath={openInFileManagerPath}
+          />
+        </ContextMenuContent>
+      </ContextMenu>
+      {naming.dialog}
+    </>
   );
 }
 
@@ -437,6 +492,13 @@ function triggerStyle({ hovered = false }: PressableStateCallbackType & { hovere
 }
 
 const styles = StyleSheet.create((theme) => ({
+  rowAction: { minWidth: 0 },
+  agentFooter: {
+    marginLeft: {
+      xs: densityIconBox("md").xs + theme.spacing[2],
+      md: densityIconBox("md").md + theme.spacing[2],
+    },
+  },
   trigger: {
     // Larger on compact so the kebab is an easy tap target.
     width: { xs: 32, md: 18 },

@@ -2,6 +2,13 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const es: TranslationResources = {
+  conversationNaming: {
+    action: "Regenerar nombre",
+    pending: "Generando nombre…",
+    budget: "Usa un breve extracto reciente y una sola solicitud al modelo.",
+    updated: "Nombre de la conversación actualizado",
+    retry: "Reintentar",
+  },
   paneFind: {
     connectionFailure:
       "No se pudo buscar en este chat. Comprueba la conexión con el host y vuelve a intentarlo.",

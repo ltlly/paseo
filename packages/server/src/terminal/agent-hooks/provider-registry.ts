@@ -13,6 +13,7 @@ import { claudeAgentHookProvider } from "./claude/claude.js";
 import { codexAgentHookProvider } from "./codex/codex.js";
 import { grokAgentHookProvider } from "./grok/grok.js";
 import { opencodeAgentHookProvider } from "./opencode/opencode.js";
+import { piAgentHookProvider } from "./pi/pi.js";
 
 export type {
   AgentHookActivityInput,
@@ -25,6 +26,7 @@ export const AGENT_HOOK_PROVIDERS = {
   [codexAgentHookProvider.id]: codexAgentHookProvider,
   [grokAgentHookProvider.id]: grokAgentHookProvider,
   [opencodeAgentHookProvider.id]: opencodeAgentHookProvider,
+  [piAgentHookProvider.id]: piAgentHookProvider,
 } satisfies Record<string, AgentHookProvider>;
 
 export type AgentHookProviderId = keyof typeof AGENT_HOOK_PROVIDERS;
@@ -87,6 +89,8 @@ export interface AgentHookReport {
   observedAt: number;
   sessionId?: string;
   cwd?: string;
+  title?: string;
+  prompt?: string;
 }
 
 /** Read stdin once: providers and identity extraction share the same bounded input. */
@@ -109,15 +113,30 @@ export async function resolveHookReport(
   } catch {
     /* Missing hook metadata does not prevent activity reporting. */
   }
-  const sessionId = payload.session_id ?? payload.sessionId ?? payload.sessionID;
   return {
     provider: request.provider.toLowerCase(),
     event: request.event,
     state,
     observedAt,
+    ...resolveHookMetadata(payload, request.event),
+  };
+}
+
+function resolveHookMetadata(
+  payload: Record<string, unknown>,
+  event: string,
+): Pick<AgentHookReport, "sessionId" | "cwd" | "title" | "prompt"> {
+  const sessionId = payload.session_id ?? payload.sessionId ?? payload.sessionID;
+  const title = payload.title ?? payload.session_name ?? payload.sessionName;
+  const prompt = payload.prompt ?? payload.user_prompt;
+  return {
     ...(typeof sessionId === "string" && sessionId.length > 0 && sessionId.length <= 512
       ? { sessionId }
       : {}),
     ...(typeof payload.cwd === "string" && payload.cwd.length <= 4096 ? { cwd: payload.cwd } : {}),
+    ...(typeof title === "string" && title.trim() ? { title: title.trim().slice(0, 80) } : {}),
+    ...(event === "UserPromptSubmit" && typeof prompt === "string" && prompt.trim()
+      ? { prompt: prompt.slice(0, 4096) }
+      : {}),
   };
 }

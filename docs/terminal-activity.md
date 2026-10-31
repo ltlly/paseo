@@ -1,6 +1,6 @@
 # Terminal Activity Indicators
 
-Paseo surfaces terminal activity in terminal tabs. Provider hooks also register terminal agents in the shared agent directory.
+Paseo surfaces terminal activity in terminal tabs and in the sidebar’s agent icons. Provider hooks register terminal agents in the shared agent directory; clicking an icon opens its bound terminal, including while idle.
 
 ## Current state
 
@@ -65,6 +65,8 @@ Codex hook mapping:
 - `PermissionRequest` → `needs-input`
 - `Stop` → `idle`
 
+Pi uses a native extension. `before_agent_start` and `agent_start` report working; `agent_settled` reports idle. Do not settle on `agent_end`: Pi can automatically retry or continue after it. `session_start` carries the current conversation ID, so `/new`, resume, and fork replace the terminal binding without accepting late events from the old conversation. Session metadata changes carry Pi's own name.
+
 OpenCode uses a server plugin instead of command hooks. Both generations discover the same global plugin file. Their loaders select separate entrypoints: OpenCode 1 calls `server()` with `{ type, properties }` bus events; OpenCode 2 calls `setup()` and subscribes to decoded `{ type, data }` events. Do not share their status mapping: V1 publishes `session.status` snapshots, while V2 publishes `session.execution.*` transitions.
 
 | OpenCode event                                              | Generation | Activity    |
@@ -99,7 +101,7 @@ exit archive it. On daemon reconnect, a surviving terminal supplies its current 
 terminals are archived. This does not relaunch a CLI after the machine restarts. If a session ends
 while the daemon is offline and its shell survives, reconciliation needs the next hook or shell event.
 
-Grok, Claude, Codex, and OpenCode use the same promotion path. Conversation-level stale-event protection
+Pi, Grok, Claude, Codex, and OpenCode use the same promotion path. Conversation-level stale-event protection
 requires a provider session ID; OpenCode's current plugin emits activity without that ID. Profiles are
 associated by the terminal's launch name and preserve the profile ID/icon when matched. Renamed or
 plain-shell terminals still register from provider hooks without a profile association.
@@ -107,6 +109,14 @@ plain-shell terminals still register from provider hooks without a profile assoc
 Grok hooks live in `~/.grok/hooks/paseo-status.json` (or `GROK_HOME/hooks/paseo-status.json`). They cover
 session, prompt, tool and stop events, ignore subagent events, and treat interactive questions as
 needs-input. Informational permission notices alone do not imply a blocked agent.
+
+## Conversation names
+
+The first non-command prompt supplies a terminal conversation's provisional name. One bounded metadata request can refine it. Later prompts refresh the small cached excerpt used by **Regenerate name**, without calling a model. `/new` creates a separate record and starts naming again. A result for an archived conversation or a changed title is discarded, so delayed generation cannot rename another conversation or replace a manual name.
+
+The sidebar's Title display follows the focused agent tab, including a terminal binding. File tabs retain the last focused agent's name while the row remains mounted. The Branch display remains an explicit preference. Agent names live in the directory cache, not in a second title cache.
+
+Manual regeneration uses at most six recent text rows and 2,000 characters, excluding tools and attachments. It tries only the first configured metadata model, without retries or fallback calls. Concurrent requests for one agent share a generation. The title limit is 80 characters; provider-specific prompt overhead and reasoning are outside this text budget.
 
 ## Focus clearing
 
@@ -128,9 +138,10 @@ When enabled, Paseo installs provider hooks globally:
 
 - Claude hooks are written to `~/.claude/settings.json` (or `CLAUDE_CONFIG_DIR/settings.json` when that override is set).
 - Codex hooks are written to `~/.codex/hooks.json` (or `CODEX_HOME/hooks.json` when that override is set). Codex supports a native `commandWindows`, so each Paseo hook includes both POSIX and Windows commands. Non-managed Codex hooks are trust-gated by Codex; users may see Codex's hook review prompt before the hook runs.
+- Pi gets `~/.pi/agent/extensions/paseo-terminal-activity.ts` (or `PI_CODING_AGENT_DIR/extensions/paseo-terminal-activity.ts`). It uses the current `PASEO_HOOK_CLI`, queues events in order, and stays inert outside Paseo terminals.
 - OpenCode gets a self-contained plugin at `$XDG_CONFIG_HOME/opencode/plugins/paseo-terminal-activity.js` (or `~/.config/opencode/plugins/paseo-terminal-activity.js` when XDG is unset; `OPENCODE_CONFIG_DIR` still wins when set).
 
-Installation is marker-based/idempotent for config hooks and exact-file/idempotent for the OpenCode plugin. Paseo preserves user hooks, removes only its own marker-matched command hooks, and leaves hooks installed across daemon shutdown. Outside a Paseo terminal they are inert because the command or plugin is gated on `PASEO_TERMINAL_ID`.
+Installation is marker-based/idempotent for config hooks and exact-file/idempotent for native provider extensions. Paseo preserves user hooks, removes only its own marker-matched command hooks, and leaves hooks installed across daemon shutdown. Outside a Paseo terminal they are inert because the command or plugin is gated on `PASEO_TERMINAL_ID`.
 
 Provider variation lives in `AGENT_HOOK_PROVIDERS`: provider id, installed events, config install metadata, and runtime event-to-activity resolution. The daemon calls `installRegisteredAgentHooks()` once; the CLI calls `resolveHookActivity(provider, event, input)`. Adding a provider should add one provider entry and register it in `AGENT_HOOK_PROVIDERS`, without editing the generic CLI command or daemon bootstrap.
 

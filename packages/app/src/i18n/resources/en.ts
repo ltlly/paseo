@@ -1,4 +1,11 @@
 export const en = {
+  conversationNaming: {
+    action: "Regenerate name",
+    pending: "Naming…",
+    budget: "Uses a short excerpt of recent conversation and one model request.",
+    updated: "Conversation name updated",
+    retry: "Retry",
+  },
   paneFind: {
     connectionFailure: "Could not search this chat. Check the host connection and retry.",
     historyChangedFailure: "The chat changed while searching. Search again.",

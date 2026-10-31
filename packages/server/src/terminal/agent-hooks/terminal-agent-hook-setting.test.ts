@@ -34,6 +34,7 @@ function createInstallEnv(root: string) {
 
 function hookPaths(root: string) {
   return {
+    pi: join(root, "home", ".pi", "agent", "extensions", "paseo-terminal-activity.ts"),
     claude: join(root, "claude", "settings.json"),
     codex: join(root, "codex", "hooks.json"),
     opencode: join(root, "opencode", "plugins", "paseo-terminal-activity.js"),
@@ -63,6 +64,7 @@ describe("applyTerminalAgentHookSetting", () => {
     applyTerminalAgentHookSetting({ store, install: createInstallEnv(root) });
 
     const paths = hookPaths(root);
+    expect(existsSync(paths.pi)).toBe(false);
     expect(existsSync(paths.claude)).toBe(false);
     expect(existsSync(paths.codex)).toBe(false);
     expect(existsSync(paths.opencode)).toBe(false);
@@ -75,6 +77,7 @@ describe("applyTerminalAgentHookSetting", () => {
     applyTerminalAgentHookSetting({ store, install: createInstallEnv(root) });
 
     const paths = hookPaths(root);
+    expect(existsSync(paths.pi)).toBe(true);
     expect(existsSync(paths.claude)).toBe(true);
     expect(existsSync(paths.codex)).toBe(true);
     expect(existsSync(paths.opencode)).toBe(true);
@@ -93,6 +96,7 @@ describe("applyTerminalAgentHookSetting", () => {
     expect(existsSync(paths.opencode)).toBe(true);
 
     await store.patch({ enableTerminalAgentHooks: false });
+    expect(existsSync(paths.pi)).toBe(false);
     expect(existsSync(paths.opencode)).toBe(false);
   });
 });

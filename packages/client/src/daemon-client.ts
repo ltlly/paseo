@@ -3391,6 +3391,16 @@ export class DaemonClient {
     }
   }
 
+  async regenerateAgentTitle(agentId: string): Promise<{ title: string }> {
+    const payload =
+      await this.sendNamespacedCorrelatedSessionRequest<"agent.title.regenerate.response">({
+        message: { type: "agent.title.regenerate.request", agentId },
+      });
+    if (payload.error || !payload.title)
+      throw new Error(payload.error ?? "No title was generated.");
+    return { title: payload.title };
+  }
+
   async updateAgent(
     agentId: string,
     updates: { name?: string; labels?: Record<string, string> },

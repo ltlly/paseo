@@ -13,6 +13,9 @@ import {
 import { STATUS_INDICATOR_FILLED_DOT_SIZE } from "@/utils/status-indicator-geometry";
 
 export interface StatusRingProps {
+  /** Optional icon in the centre; the ring rotates independently of it. */
+  children?: ReactNode;
+  size?: number;
   // The surface the ring is drawn on top of, named rather than resolved, because theme colours
   // are only legible inside `StyleSheet.create` — see docs/unistyles.md. The frame fills itself
   // with this so the ring reads as a hole punched in whatever it overlaps: the agent icon under a
@@ -30,12 +33,19 @@ export interface StatusRingProps {
  * site, outside anything Unistyles tracks, and leave the mark in the old theme until something
  * incidental re-rendered the row.
  */
-export function StatusRingFrame({ backdrop, children }: StatusRingProps & { children: ReactNode }) {
+export function StatusRingFrame({
+  backdrop,
+  size,
+  children,
+  content,
+}: StatusRingProps & { content?: ReactNode }) {
+  const circleStyle = size === undefined ? null : { width: size, height: size };
+  const frameStyle = size === undefined ? null : { width: size + 2, height: size + 2 };
   return (
-    <View style={[styles.frame, getBackdropStyle(backdrop)]}>
-      <View style={styles.track} />
+    <View style={[styles.frame, frameStyle, getBackdropStyle(backdrop)]}>
+      <View style={[styles.track, circleStyle]} />
       {children}
-      <View style={styles.centerDot} />
+      {content ?? <View style={styles.centerDot} />}
     </View>
   );
 }

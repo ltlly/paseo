@@ -1,3 +1,4 @@
+import { regenerateAgentTitle } from "./agent-title-generation.js";
 import { createIdleRuntimeCleanup } from "./idle-runtime-cleanup/index.js";
 import {
   prepareAgentMessage,
@@ -5058,7 +5059,7 @@ test("setTitle bumps updatedAt and persists title in the same snapshot write", a
   expect(live!.updatedAt.getTime()).toBeGreaterThan(Date.parse(before!.updatedAt));
 });
 
-test("updateAgentMetadata bumps updatedAt for stored agents", async () => {
+test("updateAgentMetadata bumps updatedAt and publishes stored terminal metadata", async () => {
   const workdir = mkdtempSync(join(tmpdir(), "agent-manager-stored-metadata-updated-at-"));
   const storagePath = join(workdir, "agents");
   const storage = new AgentStorage(storagePath, logger);
@@ -5083,11 +5084,17 @@ test("updateAgentMetadata bumps updatedAt for stored agents", async () => {
 
   const closed = await storage.get(snapshot.id);
   expect(closed).not.toBeNull();
-  const before = { ...closed!, labels: { surface: "mobile" } };
+  const before: StoredAgentRecord = {
+    ...closed!,
+    labels: { surface: "mobile" },
+    execution: { kind: "terminal", terminalId: "metadata-terminal" },
+  };
   await storage.upsert(before);
   expect(manager.getAgent(snapshot.id)).toBeNull();
 
   const upsertSpy = vi.spyOn(storage, "upsert");
+  const events: AgentManagerEvent[] = [];
+  const unsubscribe = manager.subscribe((event) => events.push(event), { replayState: false });
 
   await manager.updateAgentMetadata(snapshot.id, {
     title: "Stored title",
@@ -5099,6 +5106,12 @@ test("updateAgentMetadata bumps updatedAt for stored agents", async () => {
   expect(after?.title).toBe("Stored title");
   expect(after?.labels).toEqual({ surface: "mobile", role: "worker" });
   expect(Date.parse(after!.updatedAt)).toBeGreaterThan(Date.parse(before!.updatedAt));
+  expect(events).toContainEqual({
+    type: "stored_agent_state",
+    agentId: snapshot.id,
+    record: after,
+  });
+  unsubscribe();
 });
 
 test("persists live mode, model, and thinking changes without an external snapshot subscriber", async () => {
@@ -12670,4 +12683,54 @@ test("an out-of-band command racing idle cleanup waits for the resumed runtime",
   expect(await command).toEqual({ disposition: "out_of_band" });
   expect(h.commands).toEqual(["/maintenance"]);
   expect(h.prompts).toEqual([]);
+});
+
+test("title regeneration shares one request and keeps manual names", async () => {
+  let record: StoredAgentRecord = {
+    id: "terminal-title",
+    provider: "pi",
+    cwd: "/repo",
+    title: "Original",
+    labels: { "paseo.terminal-last-prompt": "Fix the terminal status" },
+    createdAt: "2026-10-31T00:00:00.000Z",
+    updatedAt: "2026-10-31T00:00:00.000Z",
+    lastStatus: "idle",
+  };
+  let complete!: (title: string) => void;
+  let calls = 0;
+  const manager = {
+    getAgent: () => null,
+    getTimeline: () => [],
+    updateAgentMetadata: async (
+      _agentId: string,
+      updates: { title?: string; labels?: Record<string, string> },
+    ) => {
+      record = { ...record, ...updates };
+    },
+  };
+  const deps = {
+    manager,
+    storage: { get: async () => record },
+    generate: async () => {
+      calls++;
+      return new Promise<string>((resolve) => {
+        complete = resolve;
+      });
+    },
+  };
+  const first = regenerateAgentTitle(record.id, deps);
+  const second = regenerateAgentTitle(record.id, deps);
+  expect(second).toBe(first);
+  await Promise.resolve();
+  expect(calls).toBe(1);
+  record = { ...record, title: "My newer manual name" };
+  complete("Generated title");
+  await expect(first).rejects.toThrow("Your newer name was kept");
+  expect(record.title).toBe("My newer manual name");
+  const retry = regenerateAgentTitle(record.id, {
+    ...deps,
+    generate: async () => "Repair terminal status",
+  });
+  await expect(retry).resolves.toBe("Repair terminal status");
+  expect(record.title).toBe("Repair terminal status");
 });

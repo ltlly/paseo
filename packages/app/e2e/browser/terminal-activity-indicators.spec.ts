@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test, expect, type Page } from "../support/fixtures";
 import { TerminalE2EHarness, type TerminalInstance } from "../support/helpers/terminal-dsl";
+import { getServerId } from "../support/helpers/server-id";
 
 type HookActivityState = "running" | "idle" | "needs-input";
 type TabStatusBucket = "running" | "needs_input" | "attention" | "none";
@@ -11,6 +12,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const triggerDir = process.argv[1];
+const provider = process.argv[2];
 const states = ["running", "idle", "needs-input"];
 
 function sleep(ms) {
@@ -32,6 +34,7 @@ async function reportActivity(state) {
       terminalId: process.env.PASEO_TERMINAL_ID,
       token: process.env.PASEO_ACTIVITY_TOKEN,
       state,
+      ...(provider ? { provider, event: state === "running" ? "UserPromptSubmit" : "Stop", sessionId: provider + "-conversation", title: provider + " terminal conversation", prompt: state === "running" ? "Investigate " + provider + " status" : undefined } : {}),
     }),
   });
   if (!response.ok) {
@@ -109,13 +112,14 @@ class ControlledActivityTerminal {
 
 async function createControlledActivityTerminal(
   harness: TerminalE2EHarness,
+  provider?: string,
 ): Promise<ControlledActivityTerminal> {
-  const triggerDir = join(harness.tempRepo.path, ".activity-triggers");
+  const triggerDir = join(harness.tempRepo.path, ".activity-triggers" + (provider ?? ""));
   await mkdir(triggerDir, { recursive: true });
   const terminal = await harness.createTerminal({
     name: "activity-source",
     command: process.execPath,
-    args: ["-e", TERMINAL_ACTIVITY_REPORTER_SCRIPT, triggerDir],
+    args: ["-e", TERMINAL_ACTIVITY_REPORTER_SCRIPT, triggerDir, ...(provider ? [provider] : [])],
   });
   return new ControlledActivityTerminal(terminal, harness, triggerDir);
 }
@@ -178,4 +182,67 @@ test.describe("Terminal activity indicators", () => {
       await expectTerminalTabStatus(page, activityTerminal.terminal.id, "none");
     });
   });
+});
+
+test("sidebar icons include both Pi and Grok terminal sessions and navigate to their terminals", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.emulateMedia({ colorScheme: "dark" });
+  const terminalHarness = await TerminalE2EHarness.create({
+    tempPrefix: "sidebar-terminal-agents-",
+  });
+  const original = await terminalHarness.client.getDaemonConfig();
+  try {
+    await terminalHarness.client.patchDaemonConfig({
+      metadataGeneration: { providers: [{ provider: "mock", model: "e2e-fast-stream" }] },
+    });
+    const pi = await createControlledActivityTerminal(terminalHarness, "pi");
+    const grok = await createControlledActivityTerminal(terminalHarness, "grok");
+    await terminalHarness.openTerminal(page, { terminalId: grok.terminal.id });
+    await pi.report("running");
+    await grok.report("running");
+    const entries = (await terminalHarness.client.fetchAgents({ scope: "active" })).entries;
+    const piAgent = entries.find(
+      (entry) =>
+        entry.agent.provider === "pi" && entry.agent.workspaceId === terminalHarness.workspaceId,
+    )?.agent;
+    const grokAgent = entries.find(
+      (entry) =>
+        entry.agent.provider === "grok" && entry.agent.workspaceId === terminalHarness.workspaceId,
+    )?.agent;
+    if (!piAgent || !grokAgent) throw new Error("Expected both terminal agents in the directory");
+    await expect(page.getByTestId(`sidebar-agent-status-${piAgent.id}-running`)).toBeVisible();
+    await expect(page.getByTestId(`sidebar-agent-status-${grokAgent.id}-running`)).toBeVisible();
+    await page.getByTestId(`sidebar-agent-${piAgent.id}`).click();
+    await expect(terminalTab(page, pi.terminal.id)).toHaveAttribute("aria-selected", "true");
+    await page.getByTestId(`sidebar-agent-${grokAgent.id}`).click();
+    await pi.report("idle");
+    await expect(page.getByTestId(`sidebar-agent-${piAgent.id}`)).toBeVisible();
+    await expect(page.getByTestId(`sidebar-agent-status-${piAgent.id}-running`)).toHaveCount(0);
+    await expect(page.getByTestId(`sidebar-agent-status-${grokAgent.id}-running`)).toBeVisible();
+    await page.getByTestId(`sidebar-agent-${grokAgent.id}`).click();
+    await expect(terminalTab(page, grok.terminal.id)).toHaveAttribute("aria-selected", "true");
+    const row = page.getByTestId(
+      `sidebar-workspace-row-${getServerId()}:${terminalHarness.workspaceId}`,
+    );
+    await row.click({ button: "right" });
+    await page
+      .getByTestId(
+        `sidebar-workspace-menu-regenerate-title-${getServerId()}:${terminalHarness.workspaceId}`,
+      )
+      .click();
+    await expect(page.getByTestId("regenerate-agent-title-dialog")).toHaveCount(0, {
+      timeout: 30_000,
+    });
+    await expect(row).toContainText("Investigate grok status");
+    await page.mouse.move(1000, 200);
+    await expect(page.getByTestId("workspace-hover-card")).toHaveCount(0);
+    await page.screenshot({ path: "/tmp/paseo-sidebar-terminal-agents.png" });
+  } finally {
+    await terminalHarness.client.patchDaemonConfig({
+      metadataGeneration: original.config.metadataGeneration,
+    });
+    await terminalHarness.cleanup();
+  }
 });

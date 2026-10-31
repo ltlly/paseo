@@ -2,6 +2,13 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ja: TranslationResources = {
+  conversationNaming: {
+    action: "名前を再生成",
+    pending: "名前を生成中…",
+    budget: "最近の会話の短い抜粋を使い、モデルを1回呼び出します。",
+    updated: "会話名を更新しました",
+    retry: "再試行",
+  },
   paneFind: {
     connectionFailure:
       "このチャットを検索できませんでした。ホストへの接続を確認して再試行してください。",

@@ -1,6 +1,6 @@
 import type { Agent, WorkspaceDescriptor } from "@/stores/session-store";
 import { isWorkspaceRootAgent } from "@/subagents/policies";
-import { deriveSidebarStateBucket } from "./sidebar-agent-state";
+import { deriveSidebarStateBucket, aggregateSidebarStateBuckets } from "./sidebar-agent-state";
 
 export interface WorkspaceAgentActivity {
   agentId: string;
@@ -9,6 +9,7 @@ export interface WorkspaceAgentActivity {
 }
 
 function workspaceAgentStatus(agent: Agent): Agent["status"] {
+  if (agent.execution) return agent.status;
   if (agent.turn.phase === "open") return "running";
   return agent.status === "running" ? "idle" : agent.status;
 }
@@ -18,7 +19,6 @@ export function buildWorkspaceAgentActivityIndex(
   previous?: ReadonlyMap<string, WorkspaceAgentActivity>,
 ): Map<string, WorkspaceAgentActivity> {
   const activityByWorkspaceId = new Map<string, WorkspaceAgentActivity>();
-  const latestActivityAtByWorkspaceId = new Map<string, Date>();
 
   for (const agent of agents.values()) {
     const parentAgent = agent.parentAgentId ? agents.get(agent.parentAgentId) : undefined;
@@ -27,18 +27,14 @@ export function buildWorkspaceAgentActivityIndex(
     }
 
     const enteredAt = agent.attentionTimestamp ?? agent.updatedAt;
-    const latestActivityAt = latestActivityAtByWorkspaceId.get(agent.workspaceId);
-    if (latestActivityAt && enteredAt <= latestActivityAt) {
-      continue;
-    }
-    latestActivityAtByWorkspaceId.set(agent.workspaceId, enteredAt);
-
     const status = deriveSidebarStateBucket({
       status: workspaceAgentStatus(agent),
       pendingPermissionCount: agent.pendingPermissions.length,
       requiresAttention: agent.requiresAttention,
       attentionReason: agent.attentionReason,
     });
+    const current = activityByWorkspaceId.get(agent.workspaceId);
+    if (!shouldReplaceWorkspaceActivity(current, status, enteredAt)) continue;
     activityByWorkspaceId.set(agent.workspaceId, {
       agentId: agent.id,
       status,
@@ -75,4 +71,15 @@ function areWorkspaceAgentActivityIndexesIdentical(
     }
   }
   return true;
+}
+
+function shouldReplaceWorkspaceActivity(
+  current: WorkspaceAgentActivity | undefined,
+  status: WorkspaceAgentActivity["status"],
+  enteredAt: Date,
+): boolean {
+  if (!current) return true;
+  if (current.status !== status)
+    return aggregateSidebarStateBuckets([current.status, status]) === status;
+  return !current.enteredAt || enteredAt > current.enteredAt;
 }

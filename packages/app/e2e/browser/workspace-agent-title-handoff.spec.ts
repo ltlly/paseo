@@ -8,6 +8,7 @@ import {
   waitForWorkspaceTabsVisible,
 } from "../support/helpers/workspace-tabs";
 import { getServerId } from "../support/helpers/server-id";
+import { openMobileAgentSidebar, expectMobileAgentSidebarHidden } from "../support/helpers/sidebar";
 import { buildHostWorkspaceRoute } from "@/utils/host-routes";
 
 async function waitForCreatedAgentId(
@@ -153,4 +154,137 @@ test.describe("Workspace agent title handoff", () => {
       await workspace.cleanup();
     }
   });
+});
+
+test("sidebar agent icons retain idle agents and follow the focused conversation title", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const nestedButtonErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error" && /descendant|nested.*button|hydration/i.test(message.text()))
+      nestedButtonErrors.push(message.text());
+  });
+  const workspace = await seedWorkspace({ repoPrefix: "sidebar-agent-presence-" });
+  try {
+    const first = await workspace.client.createAgent({
+      provider: "mock",
+      cwd: workspace.repoPath,
+      workspaceId: workspace.workspaceId,
+      title: "Repair Pi activity",
+      modeId: "load-test",
+      model: "e2e-fast-stream",
+    });
+    const second = await workspace.client.createAgent({
+      provider: "mock",
+      cwd: workspace.repoPath,
+      workspaceId: workspace.workspaceId,
+      title: "Investigate another task",
+      modeId: "load-test",
+      model: "ten-second-stream",
+    });
+    await page.goto(buildHostWorkspaceRoute(getServerId(), workspace.workspaceId));
+    const row = page.getByTestId(`sidebar-workspace-row-${getServerId()}:${workspace.workspaceId}`);
+    const firstIcon = page.getByTestId(`sidebar-agent-${first.id}`);
+    const secondIcon = page.getByTestId(`sidebar-agent-${second.id}`);
+    await expect(firstIcon).toBeVisible();
+    await expect(secondIcon).toBeVisible();
+    await firstIcon.click();
+    await expect(row).toContainText("Repair Pi activity");
+    await expect(page.getByTestId(`workspace-tab-agent_${first.id}`).first()).toBeVisible();
+    await secondIcon.click();
+    await expect(row).toContainText("Investigate another task");
+    await expect(page.getByTestId(`workspace-tab-agent_${second.id}`).first()).toBeVisible();
+    await workspace.client.sendAgentMessage(second.id, "Show the running indicator while working");
+    await expect(page.getByTestId(`sidebar-agent-status-${second.id}-running`)).toBeVisible();
+    await expect(firstIcon).toBeVisible();
+    await workspace.client.cancelAgent(second.id);
+    await expect(page.getByTestId(`sidebar-agent-status-${second.id}-running`)).toHaveCount(0);
+    await expect(secondIcon).toBeVisible();
+    await firstIcon.click();
+    await expect(row).toContainText("Repair Pi activity");
+    await workspace.client.updateAgent(first.id, { name: "Updated conversation name" });
+    await expect(row).toContainText("Updated conversation name");
+    await page.reload();
+    await expect(row).toContainText("Updated conversation name");
+    await expect(firstIcon).toBeVisible();
+    await expect(secondIcon).toBeVisible();
+    await page.mouse.move(1000, 200);
+    await page.screenshot({ path: "/tmp/paseo-sidebar-agent-presence-desktop.png" });
+    expect(nestedButtonErrors).toEqual([]);
+  } finally {
+    await workspace.cleanup();
+  }
+});
+
+test("right-click naming keeps failures retryable and applies a bounded generated name", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const workspace = await seedWorkspace({ repoPrefix: "sidebar-regenerate-name-" });
+  const original = await workspace.client.getDaemonConfig();
+  try {
+    await workspace.client.patchDaemonConfig({
+      metadataGeneration: { providers: [{ provider: "mock", model: "e2e-fast-stream" }] },
+    });
+    const agent = await workspace.client.createAgent({
+      provider: "mock",
+      cwd: workspace.repoPath,
+      workspaceId: workspace.workspaceId,
+      title: "An old topic",
+      modeId: "load-test",
+      model: "e2e-fast-stream",
+    });
+    await page.goto(buildHostWorkspaceRoute(getServerId(), workspace.workspaceId));
+    await page.getByTestId(`sidebar-agent-${agent.id}`).click();
+    const row = page.getByTestId(`sidebar-workspace-row-${getServerId()}:${workspace.workspaceId}`);
+    await row.click({ button: "right" });
+    await page
+      .getByTestId(
+        `sidebar-workspace-menu-regenerate-title-${getServerId()}:${workspace.workspaceId}`,
+      )
+      .click();
+    await expect(page.getByTestId("regenerate-agent-title-error")).toContainText("Send a message");
+    await expect(row).toContainText("An old topic");
+    await workspace.client.sendAgentMessage(agent.id, "Repair the Pi status indicator");
+    await workspace.client.waitForFinish(agent.id);
+    await page.getByTestId("regenerate-agent-title-retry").click();
+    await expect(page.getByTestId("regenerate-agent-title-dialog")).toHaveCount(0, {
+      timeout: 30_000,
+    });
+    await expect(row).toContainText("Repair the Pi status indicator");
+    await page.mouse.move(1000, 200);
+    await page.screenshot({ path: "/tmp/paseo-regenerate-name-success.png" });
+  } finally {
+    await workspace.client.patchDaemonConfig({
+      metadataGeneration: original.config.metadataGeneration,
+    });
+    await workspace.cleanup();
+  }
+});
+
+test("compact sidebar agent icons navigate and close the drawer", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const workspace = await seedWorkspace({ repoPrefix: "sidebar-agent-compact-" });
+  try {
+    const agent = await workspace.client.createAgent({
+      provider: "mock",
+      cwd: workspace.repoPath,
+      workspaceId: workspace.workspaceId,
+      title: "Focused phone conversation",
+      modeId: "load-test",
+      model: "e2e-fast-stream",
+    });
+    await page.goto(buildHostWorkspaceRoute(getServerId(), workspace.workspaceId));
+    await openMobileAgentSidebar(page);
+    await page.getByTestId(`sidebar-agent-${agent.id}`).click();
+    await expectMobileAgentSidebarHidden(page);
+    await expectComposerVisible(page);
+    await page.screenshot({ path: "/tmp/paseo-sidebar-agent-presence-compact.png" });
+  } finally {
+    await workspace.cleanup();
+  }
 });

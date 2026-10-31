@@ -7,6 +7,9 @@ import type { AgentManager } from "../server/agent/agent-manager.js";
 import type { TerminalManager } from "./terminal-manager.js";
 import type { TerminalSession } from "./terminal.js";
 import { AGENT_HOOK_PROVIDERS, type AgentHookReport } from "./agent-hooks/provider-registry.js";
+import { resolveCreateAgentTitles } from "../server/agent/create-agent-title.js";
+
+const GENERATED_TITLE_LABEL = "paseo.terminal-generated-title";
 
 interface Dependencies {
   terminals: TerminalManager;
@@ -14,6 +17,11 @@ interface Dependencies {
   agents: Pick<AgentManager, "notifyStoredAgentState">;
   profiles(): readonly TerminalProfile[];
   logger: Logger;
+  generateTitle?: (input: {
+    cwd: string;
+    prompt: string;
+    provider: string;
+  }) => Promise<string | null>;
 }
 
 /** Durable directory records for externally driven agents. Never creates an SDK runtime. */
@@ -23,10 +31,12 @@ export class TerminalAgents {
   private readonly watches = new Map<string, () => void>();
   private readonly retiredSessions = new Set<string>();
   private unsubscribe: (() => void) | undefined;
+  private closed = false;
 
   constructor(private readonly deps: Dependencies) {}
 
   async initialize(): Promise<void> {
+    this.closed = false;
     for (const record of await this.deps.storage.list()) {
       if (!record.execution) continue;
       if (record.archivedAt) {
@@ -93,6 +103,7 @@ export class TerminalAgents {
     }
     record ??= this.createRecord(terminal, report.provider);
     if (key) this.retiredSessions.delete(key);
+    const firstPrompt = firstConversationPrompt(record, report);
     record = this.withReportMetadata(record, report);
     const activityStates = {
       running: "working",
@@ -101,6 +112,7 @@ export class TerminalAgents {
     } as const;
     await this.deps.terminals.setTerminalActivity(terminal.id, activityStates[report.state]);
     await this.synchronize(record, terminal);
+    this.scheduleTitle(record, firstPrompt, report.title);
   }
 
   private isReplacement(record: StoredAgentRecord, report: AgentHookReport): boolean {
@@ -122,7 +134,7 @@ export class TerminalAgents {
       createdAt: now,
       updatedAt: now,
       title: profile?.name ?? provider,
-      labels: {},
+      labels: { [GENERATED_TITLE_LABEL]: profile?.name ?? provider },
       lastStatus: "idle",
       execution: {
         kind: "terminal",
@@ -139,8 +151,30 @@ export class TerminalAgents {
     record: StoredAgentRecord,
     report: AgentHookReport,
   ): StoredAgentRecord {
+    const firstPrompt = report.event === "UserPromptSubmit" && !record.lastUserMessageAt;
+    const provisionalTitle =
+      firstPrompt && report.prompt
+        ? resolveCreateAgentTitles({ initialPrompt: report.prompt }).provisionalTitle
+        : null;
+    const automaticTitle = report.title || provisionalTitle;
+    const canRename = record.title === record.labels[GENERATED_TITLE_LABEL];
     return {
       ...record,
+      labels: report.prompt
+        ? { ...record.labels, "paseo.terminal-last-prompt": report.prompt.slice(-2000) }
+        : record.labels,
+      ...(automaticTitle && canRename
+        ? {
+            title: automaticTitle,
+            labels: {
+              ...record.labels,
+              ...(report.prompt
+                ? { "paseo.terminal-last-prompt": report.prompt.slice(-2000) }
+                : {}),
+              [GENERATED_TITLE_LABEL]: automaticTitle,
+            },
+          }
+        : {}),
       cwd: report.cwd && isAbsolute(report.cwd) ? report.cwd : record.cwd,
       execution: {
         ...record.execution!,
@@ -151,6 +185,33 @@ export class TerminalAgents {
         ? { lastUserMessageAt: new Date(report.observedAt).toISOString() }
         : {}),
     };
+  }
+
+  private scheduleTitle(
+    record: StoredAgentRecord,
+    prompt: string | null,
+    nativeTitle?: string,
+  ): void {
+    if (!prompt || nativeTitle || !this.deps.generateTitle) return;
+    void this.deps
+      .generateTitle({ cwd: record.cwd, prompt, provider: record.provider })
+      .then((title) => {
+        if (!title || this.closed) return;
+        this.background(record.execution!.terminalId, async () => {
+          if (this.closed) return;
+          const current = await this.deps.storage.get(record.id);
+          if (!current || current.archivedAt || current.title !== record.title) return;
+          await this.publish({
+            ...current,
+            title,
+            labels: { ...current.labels, [GENERATED_TITLE_LABEL]: title },
+          });
+        });
+        return undefined;
+      })
+      .catch((err) =>
+        this.deps.logger.warn({ err, agentId: record.id }, "Failed to name terminal agent"),
+      );
   }
 
   private watch(terminal: TerminalSession): void {
@@ -247,9 +308,19 @@ export class TerminalAgents {
   }
 
   async close(): Promise<void> {
+    this.closed = true;
     this.unsubscribe?.();
     for (const off of this.watches.values()) off();
     this.watches.clear();
     await Promise.allSettled(this.tails.values());
   }
+}
+
+function firstConversationPrompt(
+  record: StoredAgentRecord,
+  report: AgentHookReport,
+): string | null {
+  if (report.event !== "UserPromptSubmit" || record.lastUserMessageAt) return null;
+  const prompt = report.prompt?.trim();
+  return prompt && !prompt.startsWith("/") ? prompt : null;
 }

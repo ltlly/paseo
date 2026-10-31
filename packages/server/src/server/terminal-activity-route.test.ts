@@ -91,7 +91,16 @@ afterEach(async () => {
   }
 });
 
-async function createTerminalAgentHarness() {
+async function createTerminalAgentHarness(
+  options: {
+    provider?: string;
+    generateTitle?: (input: {
+      cwd: string;
+      prompt: string;
+      provider: string;
+    }) => Promise<string | null>;
+  } = {},
+) {
   const cwd = mkdtempSync(join(tmpdir(), "terminal-agents-"));
   temporaryDirs.push(cwd);
   const logger = pino({ level: "silent" });
@@ -111,6 +120,7 @@ async function createTerminalAgentHarness() {
       storage,
       agents: { notifyStoredAgentState },
       logger,
+      generateTitle: options.generateTitle,
       profiles: () => [{ id: "grok-profile", name: "Grok Build", command: "grok", icon: "bot" }],
     });
   terminalAgents = makeService();
@@ -120,12 +130,14 @@ async function createTerminalAgentHarness() {
     event: string,
     state: "running" | "idle" | "needs-input",
     sessionId = "conversation-1",
+    metadata: { title?: string; prompt?: string } = {},
   ) =>
     terminalAgents!.report(terminal.id, {
-      provider: "grok",
+      provider: options.provider ?? "grok",
       event,
       state,
       sessionId,
+      ...metadata,
       observedAt: ++observedAt,
       cwd,
     });
@@ -340,4 +352,73 @@ it("uses one rejection for unknown terminals and wrong tokens", async () => {
   expect(unknownResponse.statusCode).toBe(403);
   expect(invalidResponse.statusCode).toBe(403);
   expect(unknownResponse.body).toEqual(invalidResponse.body);
+});
+
+it("renames a Pi terminal conversation from its first prompt after /new", async () => {
+  const h = await createTerminalAgentHarness({ provider: "pi" });
+  await h.report("SessionStart", "idle");
+  await h.report("UserPromptSubmit", "running", "conversation-1", {
+    prompt: "Fix the Pi activity indicator",
+  });
+  const [first] = await h.directory.list();
+  expect(first).toMatchObject({
+    provider: "pi",
+    title: "Fix the Pi activity indicator",
+    status: "running",
+  });
+  await h.report("Stop", "idle");
+  expect((await h.directory.list())[0].title).toBe(first.title);
+  await h.report("SessionStart", "idle", "conversation-2");
+  await h.report("UserPromptSubmit", "running", "conversation-2", {
+    prompt: "Investigate a different issue",
+  });
+  const [second] = await h.directory.list();
+  expect(second.id).not.toBe(first.id);
+  expect(second.title).toBe("Investigate a different issue");
+  expect((await h.storage.get(first.id))?.title).toBe("Fix the Pi activity indicator");
+  await h.report("Stop", "idle", "conversation-1");
+  expect((await h.directory.list())[0]).toMatchObject({ id: second.id, status: "running" });
+});
+
+it("keeps delayed generated names out of newer terminal sessions and manual titles", async () => {
+  const pending: Array<(title: string | null) => void> = [];
+  const h = await createTerminalAgentHarness({
+    provider: "pi",
+    generateTitle: async () =>
+      new Promise<string | null>((resolve) => {
+        pending.push(resolve);
+      }),
+  });
+  await h.report("UserPromptSubmit", "running", "conversation-1", { prompt: "First task" });
+  const [first] = await h.directory.list();
+  await h.report("SessionStart", "idle", "conversation-2");
+  await h.report("UserPromptSubmit", "running", "conversation-2", { prompt: "Second task" });
+  const [second] = await h.directory.list();
+  const record = await h.storage.get(second.id);
+  if (!record) throw new Error("Expected terminal agent");
+  await h.storage.upsert({ ...record, title: "My manual name" });
+  pending[0]("Stale first title");
+  pending[1]("Generated second title");
+  await h.report("Stop", "idle", "conversation-2");
+  await h.report("SessionInfo", "idle", "conversation-2");
+  expect((await h.storage.get(first.id))?.title).toBe("First task");
+  expect((await h.storage.get(second.id))?.title).toBe("My manual name");
+});
+
+it("applies a generated terminal title without waiting to report activity", async () => {
+  let complete!: (title: string | null) => void;
+  const h = await createTerminalAgentHarness({
+    provider: "pi",
+    generateTitle: async () =>
+      new Promise<string | null>((resolve) => {
+        complete = resolve;
+      }),
+  });
+  await h.report("UserPromptSubmit", "running", "conversation-1", { prompt: "Investigate status" });
+  const [current] = await h.directory.list();
+  expect(current).toMatchObject({ title: "Investigate status", status: "running" });
+  complete("Repair Pi status reporting");
+  await vi.waitFor(async () =>
+    expect((await h.storage.get(current.id))?.title).toBe("Repair Pi status reporting"),
+  );
 });

@@ -128,6 +128,8 @@ import { assertPluginTimelineDataSize } from "./agent/agent-timeline-content.js"
 import { parsePluginClientId } from "./plugins/plugin-session-identity.js";
 import { buildAgentForkContextAttachment } from "./agent/activity-curator.js";
 import { buildAgentPrompt } from "./agent/prompt-attachments.js";
+import { regenerateAgentTitle } from "./agent/agent-title-generation.js";
+import { generateConversationTitle } from "./worktree-branch-name-generator.js";
 import type { StructuredGenerationDaemonConfig } from "./agent/structured-generation-providers.js";
 import {
   getAgentStreamEventTurnId,
@@ -2869,6 +2871,8 @@ export class Session {
       }
       case "agent.fork_context.request":
         return this.handleAgentForkContextRequest(msg);
+      case "agent.title.regenerate.request":
+        return this.handleRegenerateAgentTitleRequest(msg);
       default:
         return undefined;
     }
@@ -8265,6 +8269,35 @@ export class Session {
         },
       });
     }
+  }
+
+  private async handleRegenerateAgentTitleRequest(
+    msg: Extract<SessionInboundMessage, { type: "agent.title.regenerate.request" }>,
+  ): Promise<void> {
+    let title: string | null = null;
+    let error: string | null = null;
+    try {
+      title = await regenerateAgentTitle(msg.agentId, {
+        manager: this.agentManager,
+        storage: this.agentStorage,
+        generate: ({ cwd, provider, context }) =>
+          generateConversationTitle({
+            agentManager: this.agentManager,
+            cwd,
+            providerSnapshotManager: this.providerSnapshotManager,
+            daemonConfig: this.readStructuredGenerationDaemonConfig(),
+            currentSelection: { provider },
+            firstAgentContext: { prompt: context },
+            logger: this.sessionLogger,
+          }),
+      });
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+    }
+    this.emit({
+      type: "agent.title.regenerate.response",
+      payload: { requestId: msg.requestId, agentId: msg.agentId, title, error },
+    });
   }
 
   private async prepareAgentMessage(agentId: string, text: string): Promise<void> {

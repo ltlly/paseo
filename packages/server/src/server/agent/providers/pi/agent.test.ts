@@ -1077,6 +1077,34 @@ describe("PiRpcAgentSession", () => {
     await session.close();
   });
 
+  test.each([true, false])(
+    "keeps a prompt running after pre-start custom context (display: %s)",
+    async (display) => {
+      const { pi, session, events } = await createSession();
+      const runtime = pi.latestSession();
+      await session.startTurn("Implement the requested change");
+      runtime.emit({
+        type: "message_end",
+        message: {
+          role: "custom",
+          customType: "recall-context",
+          content: [{ type: "text", text: "Context injected before the model starts" }],
+          display,
+        },
+      });
+      expect(events.turnCompletedEvents()).toHaveLength(0);
+      runtime.emit({ type: "agent_start" });
+      runtime.emit({ type: "turn_start" });
+      expect(events.turnLifecycleEvents()).toEqual([
+        { type: "turn_started", turnId: expect.any(String) },
+      ]);
+      runtime.finishTurn();
+      await events.nextTurnCompletion();
+      expect(events.turnCompletedEvents()).toHaveLength(1);
+      await session.close();
+    },
+  );
+
   test("surfaces Pi extension command messages and completes when no agent turn starts", async () => {
     const { pi, session, events } = await createSession();
     const fakeSession = pi.latestSession();

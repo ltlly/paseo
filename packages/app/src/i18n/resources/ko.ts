@@ -2,6 +2,13 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ko: TranslationResources = {
+  conversationNaming: {
+    action: "이름 다시 생성",
+    pending: "이름 생성 중…",
+    budget: "최근 대화의 짧은 발췌문으로 모델을 한 번 호출합니다.",
+    updated: "대화 이름이 업데이트되었습니다",
+    retry: "다시 시도",
+  },
   paneFind: {
     connectionFailure: "이 채팅을 검색할 수 없습니다. 호스트 연결을 확인하고 다시 시도하세요.",
     historyChangedFailure: "검색 중에 채팅이 변경되었습니다. 다시 검색하세요.",
