@@ -1965,7 +1965,7 @@ function WorkspaceScreenContent({
           }
         }
 
-        if (closePolicy.kind === "layout-only") {
+        if (closePolicy.kind === "layout-only" && !agent?.execution) {
           const sessionClient = useSessionStore.getState().sessions[normalizedServerId]?.client;
           if (!sessionClient) {
             toast.error(t("common.errors.daemonClientUnavailable"));
@@ -2270,6 +2270,10 @@ function WorkspaceScreenContent({
         groups,
         closeTab,
         closeLayoutOnlyAgent: async (agentId) => {
+          const agent = useSessionStore
+            .getState()
+            .sessions[normalizedServerId]?.agents?.get(agentId);
+          if (agent?.execution) return;
           if (!client) {
             throw new Error(t("common.errors.daemonClientUnavailable"));
           }

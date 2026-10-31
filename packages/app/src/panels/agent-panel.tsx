@@ -306,9 +306,18 @@ function storeFetchedAgentDetail(input: {
 }
 
 function AgentPanel() {
-  const { serverId, workspaceId, target, openFileInWorkspace } = usePaneContext();
+  const { serverId, workspaceId, target, openFileInWorkspace, retargetCurrentTab } =
+    usePaneContext();
   const { isInteractive } = usePaneFocus();
   invariant(target.kind === "agent", "AgentPanel requires agent target");
+  const terminalId = useSessionStore(
+    (state) => resolveChatAgentFromSession(state, serverId, target.agentId)?.execution?.terminalId,
+  );
+  useEffect(() => {
+    if (terminalId && isInteractive) retargetCurrentTab({ kind: "terminal", terminalId });
+  }, [terminalId, isInteractive, retargetCurrentTab]);
+
+  if (terminalId) return null;
 
   return (
     <RetainedChatContent>

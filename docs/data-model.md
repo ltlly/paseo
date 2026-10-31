@@ -567,7 +567,10 @@ directory scan. One invalid row is deleted and returned as a miss without affect
 An invalid directory row and its affected checkpoint cursor are repaired in one transaction, so a
 later launch cannot accept a checkpoint for a partial baseline. Directory changes and their
 checkpoint are also applied in one transaction. Reads wait for accepted changes to reach storage,
-then retry only when a requested row changes during the read. Unrelated agent streams do not
+then retry only when a requested row changes during the read. Version cached agent projections when
+new identity fields are required: a retained directory cursor can otherwise keep a lossy snapshot
+forever. Rejecting an older agent projection refetches its directory without clearing workspace
+layouts or cached timelines. Unrelated agent streams do not
 invalidate the read. Directory baseline replacements and host removal or renaming still invalidate
 the affected reads.
 
