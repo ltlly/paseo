@@ -1,0 +1,8 @@
+Added
+- Show managed and terminal agents beneath each workspace, with idle icons, working rings and direct tab navigation (fork changes)
+- Rename individual agents from their icon menu or request a new name using a small recent conversation excerpt (fork changes)
+- Reuse existing OpenCode v2 services across sessions
+- Adjust mobile terminal selections with draggable handles
+- Insert suggested agent commands into the composer without sending them
+
+Full notes: https://paseo.sh/changelog

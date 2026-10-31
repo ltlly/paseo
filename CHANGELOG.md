@@ -58,6 +58,48 @@ Improved:
 
 - Added `server.addHook` with `subject.operation.position` names and the awaited `worktree.create.after` hook before setup and agents; deprecated the previous plugin hook registration methods without changing their behavior ([#8081](https://github.com/getpaseo/paseo/pull/8081))
 
+## 0.14.0-ltlly.3 - 2026-10-31
+
+### Added
+
+- Show managed and terminal agents beneath each workspace, with idle icons, working rings and direct tab navigation ([fork changes](https://github.com/ltlly/paseo/commit/9465c1dd2))
+- Rename individual agents from their icon menu or request a new name using a small recent conversation excerpt ([fork changes](https://github.com/ltlly/paseo/commit/93f2304eb))
+- Reuse existing OpenCode v2 services across sessions ([#7435](https://github.com/getpaseo/paseo/pull/7435) by [@mcowger](https://github.com/mcowger))
+- Adjust mobile terminal selections with draggable handles ([#8348](https://github.com/getpaseo/paseo/pull/8348))
+- Insert suggested agent commands into the composer without sending them ([#8371](https://github.com/getpaseo/paseo/pull/8371))
+- Disable usage checks for every client connected to a host ([#8181](https://github.com/getpaseo/paseo/pull/8181))
+
+### Improved
+
+- Preserve up to 10,000 terminal history rows across reconnections ([#8282](https://github.com/getpaseo/paseo/pull/8282))
+- Read paginated Codex history without requesting the entire thread in one reply ([#8171](https://github.com/getpaseo/paseo/pull/8171))
+- Deliver large messages through negotiated transport chunks while bounding oversized timeline entries ([#8302](https://github.com/getpaseo/paseo/pull/8302), [#8274](https://github.com/getpaseo/paseo/pull/8274))
+- Honor HTTP_PROXY, HTTPS_PROXY and NO_PROXY for daemon and plugin requests ([#8177](https://github.com/getpaseo/paseo/pull/8177))
+- Show sub-agent launch markers in the parent conversation and keep activity in the child's timeline ([#8276](https://github.com/getpaseo/paseo/pull/8276))
+- Follow system rotation on phones and tablets ([#8256](https://github.com/getpaseo/paseo/pull/8256))
+
+### Fixed
+
+- Keep Pi working indicators active through startup and enable native terminal hooks on Windows ([fork changes](https://github.com/ltlly/paseo/commit/6da81486a))
+- Refresh focused conversation names after terminal session changes and show the agent's work title in icon tooltips ([fork changes](https://github.com/ltlly/paseo/commit/93f2304eb))
+- Open relative file links inside nested repositories when the workspace-root file is absent ([#8361](https://github.com/getpaseo/paseo/pull/8361) by [@apple-ouyang](https://github.com/apple-ouyang))
+- Remove abandoned conversation branches after plugin-provider rewind ([#8368](https://github.com/getpaseo/paseo/pull/8368))
+- Render Pi tool-result images live and after reopening a conversation ([#8280](https://github.com/getpaseo/paseo/pull/8280))
+- Keep native terminal text aligned with the cursor ([#8336](https://github.com/getpaseo/paseo/pull/8336))
+- Restore Android layout after background fold changes and resize header fades after rotation ([#8285](https://github.com/getpaseo/paseo/pull/8285), [#8349](https://github.com/getpaseo/paseo/pull/8349))
+- Keep failed chat history visible for manual retry ([#8278](https://github.com/getpaseo/paseo/pull/8278))
+- Remove deleted agents from other connected windows ([#8248](https://github.com/getpaseo/paseo/pull/8248))
+- Recover terminal records after transient Windows file sharing failures ([#8155](https://github.com/getpaseo/paseo/pull/8155))
+- Start custom Codex providers with reserved names and resolve the MiniMax Code executable ([#6954](https://github.com/getpaseo/paseo/pull/6954), [#8201](https://github.com/getpaseo/paseo/pull/8201) by [@Peanut-HZM](https://github.com/Peanut-HZM))
+- Refresh transcript colors after a hidden system-theme change ([#8199](https://github.com/getpaseo/paseo/pull/8199))
+- Pass skill invocation input across Claude, Codex and Pi ([#8252](https://github.com/getpaseo/paseo/pull/8252) by [@AspireOne](https://github.com/AspireOne))
+
+### Notes
+
+- Automatic naming uses one model request with bounded recent text; manual renaming makes no model request
+- Plugin conversation rewind reloads retained native history and can take longer on large conversations
+- Large mobile uploads retain platform limits; this release does not add unlimited uploads
+
 ## 0.14.0 - 2026-10-29
 
 Plugins can now add tools to individual agents and configure their MCP servers when sessions open.
