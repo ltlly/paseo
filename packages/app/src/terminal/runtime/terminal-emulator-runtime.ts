@@ -117,6 +117,7 @@ export function createTerminalResizeEvent(input: {
 interface TerminalEmulatorRuntimeDisposables {
   disposeInput: () => void;
   disconnectResizeObserver: () => void;
+  disconnectRendererVisibilityObserver: () => void;
   removeWindowResize: () => void;
   removeWindowFocus: () => void;
   removeDocumentVisibilityChange: () => void;
@@ -161,6 +162,8 @@ const OUTPUT_OPERATION_TIMEOUT_MS = 5_000;
 const EMPTY_TERMINAL_OUTPUT = new Uint8Array(0);
 const RESET_TERMINAL_OUTPUT = new Uint8Array([0x1b, 0x63]);
 const terminalOutputEncoder = new TextEncoder();
+const RETAINED_WEBGL_RENDERER_LIMIT = 2;
+const retainedWebglRenderers = new Set<() => void>();
 
 export function encodeTerminalOutput(text: string): TerminalOutputData {
   return terminalOutputEncoder.encode(text);
@@ -572,6 +575,10 @@ export class TerminalEmulatorRuntime {
       // Ligatures require Font Access API or compatible environment
     }
     terminal.open(input.host);
+    // Output can arrive before the first visible GPU frame, including images.
+    // The image parser and storage must live for the whole terminal lifetime.
+    imageAddon = new ImageAddon();
+    terminal.loadAddon(imageAddon);
     this.themeBackgroundElements = this.collectThemeBackgroundElements(input);
     this.applyThemeBackground(input.theme);
     try {
@@ -588,7 +595,8 @@ export class TerminalEmulatorRuntime {
       }
       imageAddon = null;
     };
-    const disposeWebglRenderer = (): void => {
+    const disposeWebglRenderer = ({ refit } = { refit: false }): void => {
+      retainedWebglRenderers.delete(disposeWebglRenderer);
       if (!webglAddon) {
         return;
       }
@@ -598,15 +606,14 @@ export class TerminalEmulatorRuntime {
         // ignore
       }
       webglAddon = null;
-      disposeImageAddon();
       // WebGL and DOM renderers can have different cell dimensions.
-      this.fitAndEmitResize?.({ forceRefresh: true, shouldClaim: false });
+      if (refit) this.fitAndEmitResize?.({ forceRefresh: true, shouldClaim: false });
     };
 
     // Browser xterm is a renderer only; it never replies to terminal protocol queries.
     // Replies live on the daemon (one process boundary from the PTY) so they arrive
     // before the foreground app exits, instead of racing back over the websocket.
-    // Re-registered after the image addon loads so our handlers stay last in the
+    // Registered after the image addon loads so our handlers stay last in the
     // LIFO dispatch (the image addon registers its own {final:"c"} for sixel DA1).
     const registerProtocolQuerySuppression = (): void => {
       terminal.parser.registerCsiHandler({ final: "c" }, () => true);
@@ -626,22 +633,53 @@ export class TerminalEmulatorRuntime {
     };
     registerProtocolQuerySuppression();
 
-    let webglAddonRaf: number | null = requestAnimationFrame(() => {
-      webglAddonRaf = null;
+    let webglUnavailable = false;
+    const loadWebglRenderer = (): void => {
+      // A renderer change can refit the grid. Wait for asynchronous image
+      // parsing to commit so resizing cannot reset its paused parser state.
+      if (webglAddon || webglUnavailable || this.pendingWriteCommits.size > 0) return;
       try {
-        disposeWebglRenderer();
         webglAddon = new WebglAddon();
         webglAddon.onContextLoss(() => {
-          disposeWebglRenderer();
+          webglUnavailable = true;
+          disposeWebglRenderer({ refit: true });
         });
         terminal.loadAddon(webglAddon);
-        imageAddon = new ImageAddon();
-        terminal.loadAddon(imageAddon);
-        registerProtocolQuerySuppression();
         this.fitAndEmitResize?.({ forceRefresh: true, shouldClaim: false });
       } catch {
-        disposeWebglRenderer();
+        webglUnavailable = true;
+        disposeWebglRenderer({ refit: true });
       }
+    };
+    let rendererVisible = false;
+    const updateRendererVisibility = (): void => {
+      if (this.terminal !== terminal) return;
+      const visible = rendererVisible && document.visibilityState === "visible";
+      terminal.options.cursorBlink = visible;
+      if (visible) {
+        retainedWebglRenderers.delete(disposeWebglRenderer);
+        loadWebglRenderer();
+      } else if (document.visibilityState !== "visible") {
+        disposeWebglRenderer();
+      } else if (webglAddon) {
+        // Keep recent tabs warm without retaining a GPU context for every
+        // mounted workspace. Buffers, selections and images stay in xterm.
+        retainedWebglRenderers.add(disposeWebglRenderer);
+        for (const dispose of retainedWebglRenderers) {
+          if (retainedWebglRenderers.size <= RETAINED_WEBGL_RENDERER_LIMIT) break;
+          dispose();
+        }
+      }
+    };
+    const rendererVisibilityObserver = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        rendererVisible = entry.isIntersecting;
+        updateRendererVisibility();
+      }
+    });
+    rendererVisibilityObserver.observe(input.root);
+    const rendererWriteParsed = terminal.onWriteParsed(() => {
+      if (rendererVisible && !webglAddon && !webglUnavailable) updateRendererVisibility();
     });
 
     const restoreDocumentStyles = this.applyDocumentBoundsStyles({
@@ -750,6 +788,7 @@ export class TerminalEmulatorRuntime {
     window.addEventListener("focus", windowFocusHandler);
 
     const documentVisibilityChangeHandler = () => {
+      updateRendererVisibility();
       this.handleVisibilityRestore();
     };
     document.addEventListener("visibilitychange", documentVisibilityChangeHandler);
@@ -797,6 +836,10 @@ export class TerminalEmulatorRuntime {
       disconnectResizeObserver: () => {
         resizeObserver.disconnect();
       },
+      disconnectRendererVisibilityObserver: () => {
+        rendererVisibilityObserver.disconnect();
+        rendererWriteParsed.dispose();
+      },
       removeWindowResize: () => {
         window.removeEventListener("resize", windowResizeHandler);
       },
@@ -827,11 +870,7 @@ export class TerminalEmulatorRuntime {
         fitAddon.dispose();
       },
       disposeWebglAddon: () => {
-        if (webglAddonRaf !== null) {
-          cancelAnimationFrame(webglAddonRaf);
-          webglAddonRaf = null;
-        }
-        disposeWebglRenderer();
+        disposeWebglRenderer({ refit: false });
         disposeImageAddon();
       },
       disposeTerminal: () => {
@@ -843,6 +882,7 @@ export class TerminalEmulatorRuntime {
     this.cleanup = () => {
       disposables.disposeInput();
       disposables.disconnectResizeObserver();
+      disposables.disconnectRendererVisibilityObserver();
       disposables.removeWindowResize();
       disposables.removeWindowFocus();
       disposables.removeDocumentVisibilityChange();

@@ -2,20 +2,14 @@ import "@xterm/xterm/css/xterm.css";
 import { page, userEvent } from "@vitest/browser/context";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TerminalInputModeState } from "@getpaseo/protocol/terminal-input-mode";
+import type { Terminal } from "@xterm/xterm";
+import { WebglAddon } from "@xterm/addon-webgl";
 import type { TerminalFile } from "../file-paste";
 import {
   encodeTerminalOutput,
   TerminalEmulatorRuntime,
   type TerminalClipboard,
 } from "./terminal-emulator-runtime";
-
-vi.mock("@xterm/addon-webgl", () => ({
-  WebglAddon: class WebglAddon {
-    activate(): void {}
-    dispose(): void {}
-    onContextLoss(): void {}
-  },
-}));
 
 interface TerminalSize {
   rows: number;
@@ -32,11 +26,10 @@ interface TerminalKeyRecord {
   meta: boolean;
 }
 
-type BrowserTerminal = TerminalSize & {
-  input: (data: string, wasUserInput?: boolean) => void;
-  refresh: (start: number, end: number) => void;
-  reset: () => void;
-};
+type BrowserTerminal = Pick<
+  Terminal,
+  "rows" | "cols" | "input" | "refresh" | "reset" | "buffer" | "scrollToLine"
+>;
 
 interface MountedTerminal {
   host: HTMLDivElement;
@@ -217,7 +210,7 @@ function expectNoForcedSameSizeClaim(input: {
 }
 
 function getBrowserTerminal(): BrowserTerminal {
-  const terminal = window.__paseoTerminal as BrowserTerminal | undefined;
+  const terminal = window.__paseoTerminal;
   if (!terminal) {
     throw new Error("Expected xterm to be exposed for browser test inspection");
   }
@@ -318,6 +311,129 @@ afterEach(() => {
 });
 
 describe("terminal emulator runtime in a real browser", () => {
+  it("does not retry failed GPU activation for every output batch", async () => {
+    const activate = vi.spyOn(WebglAddon.prototype, "activate").mockImplementation(() => {
+      throw new Error("WebGL unavailable");
+    });
+    const mounted = createTerminalHost({ width: 720, height: 360 });
+    await expect.poll(() => activate.mock.calls.length).toBe(1);
+
+    await writeLines(mounted, ["first output"]);
+    await writeLines(mounted, ["second output"]);
+    await nextFrame();
+
+    expect(activate).toHaveBeenCalledTimes(1);
+    expect(getBrowserTerminal().buffer.active.getLine(1)?.translateToString(true)).toBe(
+      "second output",
+    );
+  });
+
+  it("keeps recent GPU canvases warm and releases older ones without losing terminal state", async () => {
+    const mounted = createTerminalHost({ width: 720, height: 360 });
+    const gpuCanvases = () => mounted.host.querySelectorAll(".xterm-screen > canvas:not([class])");
+    await expect.poll(() => gpuCanvases().length).toBe(1);
+    await writeLines(
+      mounted,
+      Array.from({ length: 100 }, (_, index) => `retained line ${index}`),
+    );
+    const terminal = getBrowserTerminal();
+    terminal.scrollToLine(8);
+    const viewport = terminal.buffer.active.viewportY;
+    const firstLine = terminal.buffer.active.getLine(0)?.translateToString();
+
+    mounted.root.style.display = "none";
+    await nextFrame();
+    await nextFrame();
+    expect(gpuCanvases()).toHaveLength(1);
+    const others: MountedTerminal[] = [];
+    for (let index = 0; index < 3; index++) {
+      const other = createTerminalHost({ width: 720, height: 360 });
+      others.push(other);
+      await expect
+        .poll(() => other.host.querySelectorAll(".xterm-screen > canvas:not([class])").length)
+        .toBe(1);
+      other.root.style.display = "none";
+      await nextFrame();
+      await nextFrame();
+    }
+    await expect.poll(() => gpuCanvases().length).toBe(0);
+    expect(terminal.buffer.active.viewportY).toBe(viewport);
+    expect(terminal.buffer.active.getLine(0)?.translateToString()).toBe(firstLine);
+    const retainedGpuCount = others.reduce(
+      (count, other) =>
+        count + other.host.querySelectorAll(".xterm-screen > canvas:not([class])").length,
+      0,
+    );
+    expect(retainedGpuCount).toBe(2);
+
+    mounted.root.style.display = "flex";
+    await expect.poll(() => gpuCanvases().length).toBe(1);
+    expect(terminal.buffer.active.viewportY).toBe(viewport);
+    expect(terminal.buffer.active.getLine(0)?.translateToString()).toBe(firstLine);
+    terminal.input("still-immediate", true);
+    expect(mounted.inputs).toEqual(["still-immediate"]);
+  });
+
+  it("keeps inline image pixels after a retained GPU renderer is evicted and recreated", async () => {
+    const mounted = createTerminalHost({ width: 720, height: 360 });
+    await expect.poll(() => mounted.host.querySelectorAll("canvas").length).toBe(1);
+    const imagePixel = () => {
+      const layer = mounted.host.querySelector<HTMLCanvasElement>(".xterm-image-layer-top");
+      return Array.from(layer?.getContext("2d")?.getImageData(0, 0, 1, 1).data ?? []);
+    };
+    await writeLines(mounted, ['\x1bPq"1;1;2;6#0;2;100;0;0#0~~\x1b\\']);
+    await expect.poll(imagePixel).toEqual([255, 0, 0, 255]);
+
+    mounted.root.style.display = "none";
+    await nextFrame();
+    await nextFrame();
+    for (let index = 0; index < 3; index++) {
+      const other = createTerminalHost({ width: 720, height: 360 });
+      await expect
+        .poll(() => other.host.querySelectorAll(".xterm-screen > canvas:not([class])").length)
+        .toBe(1);
+      other.root.style.display = "none";
+      await nextFrame();
+      await nextFrame();
+    }
+    await expect
+      .poll(() => mounted.host.querySelectorAll(".xterm-screen > canvas:not([class])").length)
+      .toBe(0);
+
+    mounted.root.style.display = "flex";
+    await expect.poll(imagePixel).toEqual([255, 0, 0, 255]);
+  });
+
+  it("commits an early asynchronous PNG before switching to the GPU renderer", async () => {
+    const mounted = createTerminalHost({ width: 720, height: 360 });
+    const source = document.createElement("canvas");
+    source.width = 1;
+    source.height = 1;
+    const context = source.getContext("2d")!;
+    context.fillStyle = "#ff0000";
+    context.fillRect(0, 0, 1, 1);
+    const encoded = source.toDataURL("image/png").split(",")[1];
+    let committed = false;
+    mounted.runtime.write({
+      data: terminalOutput(
+        `\x1b]1337;File=inline=1;size=${atob(encoded).length};width=2;height=1;preserveAspectRatio=0:${encoded}\x07`,
+      ),
+      onCommitted: () => {
+        committed = true;
+      },
+    });
+
+    await expect.poll(() => committed).toBe(true);
+    await expect
+      .poll(() => mounted.host.querySelectorAll(".xterm-screen > canvas:not([class])").length)
+      .toBe(1);
+    const imagePixel = () => {
+      const layer = mounted.host.querySelector<HTMLCanvasElement>(".xterm-image-layer-top");
+      return Array.from(layer?.getContext("2d")?.getImageData(0, 0, 1, 1).data ?? []);
+    };
+    await expect.poll(imagePixel).toEqual([255, 0, 0, 255]);
+  });
+
   it("preserves all wheel lines sent to a mouse-aware terminal application", async () => {
     await page.viewport(900, 600);
     const mounted = createTerminalHost({ width: 720, height: 360 });
@@ -376,11 +492,7 @@ describe("terminal emulator runtime in a real browser", () => {
   it("leaves normal scrollback wheel gestures local after mouse tracking stops", async () => {
     await page.viewport(900, 600);
     const mounted = createTerminalHost({ width: 720, height: 360 });
-    // Viewport scrolling needs real renderer dimensions, unlike the input-only cases.
-    const { WebglAddon } =
-      await vi.importActual<typeof import("@xterm/addon-webgl")>("@xterm/addon-webgl");
     const terminal = window.__paseoTerminal!;
-    terminal.loadAddon(new WebglAddon());
     await writeLines(mounted, ["\x1b[?1000h\x1b[?1006h"]);
     dispatchTerminalWheel(mounted, { deltaY: 3 });
     await writeLines(mounted, [

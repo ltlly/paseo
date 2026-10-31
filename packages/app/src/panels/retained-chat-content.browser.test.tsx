@@ -16,6 +16,8 @@ import { RetainedPanelActivity, useRetainedPanelActive } from "@/components/reta
 import { RetainedChatContent as NativeChat } from "./retained-chat-content.native";
 import { RetainedChatContent as WebChat } from "./retained-chat-content.web";
 import { useMountedTabSet } from "@/screens/workspace/use-mounted-tab-set";
+import { View } from "react-native";
+import { useStatusRingAnimationRef } from "@/components/status-ring/clock.web";
 
 import {
   ComposerEditingScope,
@@ -62,6 +64,58 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+});
+
+const STATUS_RING_PROBE_STYLE = { width: 18, height: 18 };
+const STATUS_RING_SPACER_STYLE = { height: 100 };
+
+function StatusRingClockProbe() {
+  const ref = useStatusRingAnimationRef();
+  return <View ref={ref} style={STATUS_RING_PROBE_STYLE} />;
+}
+
+it("stops retained status ring animations while hidden and rejoins their shared phase", async () => {
+  const render = (active: boolean) =>
+    act(() =>
+      root.render(
+        <RetainedPanelActivity active={active}>
+          <StatusRingClockProbe />
+        </RetainedPanelActivity>,
+      ),
+    );
+  const animations = () => container.getAnimations({ subtree: true });
+
+  render(true);
+  await expect.poll(() => animations().length).toBe(1);
+  render(false);
+  expect(animations()).toEqual([]);
+  render(true);
+  await expect.poll(() => animations().length).toBe(1);
+  expect(animations()[0].startTime).toBe(0);
+});
+
+it("animates only status rings inside a clipped sidebar viewport", async () => {
+  container.style.height = "30px";
+  container.style.overflow = "auto";
+  act(() =>
+    root.render(
+      <>
+        <div style={STATUS_RING_SPACER_STYLE} />
+        <StatusRingClockProbe />
+      </>,
+    ),
+  );
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+  expect(container.getAnimations({ subtree: true })).toEqual([]);
+
+  container.scrollTop = 100;
+  await expect.poll(() => container.getAnimations({ subtree: true }).length).toBe(1);
+  expect(container.getAnimations({ subtree: true })[0].startTime).toBe(0);
+
+  container.scrollTop = 0;
+  await expect.poll(() => container.getAnimations({ subtree: true }).length).toBe(0);
 });
 
 for (const [runtime, Chat] of [
