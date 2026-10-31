@@ -6,6 +6,7 @@ import {
   WorkspaceGitHubRuntimePayloadSchema,
 } from "@getpaseo/protocol/messages";
 import { AgentProviderSchema } from "@getpaseo/protocol/provider-manifest";
+import { TerminalAgentExecutionSchema } from "@getpaseo/protocol/agent-execution";
 import type { PluginTimelineData } from "@getpaseo/plugin";
 import {
   normalizeProjectDescriptor,
@@ -224,6 +225,7 @@ const StoredProjectPlacementSchema = z.strictObject({
 const StoredAgentSnapshotSchema = z.strictObject({
   id: z.string(),
   provider: AgentProviderSchema,
+  execution: TerminalAgentExecutionSchema.optional(),
   cwd: z.string(),
   workspaceId: z.string().optional(),
   model: z.string().nullable(),
@@ -254,6 +256,9 @@ const StoredAgentSnapshotSchema = z.strictObject({
 });
 
 const StoredAgentSchema = z.strictObject({
+  // The previous projection omitted execution but retained its directory cursor.
+  // Reject those rows so repair also invalidates the cursor and refetches identity.
+  version: z.literal(2),
   snapshot: StoredAgentSnapshotSchema,
   turn: z
     .discriminatedUnion("phase", [
@@ -616,6 +621,7 @@ function serializeAgent(agent: Agent): StoredAgent {
   const snapshot = {
     id: agent.id,
     provider: agent.provider,
+    execution: agent.execution,
     cwd: agent.cwd,
     ...(agent.workspaceId ? { workspaceId: agent.workspaceId } : {}),
     model: agent.model,
@@ -665,6 +671,7 @@ function serializeAgent(agent: Agent): StoredAgent {
     archivedAt: agent.archivedAt?.toISOString() ?? null,
   };
   return {
+    version: 2,
     snapshot,
     turn: serializeAgentTurn(agent),
     projectPlacement: serializeProjectPlacement(agent),

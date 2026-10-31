@@ -14,6 +14,14 @@ describe("resolveCloseAgentTabPolicy", () => {
     });
   });
 
+  it("only removes a stale chat tab for a terminal-owned agent", () => {
+    const agent = {
+      parentAgentId: null,
+      execution: { kind: "terminal" as const, terminalId: "pty-pi" },
+    };
+    expect(resolveCloseAgentTabPolicy(agent)).toEqual({ kind: "layout-only" });
+  });
+
   it("preserves the existing archive fallback when the agent is missing", () => {
     expect(resolveCloseAgentTabPolicy(null)).toEqual({ kind: "archive-on-close" });
     expect(resolveCloseAgentTabPolicy(undefined)).toEqual({ kind: "archive-on-close" });

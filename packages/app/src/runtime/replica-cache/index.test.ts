@@ -451,6 +451,47 @@ describe("ReplicaCache", () => {
     expect(restoredTimeline).toEqual(timeline());
   });
 
+  it("preserves terminal execution identity across a cached restart and incremental resume", async () => {
+    const storage = new MemoryStorage();
+    const writer = createCache(storage);
+    const baseline = directory();
+    const terminalAgent = baseline.agents.get("agent-1")!;
+    terminalAgent.execution = {
+      kind: "terminal",
+      terminalId: "pty-pi",
+      providerSessionId: "pi-session",
+    };
+    commitDirectory(writer, SERVER_ID, baseline);
+    await writer.flush();
+
+    const restored = await createCache(storage).readDirectory(SERVER_ID);
+    expect(restored.agents.get("agent-1")?.execution).toEqual(terminalAgent.execution);
+    expect(restored.checkpoint).toEqual(baseline.checkpoint);
+  });
+
+  it("refetches old agent projections without discarding workspace or timeline caches", async () => {
+    const storage = new MemoryStorage();
+    const writer = createCache(storage);
+    commitDirectory(writer, SERVER_ID, directory());
+    writer.commitTimeline(SERVER_ID, "agent-1", timeline());
+    await writer.flush();
+    const key = `${SERVER_ID}:agent:agent-1`;
+    const row = storage.rows.get(key)!;
+    const old = JSON.parse(row.payload);
+    delete old.version;
+    storage.rows.set(key, { ...row, payload: JSON.stringify(old) });
+
+    const reader = createCache(storage);
+    const restored = await reader.readDirectory(SERVER_ID);
+    expect(restored.agents.size).toBe(0);
+    expect(restored.checkpoint?.agents).toBeUndefined();
+    expect(restored.workspaces.get("workspace-1")?.name).toBe("main");
+    expect(await reader.readTimeline(SERVER_ID, "agent-1")).toEqual(timeline());
+    expect(
+      (await createCache(storage).readDirectory(SERVER_ID)).checkpoint?.agents,
+    ).toBeUndefined();
+  });
+
   it("preserves pending timeline updates across directory baseline replacement", async () => {
     const storage = new MemoryStorage();
     const writer = createCache(storage);
