@@ -232,3 +232,42 @@ describe("Pi terminal extension", () => {
     });
   });
 });
+
+it.skipIf(process.platform !== "win32")(
+  "Pi hooks invoke a Windows cmd launcher whose path contains spaces",
+  async () => {
+    const { piAgentHookProvider } = await import("./pi/pi.js");
+    const { execFileSync } = await import("node:child_process");
+    const { readFileSync } = await import("node:fs");
+    const { pathToFileURL } = await import("node:url");
+    const directory = createTempDir("paseo pi cmd ");
+    const extension = join(directory, "extension.mjs"),
+      probe = join(directory, "probe.mjs"),
+      shim = join(directory, "paseo.cmd"),
+      runner = join(directory, "runner.mjs"),
+      result = join(directory, "result.json");
+    writeFileSync(extension, piAgentHookProvider.install.source);
+    writeFileSync(
+      probe,
+      `import fs from 'node:fs';let input='';for await(const chunk of process.stdin)input+=chunk;fs.writeFileSync(process.env.PASEO_QA_RESULT,JSON.stringify({args:process.argv.slice(2),input:JSON.parse(input)}));`,
+    );
+    writeFileSync(shim, `@echo off\r\n"${process.execPath}" "${probe}" %*\r\n`);
+    writeFileSync(
+      runner,
+      `import register from ${JSON.stringify(pathToFileURL(extension).href)};const callbacks=new Map();register({on:(name,callback)=>callbacks.set(name,callback)});await callbacks.get('session_start')({}, {cwd:process.cwd(),isIdle:()=>true,sessionManager:{getSessionId:()=>'cmd-session',getSessionName:()=>undefined}});`,
+    );
+    execFileSync(process.execPath, [runner], {
+      env: {
+        ...process.env,
+        PASEO_TERMINAL_ID: "cmd-terminal",
+        PASEO_HOOK_CLI: shim,
+        PASEO_QA_RESULT: result,
+      },
+      timeout: 10000,
+    });
+    expect(JSON.parse(readFileSync(result, "utf8"))).toMatchObject({
+      args: ["hooks", "pi", "SessionStart"],
+      input: { sessionId: "cmd-session", state: "idle" },
+    });
+  },
+);

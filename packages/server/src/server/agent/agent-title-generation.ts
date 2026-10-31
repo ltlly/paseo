@@ -33,23 +33,25 @@ async function generateAndApply(agentId: string, deps: Dependencies): Promise<st
   const record = await deps.storage.get(agentId);
   if (!record || record.archivedAt) throw new Error("This agent is no longer available.");
   let context = record.labels["paseo.terminal-last-prompt"] ?? "";
-  if (record.execution) {
+  if (record.execution || record.persistence) {
     const conversation = await readTerminalConversation({
       provider: record.provider,
       cwd: record.cwd,
-      sessionId: record.execution.providerSessionId,
-      transcriptPath: record.labels["paseo.terminal-transcript"],
+      sessionId: record.execution?.providerSessionId ?? record.persistence?.sessionId,
+      transcriptPath:
+        record.labels["paseo.terminal-transcript"] ?? record.persistence?.nativeHandle ?? undefined,
     });
     context = conversation.context || context;
   }
   if (deps.manager.getAgent(agentId)) {
-    context = deps.manager
+    const liveContext = deps.manager
       .getTimeline(agentId)
       .filter((item) => item.type === "user_message" || item.type === "assistant_message")
       .slice(-6)
       .map((item) => ("text" in item ? item.text.slice(-300) : ""))
       .join("\n")
       .slice(-CONVERSATION_TITLE_CONTEXT_CHARS);
+    if (liveContext.trim()) context = liveContext;
   }
   if (!context.trim())
     throw new Error("Send a message in this conversation before requesting a new name.");

@@ -556,7 +556,7 @@ it("hydrates resumed terminal names and lets manual regeneration use native hist
     sessionId: "resume",
     cwd: h.terminal.cwd,
     transcriptPath: transcript,
-    observedAt: 2000,
+    observedAt: 1000,
   });
   await vi.waitFor(async () => expect((await h.storage.list())[0].title).toBe("Live Pi spinner"));
   const record = (await h.storage.list())[0];

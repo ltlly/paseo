@@ -49,12 +49,20 @@ working directory, Paseo home and rollback runtime when switching prefixes. Inst
 not change a running process; service restart is a separate deployment step.
 The updater supports npm global installs and validates dedicated `paseo-fork-runtime` local prefixes before updating both root CLI/server dependencies to the same fork tag. Existing service paths stay stable, including on Windows.
 
-For a manual macOS service switch, disable the LaunchAgent with `launchctl disable gui/$UID/LABEL`
-before `paseo daemon stop --keep-terminals`, then quit the desktop app and boot out the job. A
-`KeepAlive` job can otherwise restart between the graceful stop and `bootout`; the new process's
-SIGTERM closes the preserved terminals. After replacing files, enable and bootstrap the job, wait
-for `paseo daemon status` to report the intended version, then reopen the app. Quitting an app that
-owns the daemon before the graceful stop also closes its terminals. See [Terminal worker](terminal-worker.md).
+Configure the macOS LaunchAgent with `RunAtLoad=true` and `KeepAlive={SuccessfulExit=false}`. It
+starts at login and recovers crashes while allowing a graceful maintenance stop. A loaded job with
+`KeepAlive=true` can respawn after `launchctl disable`; unloading that replacement sends SIGTERM
+and closes the terminals the first process preserved. When migrating such a job, suspend its
+foreground launcher before the graceful shutdown RPC, unload the job, and remove the suspended
+launcher before bootstrapping the corrected policy. A suspended launcher leaves its finished
+supervisor as a zombie until unload; confirm that phase from the worker's graceful-shutdown log
+and surviving terminal records.
+
+For later manual service switches, stop with `paseo daemon stop --keep-terminals`, unload the job,
+replace files, and bootstrap it again. Wait for the intended daemon to become ready before reopening
+the desktop app. Quit an app that owns the daemon only after the graceful stop. Compare terminal
+IDs before and after the switch; service readiness alone does not establish terminal preservation.
+See [Terminal worker](terminal-worker.md).
 
 Run Windows NSIS installers in the signed-in user's interactive session, including silent `/S`
 installs. An SSH Session 0 launch can wait indefinitely before invoking the old uninstaller.

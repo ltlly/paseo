@@ -12734,3 +12734,48 @@ test("title regeneration shares one request and keeps manual names", async () =>
   await expect(retry).resolves.toBe("Repair terminal status");
   expect(record.title).toBe("Repair terminal status");
 });
+
+test("title regeneration reads a closed Pi agent's native history without opening its runtime", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "closed-pi-title-"));
+  onTestFinished(() => rmSync(directory, { recursive: true, force: true }));
+  const transcript = join(directory, "session.jsonl");
+  writeFileSync(
+    transcript,
+    JSON.stringify({
+      type: "message",
+      message: {
+        role: "user",
+        content: [{ type: "text", text: "Repair the restored conversation title" }],
+      },
+    }),
+  );
+  let record: StoredAgentRecord = {
+    id: "closed-pi-title",
+    provider: "pi",
+    cwd: directory,
+    title: "Pi",
+    labels: {},
+    persistence: { provider: "pi", sessionId: "native-session", nativeHandle: transcript },
+    createdAt: "2026-10-31T00:00:00.000Z",
+    updatedAt: "2026-10-31T00:00:00.000Z",
+    lastStatus: "idle",
+  };
+  const getTimeline = vi.fn(() => []);
+  const manager = {
+    getAgent: () => null,
+    getTimeline,
+    updateAgentMetadata: async (_id: string, patch: { title?: string }) => {
+      record = { ...record, ...patch };
+    },
+  };
+  const generate = vi.fn(async () => "Restored conversation naming");
+  await expect(
+    regenerateAgentTitle(record.id, { manager, storage: { get: async () => record }, generate }),
+  ).resolves.toBe("Restored conversation naming");
+  expect(generate).toHaveBeenCalledExactlyOnceWith({
+    cwd: directory,
+    provider: "pi",
+    context: "user: Repair the restored conversation title",
+  });
+  expect(getTimeline).not.toHaveBeenCalled();
+});

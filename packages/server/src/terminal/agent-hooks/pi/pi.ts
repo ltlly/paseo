@@ -77,9 +77,13 @@ export default function (pi) {
     const input = JSON.stringify(metadata);
     pending = pending.then(() => new Promise((resolve) => {
       try {
-        const child = spawn(process.env.PASEO_HOOK_CLI || "paseo", ["hooks", "pi", event], {
+        const cli = process.env.PASEO_HOOK_CLI || "paseo";
+        const windows = process.platform === "win32";
+        const child = spawn(windows ? process.env.ComSpec || "cmd.exe" : cli,
+          windows ? ["/d", "/s", "/c", '""' + cli + '" hooks pi ' + event + '"'] : ["hooks", "pi", event], {
           stdio: ["pipe", "ignore", "ignore"],
           windowsHide: true,
+          windowsVerbatimArguments: windows,
         });
         child.on("error", resolve);
         child.on("exit", resolve);
