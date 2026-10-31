@@ -1042,6 +1042,7 @@ export class Session {
       logger: this.sessionLogger,
     });
     this.usageSession = new UsageSession({
+      isEnabled: () => daemonConfigStore.get().usage?.enabled !== false,
       emit: (msg) => this.emit(msg),
       runtime: pluginRuntime,
       logger: this.sessionLogger,
@@ -1129,11 +1130,11 @@ export class Session {
       terminalManager,
       emit: (msg) => this.emit(msg),
       hasBinaryChannel: () => this.onBinaryMessage !== null,
+      supportsChunkedReplay: (source) =>
+        this.supportsForSource(CLIENT_CAPS.terminalChunkedReplay, source),
       isPathWithinRoot: (rootPath, candidatePath) => this.isPathWithinRoot(rootPath, candidatePath),
       sessionLogger: this.sessionLogger,
       listTerminalWorkspaceRefs: () => this.listActiveWorkspaceRefs(),
-      clientSupportsWrapReflow: (source) =>
-        this.supportsForSource(CLIENT_CAPS.terminalReflowableSnapshot, source),
       getClientBufferedAmount: (source) => this.getTransportBufferedAmount(source),
     });
     this.agentDirectory = new AgentDirectory({
@@ -2002,6 +2003,11 @@ export class Session {
           return;
         }
 
+        if (event.type === "agent_removed") {
+          this.forwardAgentRemoval(event);
+          return;
+        }
+
         if (event.type === "agent_state") {
           this.sessionLogger.trace(
             {
@@ -2098,6 +2104,22 @@ export class Session {
       // listings see them; everything else above filters them out.
       { replayState: false, includeInternal: true },
     );
+  }
+
+  private forwardAgentRemoval(event: Extract<AgentManagerEvent, { type: "agent_removed" }>): void {
+    if (event.internal) return;
+    void this.agentUpdates
+      .removeAgent(event.agentId)
+      .then(() => {
+        if (event.workspaceId) return this.emitWorkspaceUpdateForWorkspaceId(event.workspaceId);
+        return undefined;
+      })
+      .catch((error) => {
+        this.sessionLogger.error(
+          { err: error, agentId: event.agentId },
+          "Failed to emit agent removal",
+        );
+      });
   }
 
   private emitProviderSubagentWorkspaceUpdate(event: ProviderSubagentManagerEvent): void {
@@ -3347,10 +3369,8 @@ export class Session {
   private async handleDeleteAgentRequest(agentId: string, requestId: string): Promise<void> {
     this.sessionLogger.info({ agentId }, `Deleting agent ${agentId} from registry`);
 
-    const knownWorkspaceId =
-      this.agentManager.getAgent(agentId)?.workspaceId ??
-      (await this.agentStorage.get(agentId))?.workspaceId ??
-      null;
+    const knownAgent =
+      this.agentManager.getAgent(agentId) ?? (await this.agentStorage.get(agentId));
 
     // File-backed storage still needs an early delete fence before closeAgent().
     beginAgentDeleteIfSupported(this.agentStorage, agentId);
@@ -3371,6 +3391,8 @@ export class Session {
     try {
       await this.agentStorage.remove(agentId);
       await this.agentManager.deleteAgentState(agentId);
+      // Directory removal is daemon-wide; agent_deleted below stays a source-scoped RPC reply.
+      if (knownAgent) this.agentManager.notifyAgentRemoved(knownAgent);
     } catch (error) {
       this.sessionLogger.error({ err: error, agentId }, `Failed to fully delete agent ${agentId}`);
     }
@@ -3382,12 +3404,6 @@ export class Session {
         requestId,
       },
     });
-
-    await this.agentUpdates.removeAgent(agentId);
-
-    if (knownWorkspaceId) {
-      await this.emitWorkspaceUpdateForWorkspaceId(knownWorkspaceId);
-    }
   }
 
   private async handleArchiveAgentRequest(agentId: string, requestId: string): Promise<void> {

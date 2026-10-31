@@ -104,7 +104,7 @@ export default {
     slug: "paseo-ltlly",
     updates: { enabled: false },
     version: nativeReleaseVersion.appVersion,
-    orientation: "portrait",
+    orientation: "default",
     icon: "./assets/images/icon.png",
     scheme: "paseo",
     userInterfaceStyle: "automatic",
