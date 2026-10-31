@@ -114,9 +114,11 @@ needs-input. Informational permission notices alone do not imply a blocked agent
 
 The first non-command prompt supplies a terminal conversation's provisional name. One bounded metadata request can refine it. Later prompts refresh the small cached excerpt used by **Regenerate name**, without calling a model. `/new` creates a separate record and starts naming again. A result for an archived conversation or a changed title is discarded, so delayed generation cannot rename another conversation or replace a manual name.
 
-The sidebar's Title display follows the focused agent tab, including a terminal binding. File tabs retain the last focused agent's name while the row remains mounted. The Branch display remains an explicit preference. Agent names live in the directory cache, not in a second title cache.
+The sidebar's Title display follows the focused agent tab, including a terminal binding. File tabs retain the last focused agent's name while the row remains mounted. The Branch display remains an explicit preference. Agent names live in the directory cache, not in a second title cache. Each icon's tooltip shows that agent's work title. Its context menu names that agent independently of the currently focused tab; workspace naming remains a separate action.
 
-Manual regeneration uses at most six recent text rows and 2,000 characters, excluding tools and attachments. It tries only the first configured metadata model, without retries or fallback calls. Concurrent requests for one agent share a generation. The title limit is 80 characters; provider-specific prompt overhead and reasoning are outside this text budget.
+Resumed terminal conversations can predate the prompt cache. Naming reads a bounded tail of their native Pi, Grok, or Codex transcript without opening an SDK runtime. Grok's saved work title is reused locally at startup and settlement. File reads are capped at 256 KiB; tools, images, and synthetic context are excluded from the excerpt. An explicit terminal-tab rename also changes its bound agent name, so the sidebar and tab do not name different tasks.
+
+Manual regeneration uses at most six recent text messages and 2,000 characters. It tries only the first configured metadata model, without retries or fallback calls. Concurrent requests for one agent share a generation. The title limit is 80 characters; provider-specific prompt overhead and reasoning are outside this text budget.
 
 ## Focus clearing
 

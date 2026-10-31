@@ -306,6 +306,7 @@ const TerminalActivityReportSchema = z.object({
   cwd: z.string().max(4096).optional(),
   title: z.string().max(80).optional(),
   prompt: z.string().max(4096).optional(),
+  transcriptPath: z.string().max(4096).optional(),
   observedAt: z.number().finite().nonnegative().max(8640000000000000).optional(),
 });
 
@@ -347,8 +348,18 @@ export function createTerminalActivityRouteHandler(
     }
 
     try {
-      const { provider, event, observedAt, sessionId, cwd, state, terminalId, title, prompt } =
-        parsed.data;
+      const {
+        provider,
+        event,
+        observedAt,
+        sessionId,
+        cwd,
+        state,
+        terminalId,
+        title,
+        prompt,
+        transcriptPath,
+      } = parsed.data;
       const updated =
         provider && event && reportAgent
           ? await reportAgent(terminalId, {
@@ -360,6 +371,7 @@ export function createTerminalActivityRouteHandler(
               cwd,
               title,
               prompt,
+              transcriptPath,
             })
           : await terminalManager.setTerminalActivity(
               terminalId,

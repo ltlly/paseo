@@ -1138,6 +1138,12 @@ export class Session {
       sessionLogger: this.sessionLogger,
       listTerminalWorkspaceRefs: () => this.listActiveWorkspaceRefs(),
       getClientBufferedAmount: (source) => this.getTransportBufferedAmount(source),
+      onManualTitle: async (terminalId, title) => {
+        const record = (await this.agentStorage.list()).find(
+          (entry) => !entry.archivedAt && entry.execution?.terminalId === terminalId,
+        );
+        if (record) await this.agentManager.updateAgentMetadata(record.id, { title });
+      },
     });
     this.agentDirectory = new AgentDirectory({
       manager: this.agentManager,

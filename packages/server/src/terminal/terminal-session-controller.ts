@@ -96,6 +96,7 @@ export interface TerminalSessionControllerOptions {
   // Bytes queued on the client transport but not yet sent, or null when the
   // transport exposes no backpressure signal (e.g. the multiplexed relay socket).
   getClientBufferedAmount?: (source: object) => number | null;
+  onManualTitle?: (terminalId: string, title: string) => Promise<void>;
 }
 
 interface TerminalWorkspaceRef {
@@ -678,6 +679,14 @@ export class TerminalSessionController {
     }
 
     const renamed = this.terminalManager.setTerminalTitle(msg.terminalId, title);
+    if (renamed && this.options.onManualTitle) {
+      try {
+        await this.options.onManualTitle(msg.terminalId, title);
+      } catch (error) {
+        respond(false, error instanceof Error ? error.message : "Unable to save the name");
+        return;
+      }
+    }
     respond(renamed, renamed ? null : "Terminal not found");
   }
 

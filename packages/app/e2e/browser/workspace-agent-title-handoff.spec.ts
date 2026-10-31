@@ -192,6 +192,15 @@ test("sidebar agent icons retain idle agents and follow the focused conversation
     await expect(secondIcon).toBeVisible();
     await firstIcon.click();
     await expect(row).toContainText("Repair Pi activity");
+    await page.mouse.move(1000, 200);
+    await firstIcon.hover();
+    await expect(page.getByRole("tooltip")).toHaveText("Repair Pi activity");
+    await firstIcon.click({ button: "right" });
+    await expect(page.getByTestId(`sidebar-agent-regenerate-${first.id}`)).toBeVisible();
+    await page.getByTestId(`sidebar-agent-rename-action-${first.id}`).click();
+    await page.getByTestId(`sidebar-agent-rename-${first.id}-input`).fill("Manually named Pi task");
+    await page.getByTestId(`sidebar-agent-rename-${first.id}-submit`).click();
+    await expect(row).toContainText("Manually named Pi task");
     await expect(page.getByTestId(`workspace-tab-agent_${first.id}`).first()).toBeVisible();
     await secondIcon.click();
     await expect(row).toContainText("Investigate another task");
@@ -203,7 +212,7 @@ test("sidebar agent icons retain idle agents and follow the focused conversation
     await expect(page.getByTestId(`sidebar-agent-status-${second.id}-running`)).toHaveCount(0);
     await expect(secondIcon).toBeVisible();
     await firstIcon.click();
-    await expect(row).toContainText("Repair Pi activity");
+    await expect(row).toContainText("Manually named Pi task");
     await workspace.client.updateAgent(first.id, { name: "Updated conversation name" });
     await expect(row).toContainText("Updated conversation name");
     await page.reload();

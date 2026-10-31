@@ -92,6 +92,7 @@ export interface SidebarWorkspaceMenuProps {
   onCopyPath?: () => void;
   onCopyBranchName?: () => void;
   onRename?: () => void;
+  onRenameAgent?: () => void;
   onRegenerateTitle?: () => void;
   regeneratingTitle?: boolean;
   onMarkAsRead?: () => void;
@@ -142,6 +143,7 @@ function SidebarWorkspaceMenuItems({
   onCopyPath,
   onCopyBranchName,
   onRename,
+  onRenameAgent,
   onRegenerateTitle,
   regeneratingTitle,
   onMarkAsRead,
@@ -207,6 +209,16 @@ function SidebarWorkspaceMenuItems({
           pendingLabel={t("conversationNaming.pending")}
         >
           {t("conversationNaming.action")}
+        </WorkspaceMenuItem>
+      ) : null}
+      {onRenameAgent ? (
+        <WorkspaceMenuItem
+          surface={surface}
+          testID={`sidebar-workspace-menu-rename-agent-${workspaceKey}`}
+          leading={renameLeadingIcon}
+          onSelect={onRenameAgent}
+        >
+          {t("workspace.tabs.menu.renameAgent")}
         </WorkspaceMenuItem>
       ) : null}
       {onMarkAsRead ? (
@@ -293,7 +305,7 @@ export function SidebarWorkspaceMenu({
 }: SidebarWorkspaceMenuProps) {
   const { t } = useTranslation();
   const { activeAgent } = useSidebarWorkspaceAgents(serverId ?? "", workspaceId ?? "");
-  const naming = useRegenerateAgentTitle(serverId, activeAgent?.agentId);
+  const naming = useRegenerateAgentTitle(serverId, activeAgent?.agentId, activeAgent?.title);
   const workspaceTarget = useMemo<WorkspaceLabelTarget | null>(
     () =>
       serverId && workspaceId ? { serverId, workspaceId, labels: workspaceLabels ?? [] } : null,
@@ -327,6 +339,7 @@ export function SidebarWorkspaceMenu({
             onCopyPath={onCopyPath}
             onCopyBranchName={onCopyBranchName}
             onRename={onRename}
+            onRenameAgent={naming.onRename}
             onRegenerateTitle={naming.onRegenerate}
             regeneratingTitle={naming.pending}
             onMarkAsRead={onMarkAsRead}
@@ -404,7 +417,11 @@ export function SidebarWorkspaceContextMenu({
     agents,
     activeAgent,
   } = useSidebarWorkspaceAgents(workspace.serverId, workspace.workspaceId);
-  const naming = useRegenerateAgentTitle(workspace.serverId, activeAgent?.agentId);
+  const naming = useRegenerateAgentTitle(
+    workspace.serverId,
+    activeAgent?.agentId,
+    activeAgent?.title,
+  );
   const rowAccessibilityLabel = resolveSidebarWorkspaceAccessibilityLabel({
     workspace,
     focusedAgentTitle,
@@ -467,6 +484,7 @@ export function SidebarWorkspaceContextMenu({
             onCopyPath={onCopyPath}
             onCopyBranchName={onCopyBranchName}
             onRename={onRename}
+            onRenameAgent={naming.onRename}
             onRegenerateTitle={naming.onRegenerate}
             regeneratingTitle={naming.pending}
             onMarkAsRead={onMarkAsRead}

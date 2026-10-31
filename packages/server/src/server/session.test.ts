@@ -4635,6 +4635,34 @@ describe("session checkout rename branch handling", () => {
 });
 
 describe("session terminal rename handling", () => {
+  test("a manual terminal rename also updates its active agent name", async () => {
+    const updateAgentMetadata = vi.fn();
+    const messages: unknown[] = [];
+    const session = createSessionForTest({
+      terminalManager: createTerminalManagerStub({ setTerminalTitle: vi.fn(() => true) }),
+      agentManager: { updateAgentMetadata },
+      agentStorage: {
+        list: vi.fn().mockResolvedValue([
+          { id: "closed-agent", execution: { terminalId: "terminal-1" }, archivedAt: "2026-10-31" },
+          { id: "current-agent", execution: { terminalId: "terminal-1" } },
+        ]),
+      },
+      messages,
+    });
+    await session.handleMessage({
+      type: "terminal.rename.request",
+      terminalId: "terminal-1",
+      title: "My current task",
+      requestId: "rename-bound-agent",
+    });
+    expect(updateAgentMetadata).toHaveBeenCalledExactlyOnceWith("current-agent", {
+      title: "My current task",
+    });
+    expect(messages).toContainEqual({
+      type: "terminal.rename.response",
+      payload: { requestId: "rename-bound-agent", success: true, error: null },
+    });
+  });
   test("rejects an empty terminal title without calling the terminal manager", async () => {
     const messages: unknown[] = [];
     const terminalManager = createTerminalManagerStub();

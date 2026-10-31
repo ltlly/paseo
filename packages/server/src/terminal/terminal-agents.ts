@@ -8,6 +8,7 @@ import type { TerminalManager } from "./terminal-manager.js";
 import type { TerminalSession } from "./terminal.js";
 import { AGENT_HOOK_PROVIDERS, type AgentHookReport } from "./agent-hooks/provider-registry.js";
 import { resolveCreateAgentTitles } from "../server/agent/create-agent-title.js";
+import { readTerminalConversation } from "./terminal-agent-conversation.js";
 
 const GENERATED_TITLE_LABEL = "paseo.terminal-generated-title";
 
@@ -52,6 +53,7 @@ export class TerminalAgents {
       this.watch(terminal);
       // The surviving worker owns live activity. A saved 'running' bit is not evidence.
       await this.synchronize(record, terminal);
+      this.refreshConversation(record);
     }
     this.unsubscribe = this.deps.terminals.subscribeTerminalsChanged(({ cwd }) => {
       for (const [terminalId, agentId] of this.active) {
@@ -113,6 +115,8 @@ export class TerminalAgents {
     await this.deps.terminals.setTerminalActivity(terminal.id, activityStates[report.state]);
     await this.synchronize(record, terminal);
     this.scheduleTitle(record, firstPrompt, report.title);
+    if (["SessionStart", "Stop", "SessionInfo"].includes(report.event))
+      this.refreshConversation(record);
   }
 
   private isReplacement(record: StoredAgentRecord, report: AgentHookReport): boolean {
@@ -157,20 +161,22 @@ export class TerminalAgents {
         ? resolveCreateAgentTitles({ initialPrompt: report.prompt }).provisionalTitle
         : null;
     const automaticTitle = report.title || provisionalTitle;
-    const canRename = record.title === record.labels[GENERATED_TITLE_LABEL];
+    const canRename = this.canUpdateAutomaticTitle(record);
+    const labels = {
+      ...record.labels,
+      ...(report.prompt ? { "paseo.terminal-last-prompt": report.prompt.slice(-2000) } : {}),
+      ...(report.transcriptPath && isAbsolute(report.transcriptPath)
+        ? { "paseo.terminal-transcript": report.transcriptPath }
+        : {}),
+    };
     return {
       ...record,
-      labels: report.prompt
-        ? { ...record.labels, "paseo.terminal-last-prompt": report.prompt.slice(-2000) }
-        : record.labels,
+      labels,
       ...(automaticTitle && canRename
         ? {
             title: automaticTitle,
             labels: {
-              ...record.labels,
-              ...(report.prompt
-                ? { "paseo.terminal-last-prompt": report.prompt.slice(-2000) }
-                : {}),
+              ...labels,
               [GENERATED_TITLE_LABEL]: automaticTitle,
             },
           }
@@ -185,6 +191,47 @@ export class TerminalAgents {
         ? { lastUserMessageAt: new Date(report.observedAt).toISOString() }
         : {}),
     };
+  }
+
+  private canUpdateAutomaticTitle(record: StoredAgentRecord): boolean {
+    if (record.title === record.labels[GENERATED_TITLE_LABEL]) return true;
+    if (record.labels[GENERATED_TITLE_LABEL]) return false;
+    return (
+      record.title === record.provider ||
+      this.deps
+        .profiles()
+        .some(
+          (profile) => profile.id === record.execution?.profileId && profile.name === record.title,
+        )
+    );
+  }
+
+  private refreshConversation(record: StoredAgentRecord): void {
+    this.background(record.execution!.terminalId, async () => {
+      if (this.closed) return;
+      const conversation = await readTerminalConversation({
+        provider: record.provider,
+        cwd: record.cwd,
+        sessionId: record.execution?.providerSessionId,
+        transcriptPath: record.labels["paseo.terminal-transcript"],
+      });
+      const current = await this.deps.storage.get(record.id);
+      if (this.closed || !current || current.archivedAt) return;
+      const title =
+        conversation.title && this.canUpdateAutomaticTitle(current)
+          ? conversation.title
+          : undefined;
+      if (!title && !conversation.context) return;
+      await this.publish({
+        ...current,
+        ...(title ? { title } : {}),
+        labels: {
+          ...current.labels,
+          ...(title ? { [GENERATED_TITLE_LABEL]: title } : {}),
+          ...(conversation.context ? { "paseo.terminal-last-prompt": conversation.context } : {}),
+        },
+      });
+    });
   }
 
   private scheduleTitle(

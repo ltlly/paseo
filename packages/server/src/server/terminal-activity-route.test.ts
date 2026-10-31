@@ -422,3 +422,171 @@ it("applies a generated terminal title without waiting to report activity", asyn
     expect((await h.storage.get(current.id))?.title).toBe("Repair Pi status reporting"),
   );
 });
+
+it("reads resumed Grok names and bounded chat without tool or injected context", async () => {
+  const { readTerminalConversation } = await import("../terminal/terminal-agent-conversation.js");
+  const { mkdirSync, writeFileSync } = await import("node:fs");
+  const home = mkdtempSync(join(tmpdir(), "terminal-conversation-"));
+  const cwd = "/projects/repo",
+    sessionId = "resumed-grok";
+  const directory = join(home, ".grok", "sessions", encodeURIComponent(cwd), sessionId);
+  mkdirSync(directory, { recursive: true });
+  try {
+    writeFileSync(
+      join(directory, "summary.json"),
+      JSON.stringify({ generated_title: "Repair terminal indicators" }),
+    );
+    writeFileSync(
+      join(directory, "chat_history.jsonl"),
+      [
+        { type: "tool_result", content: "excluded tool output" },
+        { type: "user", synthetic_reason: "context", content: "injected environment" },
+        {
+          type: "user",
+          content: [
+            { type: "text", text: "Fix Pi status" },
+            { type: "image", data: "excluded image" },
+          ],
+        },
+        { type: "assistant", content: "Inspect the hooks" },
+      ]
+        .map((value) => JSON.stringify(value))
+        .join("\n"),
+    );
+    const input = { provider: "grok", cwd, sessionId, homeDir: home, env: {} };
+    expect(await readTerminalConversation(input)).toEqual({
+      title: "Repair terminal indicators",
+      context: "user: Fix Pi status\nassistant: Inspect the hooks",
+    });
+    writeFileSync(
+      join(directory, "chat_history.jsonl"),
+      Array.from({ length: 12 }, (_, index) =>
+        JSON.stringify({ type: "user", content: String(index) + "x".repeat(1000) }),
+      ).join("\n"),
+    );
+    const bounded = await readTerminalConversation(input);
+    expect(bounded.context.split("\n")).toHaveLength(6);
+    expect(bounded.context.length).toBeLessThanOrEqual(2000);
+    rmSync(join(directory, "summary.json"));
+    expect((await readTerminalConversation(input)).context).toBe(bounded.context);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+it("reads Pi resumes and Codex transcript text without opening a provider", async () => {
+  const { readTerminalConversation } = await import("../terminal/terminal-agent-conversation.js");
+  const { mkdirSync, writeFileSync } = await import("node:fs");
+  const home = mkdtempSync(join(tmpdir(), "terminal-transcripts-"));
+  try {
+    const directory = join(home, ".pi", "agent", "sessions", "--projects-repo--");
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(
+      join(directory, "2026_pi-session.jsonl"),
+      [
+        { type: "session_info", name: "Fix Pi reload" },
+        {
+          type: "message",
+          message: { role: "user", content: [{ type: "text", text: "Repair /new names" }] },
+        },
+        { type: "message", message: { role: "toolResult", content: "excluded" } },
+      ]
+        .map((value) => JSON.stringify(value))
+        .join("\n"),
+    );
+    expect(
+      await readTerminalConversation({
+        provider: "pi",
+        cwd: "/projects/repo",
+        sessionId: "pi-session",
+        homeDir: home,
+        env: {},
+      }),
+    ).toEqual({ title: "Fix Pi reload", context: "user: Repair /new names" });
+    const codex = join(home, "rollout.jsonl");
+    writeFileSync(
+      codex,
+      JSON.stringify({
+        type: "response_item",
+        payload: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "Repair sidebar" }],
+        },
+      }),
+    );
+    expect(
+      await readTerminalConversation({
+        provider: "codex",
+        cwd: "/projects/repo",
+        transcriptPath: codex,
+      }),
+    ).toEqual({ title: undefined, context: "user: Repair sidebar" });
+    expect(
+      await readTerminalConversation({
+        provider: "pi",
+        cwd: "/projects/repo",
+        sessionId: "../other",
+        homeDir: home,
+        env: {},
+      }),
+    ).toEqual({ context: "" });
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+it("hydrates resumed terminal names and lets manual regeneration use native history", async () => {
+  const { writeFileSync } = await import("node:fs");
+  const { regenerateAgentTitle } = await import("./agent/agent-title-generation.js");
+  const h = await createTerminalAgentHarness();
+  const transcript = join(h.terminal.cwd, "chat_history.jsonl");
+  writeFileSync(
+    transcript,
+    JSON.stringify({ type: "user", content: "Repair the live Pi spinner" }),
+  );
+  writeFileSync(
+    join(h.terminal.cwd, "summary.json"),
+    JSON.stringify({ generated_title: "Live Pi spinner" }),
+  );
+  await terminalAgents!.report(h.terminal.id, {
+    provider: "grok",
+    event: "SessionStart",
+    state: "idle",
+    sessionId: "resume",
+    cwd: h.terminal.cwd,
+    transcriptPath: transcript,
+    observedAt: 2000,
+  });
+  await vi.waitFor(async () => expect((await h.storage.list())[0].title).toBe("Live Pi spinner"));
+  const record = (await h.storage.list())[0];
+  expect(record.labels["paseo.terminal-last-prompt"]).toBe("user: Repair the live Pi spinner");
+  await h.storage.upsert({ ...record, title: "My manual task name" });
+  writeFileSync(
+    join(h.terminal.cwd, "summary.json"),
+    JSON.stringify({ generated_title: "Later native name" }),
+  );
+  await h.report("Stop", "idle", "resume");
+  expect((await h.storage.get(record.id))?.title).toBe("My manual task name");
+  writeFileSync(
+    transcript,
+    JSON.stringify({ type: "user", content: "Investigate the current naming issue" }),
+  );
+  const generate = vi.fn(async () => "Current naming issue");
+  const managerForTitles = {
+    getAgent: () => null,
+    getTimeline: () => [],
+    updateAgentMetadata: async (id: string, patch: { title?: string }) => {
+      const current = await h.storage.get(id);
+      await h.storage.upsert({ ...current!, ...patch });
+    },
+  };
+  await expect(
+    regenerateAgentTitle(record.id, { manager: managerForTitles, storage: h.storage, generate }),
+  ).resolves.toBe("Current naming issue");
+  expect(generate).toHaveBeenCalledWith({
+    cwd: h.terminal.cwd,
+    provider: "grok",
+    context: "user: Investigate the current naming issue",
+  });
+});

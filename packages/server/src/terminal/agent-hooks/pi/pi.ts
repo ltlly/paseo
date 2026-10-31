@@ -10,6 +10,7 @@ interface PiHookContext {
   sessionManager: {
     getSessionId(): string;
     getSessionName(): string | undefined;
+    getSessionFile?(): string | undefined;
   };
 }
 
@@ -25,6 +26,7 @@ export interface PiHookMetadata {
   cwd: string;
   title?: string;
   prompt?: string;
+  transcriptPath?: string;
   state: "idle" | "running";
 }
 
@@ -47,6 +49,7 @@ export function registerPiActivityHooks(
         cwd: context.cwd,
         title: context.sessionManager.getSessionName(),
         prompt: event.prompt,
+        transcriptPath: context.sessionManager.getSessionFile?.(),
         state: context.isIdle() ? "idle" : "running",
       });
     });

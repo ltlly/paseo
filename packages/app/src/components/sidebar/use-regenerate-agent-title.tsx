@@ -9,11 +9,13 @@ import { StatusRing } from "@/components/status-ring";
 import { getHostRuntimeStore } from "@/runtime/host-runtime";
 import { useHostFeature } from "@/runtime/host-features";
 import { useToast } from "@/contexts/toast-context";
+import { AdaptiveRenameModal } from "@/components/rename-modal";
 
-export function useRegenerateAgentTitle(serverId?: string, agentId?: string) {
+export function useRegenerateAgentTitle(serverId?: string, agentId?: string, agentTitle = "") {
   const { t } = useTranslation();
   const toast = useToast();
   const [visible, setVisible] = useState(false);
+  const [renameVisible, setRenameVisible] = useState(false);
   const supported = useHostFeature(serverId, "agentTitleRegeneration");
   const mutation = useMutation({
     retry: false,
@@ -37,6 +39,16 @@ export function useRegenerateAgentTitle(serverId?: string, agentId?: string) {
     if (mutation.variables) mutate(mutation.variables);
   }, [mutate, mutation.variables]);
   const close = useCallback(() => setVisible(false), []);
+  const rename = useCallback(() => setRenameVisible(true), []);
+  const closeRename = useCallback(() => setRenameVisible(false), []);
+  const submitRename = useCallback(
+    async (name: string) => {
+      const client = getHostRuntimeStore().getClient(serverId ?? "");
+      if (!client || !agentId) throw new Error(t("sidebar.workspace.toasts.hostDisconnected"));
+      await client.updateAgent(agentId, { name: name.trim() });
+    },
+    [agentId, serverId, t],
+  );
   const header = useMemo(() => ({ title: t("conversationNaming.action") }), [t]);
   const dialog = visible ? (
     <AdaptiveModalSheet
@@ -63,8 +75,24 @@ export function useRegenerateAgentTitle(serverId?: string, agentId?: string) {
   ) : null;
   return {
     onRegenerate: supported && agentId ? start : undefined,
+    onRename: agentId ? rename : undefined,
     pending: mutation.isPending,
-    dialog,
+    dialog: (
+      <>
+        {dialog}
+        {renameVisible ? (
+          <AdaptiveRenameModal
+            visible
+            title={t("workspace.tabs.menu.renameAgent")}
+            initialValue={agentTitle}
+            maxLength={80}
+            onClose={closeRename}
+            onSubmit={submitRename}
+            testID={`sidebar-agent-rename-${agentId}`}
+          />
+        ) : null}
+      </>
+    ),
   };
 }
 

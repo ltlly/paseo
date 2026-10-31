@@ -1,6 +1,7 @@
 import type { AgentManager } from "./agent-manager.js";
 import type { AgentStorage } from "./agent-storage.js";
 import { CONVERSATION_TITLE_CONTEXT_CHARS } from "../worktree-branch-name-generator.js";
+import { readTerminalConversation } from "../../terminal/terminal-agent-conversation.js";
 
 type TitleGenerationManager = Pick<
   AgentManager,
@@ -32,6 +33,15 @@ async function generateAndApply(agentId: string, deps: Dependencies): Promise<st
   const record = await deps.storage.get(agentId);
   if (!record || record.archivedAt) throw new Error("This agent is no longer available.");
   let context = record.labels["paseo.terminal-last-prompt"] ?? "";
+  if (record.execution) {
+    const conversation = await readTerminalConversation({
+      provider: record.provider,
+      cwd: record.cwd,
+      sessionId: record.execution.providerSessionId,
+      transcriptPath: record.labels["paseo.terminal-transcript"],
+    });
+    context = conversation.context || context;
+  }
   if (deps.manager.getAgent(agentId)) {
     context = deps.manager
       .getTimeline(agentId)

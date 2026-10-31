@@ -91,6 +91,7 @@ export interface AgentHookReport {
   cwd?: string;
   title?: string;
   prompt?: string;
+  transcriptPath?: string;
 }
 
 /** Read stdin once: providers and identity extraction share the same bounded input. */
@@ -125,10 +126,11 @@ export async function resolveHookReport(
 function resolveHookMetadata(
   payload: Record<string, unknown>,
   event: string,
-): Pick<AgentHookReport, "sessionId" | "cwd" | "title" | "prompt"> {
+): Pick<AgentHookReport, "sessionId" | "cwd" | "title" | "prompt" | "transcriptPath"> {
   const sessionId = payload.session_id ?? payload.sessionId ?? payload.sessionID;
   const title = payload.title ?? payload.session_name ?? payload.sessionName;
   const prompt = payload.prompt ?? payload.user_prompt;
+  const transcriptPath = payload.transcript_path ?? payload.transcriptPath ?? payload.sessionFile;
   return {
     ...(typeof sessionId === "string" && sessionId.length > 0 && sessionId.length <= 512
       ? { sessionId }
@@ -137,6 +139,9 @@ function resolveHookMetadata(
     ...(typeof title === "string" && title.trim() ? { title: title.trim().slice(0, 80) } : {}),
     ...(event === "UserPromptSubmit" && typeof prompt === "string" && prompt.trim()
       ? { prompt: prompt.slice(0, 4096) }
+      : {}),
+    ...(typeof transcriptPath === "string" && transcriptPath.length <= 4096
+      ? { transcriptPath }
       : {}),
   };
 }

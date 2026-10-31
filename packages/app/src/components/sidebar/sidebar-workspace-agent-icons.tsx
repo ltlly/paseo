@@ -5,10 +5,16 @@ import { useTranslation } from "react-i18next";
 import { TerminalProfileIcon } from "@/components/terminal-profile-icon";
 import { ToolbarButton } from "@/components/ui/pane-content-toolbar";
 import { StatusRing } from "@/components/status-ring";
-import { getStatusBucketLabel } from "@/hooks/sidebar-status-view-model";
 import { navigateToAgent } from "@/utils/navigate-to-agent";
 import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 import type { SidebarWorkspaceAgent } from "./sidebar-workspace-agents";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { useRegenerateAgentTitle } from "./use-regenerate-agent-title";
 
 export const SidebarWorkspaceAgentIcons = memo(function SidebarWorkspaceAgentIcons({
   agents,
@@ -44,6 +50,7 @@ function AgentIconButton({
   workspaceId: string;
 }) {
   const { t } = useTranslation();
+  const naming = useRegenerateAgentTitle(serverId, agent.agentId, agent.title);
   const handlePress = useCallback(
     (event: GestureResponderEvent) => {
       event.stopPropagation();
@@ -60,25 +67,53 @@ function AgentIconButton({
   );
   const icon = <TerminalProfileIcon iconKey={agent.icon} serverId={serverId} size={16} />;
   return (
-    <ToolbarButton
-      label={`${agent.title} · ${agent.provider} · ${getStatusBucketLabel(agent.status, t)}`}
-      selected={agent.focused}
-      round
-      style={styles.button}
-      testID={`sidebar-agent-${agent.agentId}`}
-      onPress={handlePress}
-    >
-      <View style={styles.icon} testID={`sidebar-agent-status-${agent.agentId}-${agent.status}`}>
-        {agent.status === "running" ? <StatusRing size={24}>{icon}</StatusRing> : icon}
-        {agent.status === "needs_input" ||
-        agent.status === "attention" ||
-        agent.status === "failed" ? (
-          <View
-            style={[styles.dot, agent.status === "failed" ? styles.failed : styles.attention]}
-          />
-        ) : null}
-      </View>
-    </ToolbarButton>
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger contextOnly enabledOnMobile={false}>
+          <ToolbarButton
+            label={agent.title}
+            selected={agent.focused}
+            round
+            style={styles.button}
+            testID={`sidebar-agent-${agent.agentId}`}
+            onPress={handlePress}
+          >
+            <View
+              style={styles.icon}
+              testID={`sidebar-agent-status-${agent.agentId}-${agent.status}`}
+            >
+              {agent.status === "running" ? <StatusRing size={24}>{icon}</StatusRing> : icon}
+              {agent.status === "needs_input" ||
+              agent.status === "attention" ||
+              agent.status === "failed" ? (
+                <View
+                  style={[styles.dot, agent.status === "failed" ? styles.failed : styles.attention]}
+                />
+              ) : null}
+            </View>
+          </ToolbarButton>
+        </ContextMenuTrigger>
+        <ContextMenuContent width={260} testID={`sidebar-agent-menu-${agent.agentId}`}>
+          <ContextMenuItem
+            testID={`sidebar-agent-rename-action-${agent.agentId}`}
+            onSelect={naming.onRename}
+          >
+            {t("workspace.tabs.menu.renameAgent")}
+          </ContextMenuItem>
+          {naming.onRegenerate ? (
+            <ContextMenuItem
+              testID={`sidebar-agent-regenerate-${agent.agentId}`}
+              onSelect={naming.onRegenerate}
+              status={naming.pending ? "pending" : "idle"}
+              pendingLabel={t("conversationNaming.pending")}
+            >
+              {t("conversationNaming.action")}
+            </ContextMenuItem>
+          ) : null}
+        </ContextMenuContent>
+      </ContextMenu>
+      {naming.dialog}
+    </>
   );
 }
 
