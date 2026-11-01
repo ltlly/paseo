@@ -64,6 +64,22 @@ pub fn cursor_rects(
     }
 }
 
+pub fn selection_scroll(pointer_y: f32, top: f32, bottom: f32) -> i32 {
+    let distance = if pointer_y < top {
+        pointer_y - top
+    } else if pointer_y >= bottom {
+        pointer_y - bottom
+    } else {
+        return 0;
+    };
+    if distance == 0. {
+        return 0;
+    }
+    let ratio = distance.clamp(-50., 50.) / 50.;
+    // JS Math.round breaks negative ties toward positive infinity.
+    -(ratio.signum() as i32 + (ratio * 14. + 0.5).floor() as i32)
+}
+
 const BLINK_INTERVAL: Duration = Duration::from_millis(600);
 const BLINK_IDLE: Duration = Duration::from_secs(300);
 
@@ -134,6 +150,18 @@ impl CursorBlink {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selection_autoscroll_matches_xterm_distance_direction_and_speed_cap() {
+        assert_eq!(selection_scroll(50., 0., 100.), 0);
+        assert_eq!(selection_scroll(100., 0., 100.), 0);
+        assert_eq!(selection_scroll(101., 0., 100.), -1);
+        assert_eq!(selection_scroll(-1., 0., 100.), 1);
+        assert_eq!(selection_scroll(125., 0., 100.), -8);
+        assert_eq!(selection_scroll(-25., 0., 100.), 8);
+        assert_eq!(selection_scroll(1000., 0., 100.), -15);
+        assert_eq!(selection_scroll(-1000., 0., 100.), 15);
+    }
 
     #[test]
     fn cursor_edges_match_xterm_logical_pixels_at_device_scales_and_wide_cells() {

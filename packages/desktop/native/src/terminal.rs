@@ -173,6 +173,12 @@ impl EventListener for CursorEvents {
     }
 }
 
+#[derive(Clone, Copy)]
+enum SelectionGesture {
+    Word,
+    Line,
+}
+
 pub struct TerminalBuffer {
     term: Term<CursorEvents>,
     cursor_events: Arc<AtomicU64>,
@@ -181,6 +187,7 @@ pub struct TerminalBuffer {
     pub size: GridSize,
     pub replaying: bool,
     mouse: crate::mouse::ModeTracker,
+    gesture: Option<(SelectionGesture, Point, Point)>,
 }
 
 impl TerminalBuffer {
@@ -203,6 +210,7 @@ impl TerminalBuffer {
             size,
             replaying: false,
             mouse: crate::mouse::ModeTracker::default(),
+            gesture: None,
         }
     }
 
@@ -237,13 +245,31 @@ impl TerminalBuffer {
     }
 
     pub fn resize(&mut self, size: GridSize) {
+        self.gesture = None;
         self.term.resize(size);
         self.size = size;
     }
 
     pub fn feed(&mut self, bytes: &[u8]) {
+        let had_gesture = self.gesture.is_some();
+        let selection_before = had_gesture.then(|| {
+            self.term
+                .selection
+                .as_ref()
+                .and_then(|selection| selection.to_range(&self.term))
+        });
         self.mouse.feed(bytes);
         self.parser.advance(&mut self.term, bytes);
+        if had_gesture {
+            let selection_after = self
+                .term
+                .selection
+                .as_ref()
+                .and_then(|selection| selection.to_range(&self.term));
+            if selection_before != Some(selection_after) {
+                self.gesture = None;
+            }
+        }
     }
 
     pub fn cursor_state(&self) -> (Point, bool, CursorStyle, u64) {
@@ -300,6 +326,7 @@ impl TerminalBuffer {
     }
 
     pub fn begin_selection(&mut self, row: usize, column: usize, block: bool) {
+        self.gesture = None;
         let (point, side) = self.selection_point(row, column);
         self.term.selection = Some(Selection::new(
             if block {
@@ -312,8 +339,141 @@ impl TerminalBuffer {
         ));
     }
 
+    pub fn selection_is_block(&self) -> bool {
+        self.term
+            .selection
+            .as_ref()
+            .is_some_and(|selection| selection.ty == SelectionType::Block)
+    }
+    pub fn selection_is_gesture(&self) -> bool {
+        self.gesture.is_some()
+    }
+
+    pub fn begin_word_selection(&mut self, row: usize, column: usize) {
+        self.begin_gesture(row, column, SelectionGesture::Word);
+    }
+
+    pub fn begin_line_selection(&mut self, row: usize, column: usize) {
+        self.begin_gesture(row, column, SelectionGesture::Line);
+    }
+
+    fn begin_gesture(&mut self, row: usize, column: usize, kind: SelectionGesture) {
+        if matches!(kind, SelectionGesture::Word) && column >= usize::from(self.size.cols) {
+            return;
+        }
+        let point = self.selection_point(row, column).0;
+        let (start, end) = self.gesture_range(point, kind);
+        self.gesture = Some((kind, start, end));
+        self.select_range(start, end);
+    }
+
+    fn select_range(&mut self, start: Point, end: Point) {
+        let mut selection = Selection::new(SelectionType::Simple, start, Side::Left);
+        selection.update(end, Side::Right);
+        self.term.selection = Some(selection);
+    }
+
+    fn gesture_range(&self, mut point: Point, kind: SelectionGesture) -> (Point, Point) {
+        if matches!(kind, SelectionGesture::Line) {
+            return (
+                self.term.line_search_left(point),
+                self.term.line_search_right(point),
+            );
+        }
+        if self.term.grid()[point]
+            .flags
+            .contains(Flags::WIDE_CHAR_SPACER)
+        {
+            point.column -= 1;
+        }
+        let character = self.term.grid()[point].c;
+        if character == ' ' {
+            let mut start = point;
+            let mut end = point;
+            while start.column.0 > 0
+                && self.term.grid()[Point::new(start.line, start.column - 1)].c == ' '
+            {
+                start.column -= 1;
+            }
+            while end.column.0 + 1 < usize::from(self.size.cols)
+                && self.term.grid()[Point::new(end.line, end.column + 1)].c == ' '
+            {
+                end.column += 1;
+            }
+            return (start, end);
+        }
+        let (mut start, mut end) = self.word_line_range(point);
+        while start.column.0 == 0
+            && start.line > self.term.topmost_line()
+            && self.term.grid()[start].c != ' '
+            && self.term.grid()[Point::new(start.line - 1, Column(usize::from(self.size.cols) - 1))]
+                .flags
+                .contains(Flags::WRAPLINE)
+            && self.term.grid()[Point::new(start.line - 1, Column(usize::from(self.size.cols) - 1))]
+                .c
+                != ' '
+        {
+            start = self
+                .word_line_range(Point::new(
+                    start.line - 1,
+                    Column(usize::from(self.size.cols) - 1),
+                ))
+                .0;
+        }
+        while end.column.0 + 1 == usize::from(self.size.cols)
+            && end.line.0 + 1 < i32::from(self.size.rows)
+            && self.term.grid()[end].flags.contains(Flags::WRAPLINE)
+            && self.term.grid()[end].c != ' '
+            && self.term.grid()[Point::new(end.line + 1, Column(0))].c != ' '
+        {
+            end = self.word_line_range(Point::new(end.line + 1, Column(0))).1;
+        }
+        (start, end)
+    }
+
+    fn word_line_range(&self, mut point: Point) -> (Point, Point) {
+        if self.term.grid()[point]
+            .flags
+            .contains(Flags::WIDE_CHAR_SPACER)
+        {
+            point.column -= 1;
+        }
+        let mut start = point;
+        let mut end = point;
+        if self.term.grid()[point].flags.contains(Flags::WIDE_CHAR) {
+            end.column += 1;
+        }
+        let whitespace = self.term.grid()[point].c == ' ';
+        let separates = |point: Point| {
+            let cell = &self.term.grid()[point];
+            if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
+                return false;
+            }
+            if whitespace {
+                cell.c != ' '
+            } else {
+                cell.zerowidth().is_none_or(|marks| marks.is_empty())
+                    && " ()[]{}',\"`".contains(cell.c)
+            }
+        };
+        while start.column.0 > 0 && !separates(Point::new(start.line, start.column - 1)) {
+            start.column -= 1;
+        }
+        while end.column.0 + 1 < usize::from(self.size.cols)
+            && !separates(Point::new(end.line, end.column + 1))
+        {
+            end.column += 1;
+        }
+        (start, end)
+    }
+
     pub fn extend_selection(&mut self, row: usize, column: usize) {
         let (point, side) = self.selection_point(row, column);
+        if let Some((kind, anchor_start, anchor_end)) = self.gesture {
+            let (start, end) = self.gesture_range(point, kind);
+            self.select_range(start.min(anchor_start), end.max(anchor_end));
+            return;
+        }
         if let Some(selection) = &mut self.term.selection {
             selection.update(point, side);
         }
@@ -331,6 +491,7 @@ impl TerminalBuffer {
     }
 
     pub fn clear_selection(&mut self) {
+        self.gesture = None;
         self.term.selection = None;
     }
 
@@ -660,6 +821,60 @@ mod tests {
                 .collect::<String>(),
             "o"
         );
+    }
+
+    #[test]
+    fn word_gestures_include_initial_separators_and_follow_wrapped_edge_words() {
+        for (text, column, expected) in [
+            ("abc(def", 3, "abc(def"),
+            ("abc()def", 3, "abc("),
+            ("abc()def", 4, ")def"),
+            ("中(文", 2, "中(文"),
+            ("a(\u{301}b", 0, "a(\u{301}b"),
+        ] {
+            let mut buffer = TerminalBuffer::new(GridSize { rows: 3, cols: 20 }, 10);
+            buffer.feed(text.as_bytes());
+            buffer.begin_word_selection(0, column);
+            assert_eq!(buffer.selected_text().as_deref(), Some(expected));
+        }
+        let mut wrapped = TerminalBuffer::new(GridSize { rows: 3, cols: 5 }, 10);
+        wrapped.feed(b"abcd(ef ");
+        wrapped.begin_word_selection(1, 0);
+        assert_eq!(wrapped.selected_text().as_deref(), Some("abcd(ef"));
+        let mut live = TerminalBuffer::new(GridSize { rows: 3, cols: 8 }, 10);
+        live.feed(b"one\r\ntwo\r\nthree");
+        live.begin_word_selection(1, 1);
+        live.feed(b"\r\nfour");
+        assert!(!live.selection_is_gesture());
+        assert_eq!(live.selected_text().as_deref(), Some("two"));
+    }
+
+    #[test]
+    fn word_and_logical_line_gestures_keep_xterm_separators_and_exact_copy_newlines() {
+        let mut buffer = TerminalBuffer::new(GridSize { rows: 4, cols: 24 }, 20);
+        buffer.feed("foo:bar|baz (word)   中e\u{301}\r\nsecond".as_bytes());
+        buffer.begin_word_selection(0, 5);
+        assert_eq!(buffer.selected_text().as_deref(), Some("foo:bar|baz"));
+        buffer.begin_word_selection(0, 11);
+        assert_eq!(buffer.selected_text().as_deref(), Some(" "));
+        buffer.begin_word_selection(0, 12);
+        assert_eq!(buffer.selected_text().as_deref(), Some("(word"));
+        buffer.begin_word_selection(0, 14);
+        assert_eq!(buffer.selected_text().as_deref(), Some("word"));
+        buffer.begin_word_selection(0, 18);
+        assert_eq!(buffer.selected_text().as_deref(), Some("   "));
+        buffer.begin_line_selection(1, 2);
+        assert_eq!(buffer.selected_text().as_deref(), Some("second"));
+        buffer.extend_selection(1, 2);
+        assert_eq!(buffer.selected_text().as_deref(), Some("second"));
+        let mut wrapped = TerminalBuffer::new(GridSize { rows: 3, cols: 5 }, 10);
+        wrapped.feed(b"abcdefghi\r\nnext");
+        wrapped.begin_line_selection(0, 2);
+        assert_eq!(wrapped.selected_text().as_deref(), Some("abcdefghi"));
+        wrapped.begin_word_selection(1, 1);
+        assert_eq!(wrapped.selected_text().as_deref(), Some("abcdefghi"));
+        wrapped.extend_selection(2, 1);
+        assert_eq!(wrapped.selected_text().as_deref(), Some("abcdefghi\nnext"));
     }
 
     #[test]

@@ -101,5 +101,16 @@
     "Mouse capture only gates local selection here; pointer protocol forwarding is not implemented.",
     "Alt block selection is covered by the real models, not an OS modifier/drag test. Mac and Windows GUI clipboard interaction remains unverified."
   ],
+  "gestureFollowUp": {
+    "date": "2026-11-02",
+    "sourceArchiveSha256": "7b2b3ec75d4f3609c060b47b17ef69d74424c1b7bcb7fdb365add3e750c11d7a",
+    "scope": "Double-click word, triple-click logical line, drag autoscroll and Linux PRIMARY middle paste. Plain/block selections remain authoritative-grid selections; no second cell model.",
+    "model": "Word separator and wrapped-edge behavior follow installed xterm, including clicked separators and combining marks. Simple resolved ranges avoid Alacritty Lines extra trailing newline. Output/resize invalidates unsupported gesture anchors and stops drag instead of reusing stale positions. Mouse-up does not recompute word/line picks; selection coordinates follow ceil boundary rules.",
+    "autoscroll": "50ms owned timer, xterm distance ramp capped15rows; pointer-local scroll bypasses application PTY wheel reporting. Block selections retain columns, hidden/blur/release/replay/resize stop gesture work.",
+    "actualGui": "Real timed OS double-click produced foo:bar|baz, triple-click produced second logical line without trailing newline. Real original-runtime Electron DOM clicks produced the same values. PRIMARY middle paste normalized NBSP to ASCII space and PTY bytes612062. Real drag beyond viewport copied81history lines; final-source word selection smoke passed.",
+    "checks": "Two word/logical-line model tests and autoscroll geometry test passed; final source checked/tests on Mac/runtime-shaders and Windows/MSVC. Parent Linux checks, npm format/lint/typecheck passed. Existing navigation fixture cleanup confirmed no private PTY/display/home remaining.",
+    "artifacts": "Local ~/.cache/paseo-native-qa/gesture-reference-evidence.json, autoscroll-copy.json and navigation-cleanup-readback.json; /tmp/paseo-gpui-gesture-*.txt and navigation-gestures-platform logs.",
+    "limitations": "Hard-newline explicit trailing spaces remain lossy, Shift incremental endpoint semantics and all whitespace/wide-edge cases remain incomplete. OS rectangular autoscroll and Mac/Windows selection/PRIMARY unverified. Context menus/links/images and full clipboard/IME fidelity still pending; full pixel/terminal/performance acceptance NOT_PASSED."
+  },
   "deployment": "No deployment or daemon restart. Both isolated fixture homes, their PTYs and QA display/WM were cleaned; the oracle browser and native windows were closed."
 }

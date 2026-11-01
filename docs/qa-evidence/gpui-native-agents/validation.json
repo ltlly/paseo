@@ -12,6 +12,20 @@
     "model": 4,
     "history": 3
   },
+  "navigationFollowUp": {
+    "date": "2026-11-02",
+    "baseCommit": "2d8d1e0693a550c3a4d6df45cf4d8f53489168df",
+    "sourceArchiveSha256": "7b2b3ec75d4f3609c060b47b17ef69d74424c1b7bcb7fdb365add3e750c11d7a",
+    "scope": "Native root Agent state, terminal execution identity, cached focused session titles and host provider icons. Android and production entrypoints unchanged.",
+    "model": "Managed open turn versus terminal status, missing vs null activeTurn, permission/error attention priority, parent host/workspace roots, archived/internal filtering, typed terminal/agent targets and dynamic title lookup. Final permission resolution clears stale attention; a managed open turn overrides stale raw error status.",
+    "providerIcons": "Builtin identity remains provider-first, never execution profile icon. Host XML validated with bounded bytes/nodes/entry totals and local-only references. Custom full-color raster uses64x64 output, retained per snapshot rather than per frame; inserted default color presentation attribute preserves authored color/style/explicit paints. Snapshot/parse errors visible. Catalog-only icons, non-square aspect and complete renderer parity remain pending.",
+    "tests": "14 lane model tests passed, with two parent regression tests for attention and default SVG color. Final archive passes16 model tests, native checks on Mac/runtime-shaders and Windows/MSVC, parent Linux focused tests/checks, npm format/lint/typecheck. No full suite.",
+    "gui": "Real Linux private fake-provider+PTY window: idle builtin Codex/Pi icons retained; Pi icon routed to execution.terminalId and actual OS keys typed:r/typed:g reached that PTY. Renaming the focused Pi through daemon updates workspace/header/terminal-tab title. Final-source navigation and word-selection smoke passed.",
+    "qaCorrection": "Historical hook helper first returned403 and was not counted. Corrected only the private fixture to use SessionStart and wait for terminal registration; final hook204 and actual daemon execution identity verified. Failed private terminals were explicitly closed.",
+    "cleanup": "Verified final executable7ca43b97c6734d2da663c55190c34d9187bf21636e7bf8e92ae66a29157a91b4 and closed window; three PTYs+two Agents survived. Explicit private PTY cleanup followed by owningfixture895991 close removed project/home/worker. Verified WM895990/Xvfb895982 stopped,port38837absent. Production6767 and real sessions untouched.",
+    "artifacts": "Local ~/.cache/paseo-native-qa/navigation-*, gesture-reference-evidence.json, autoscroll-copy.json and /tmp/paseo-gpui-navigation-gestures-*.txt; lane logs/tmp/paseo-native-navigation-logs. Not a portable full visual evidence bundle.",
+    "limits": "Full Electron pixel parity, all hover/menu states and hardware performance remain NOT_PASSED. Dynamic custom icon actual rendering and Mac/Windows GUI not exercised. Right-click rename/regenerate, catalog-only icons, complete subagent tab/close lifecycle, splits and persisted cross-process focus still missing."
+  },
   "notVerified": [
     "real provider authentication and prompts",
     "composer and message submission from native UI",

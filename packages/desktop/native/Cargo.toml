@@ -24,6 +24,7 @@ gpui_platform = { version = "=0.1.0", git = "https://github.com/zed-industries/z
 ], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+roxmltree = "=0.20.0"
 tokio = { version = "1.48", features = ["rt-multi-thread", "net", "sync", "time", "macros"] }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 futures-util = "0.3"

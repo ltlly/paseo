@@ -45,6 +45,8 @@ pub struct TerminalView {
     opening: bool,
     needs_claim: bool,
     selecting: bool,
+    selection_pointer: Point<Pixels>,
+    selection_scroll_task: Option<gpui::Task<()>>,
     mouse_buttons: u8,
     mouse_reporter: MouseReporter,
     mouse_error: bool,
@@ -97,6 +99,8 @@ impl TerminalView {
             opening: false,
             needs_claim: true,
             selecting: false,
+            selection_pointer: Point::default(),
+            selection_scroll_task: None,
             mouse_buttons: 0,
             mouse_reporter: MouseReporter::default(),
             mouse_error: false,
@@ -112,6 +116,10 @@ impl TerminalView {
 
     fn sync_cursor(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.focused = self.focus.is_focused(window) && window.is_window_active();
+        if !self.focused {
+            self.selecting = false;
+            self.selection_scroll_task = None;
+        }
         let screen = self.buffer.screen();
         let enabled =
             self.visible && self.focused && screen.cursor.is_some() && screen.cursor_style.blinking;
@@ -181,6 +189,7 @@ impl TerminalView {
             self.visible = visible;
             if !visible {
                 self.selecting = false;
+                self.selection_scroll_task = None;
                 self.mouse_buttons = 0;
                 self.glyphs.clear();
                 self.blink.enable(false, Instant::now());
@@ -313,7 +322,12 @@ impl TerminalView {
             TerminalOpcode::ReplayBegin | TerminalOpcode::Restore
         );
         let cursor_before = self.buffer.cursor_state();
+        let gesture_before = self.buffer.selection_is_gesture();
         let result = self.buffer.apply(frame).and_then(|()| {
+            if gesture_before && !self.buffer.selection_is_gesture() {
+                self.selecting = false;
+                self.selection_scroll_task = None;
+            }
             if replaces_buffer || self.buffer.cursor_state() != cursor_before {
                 self.blink.restart(Instant::now());
             }
@@ -399,6 +413,8 @@ impl TerminalView {
         {
             return Ok(());
         }
+        self.selecting = false;
+        self.selection_scroll_task = None;
         self.buffer.resize(self.desired_size);
         self.connection.send_terminal(TerminalFrame { opcode: TerminalOpcode::Resize, slot, data: serde_json::to_vec(&json!({"rows":self.desired_size.rows,"cols":self.desired_size.cols,"intent":"update"}))? })
     }
@@ -527,11 +543,9 @@ impl TerminalView {
     }
 
     fn selection_position(&self, position: Point<Pixels>) -> (usize, usize) {
-        let row = ((position.y - self.bounds.top()) / px(self.row_height))
-            .floor()
+        let row = (((position.y - self.bounds.top()) / px(self.row_height)).ceil() - 1.)
             .clamp(0., f32::from(self.buffer.size.rows - 1)) as usize;
-        let column = ((position.x - self.bounds.left()) / self.cell_width)
-            .round()
+        let column = (((position.x - self.bounds.left()) / self.cell_width + 0.5).ceil() - 1.)
             .clamp(0., f32::from(self.buffer.size.cols)) as usize;
         (row, column)
     }
@@ -648,23 +662,89 @@ impl TerminalView {
             cx.stop_propagation();
             return;
         }
+        if event.button == MouseButton::Middle {
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            if let Some(text) = cx
+                .read_from_primary()
+                .and_then(|item| item.text())
+                .filter(|text| !text.is_empty())
+            {
+                let text = paseo_desktop::keyboard::paste(
+                    &text,
+                    self.buffer.modes().contains(TermMode::BRACKETED_PASTE),
+                );
+                self.send_input(&text, cx);
+                cx.stop_propagation();
+            }
+            return;
+        }
         if event.button != MouseButton::Left {
             return;
         }
         let (row, column) = self.selection_position(event.position);
         if event.modifiers.shift && self.buffer.has_selection() {
             self.buffer.extend_selection(row, column);
+        } else if event.click_count == 2 {
+            self.buffer.begin_word_selection(row, column);
+        } else if event.click_count == 3 {
+            self.buffer.begin_line_selection(row, column);
         } else {
             self.buffer
                 .begin_selection(row, column, event.modifiers.alt);
         }
         self.selecting = true;
+        self.selection_pointer = event.position;
+        self.start_selection_scroll(cx);
         cx.notify();
         cx.stop_propagation();
     }
 
+    fn start_selection_scroll(&mut self, cx: &mut Context<Self>) {
+        if self.selection_scroll_task.is_some() {
+            return;
+        }
+        self.selection_scroll_task = Some(cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(50))
+                    .await;
+                let running = this.update(cx, |this, cx| {
+                    if !this.selecting || !this.visible || !this.focused || this.buffer.replaying {
+                        this.selection_scroll_task = None;
+                        return false;
+                    }
+                    let top = f32::from(this.bounds.top());
+                    let bottom = top + this.row_height * f32::from(this.buffer.size.rows);
+                    let delta = paseo_desktop::terminal_geometry::selection_scroll(
+                        f32::from(this.selection_pointer.y),
+                        top,
+                        bottom,
+                    );
+                    if delta != 0 {
+                        this.buffer.scroll(delta);
+                        let (row, mut column) = this.selection_position(this.selection_pointer);
+                        if !this.buffer.selection_is_block() {
+                            if delta > 0 {
+                                column = 0;
+                            } else {
+                                column = usize::from(this.buffer.size.cols);
+                            }
+                        }
+                        this.buffer.extend_selection(row, column);
+                        this.notify_visible(cx);
+                    }
+                    true
+                });
+                if !matches!(running, Ok(true)) {
+                    break;
+                }
+            }
+        }));
+    }
+
     fn mouse_move(&mut self, event: &gpui::MouseMoveEvent, cx: &mut Context<Self>) {
         if self.selecting && event.dragging() {
+            self.selection_pointer = event.position;
             let (row, column) = self.selection_position(event.position);
             self.buffer.extend_selection(row, column);
             cx.notify();
@@ -705,8 +785,17 @@ impl TerminalView {
     fn mouse_up(&mut self, event: &gpui::MouseUpEvent, cx: &mut Context<Self>) {
         if event.button == MouseButton::Left && self.selecting {
             let (row, column) = self.selection_position(event.position);
-            self.buffer.extend_selection(row, column);
+            if !self.buffer.selection_is_gesture() {
+                self.buffer.extend_selection(row, column);
+            }
             self.selecting = false;
+            self.selection_scroll_task = None;
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            if let Some(text) = self.buffer.selected_text().filter(|text| !text.is_empty()) {
+                cx.write_to_primary(gpui::ClipboardItem::new_string(
+                    paseo_desktop::keyboard::clipboard_text(text, false),
+                ));
+            }
             cx.notify();
             return;
         }

@@ -8,12 +8,14 @@ use crate::terminal_view::TerminalView;
 use paseo_desktop::terminal_retention::TerminalCache;
 use paseo_desktop::{
     client::{Connection, Event, Target},
-    model::{AgentExecution, AgentPage, Directory, ServerInfo, WorkspacePage},
+    model::{AgentExecution, AgentPage, Directory, FocusedSession, ServerInfo, WorkspacePage},
 };
 
 pub struct Paseo {
     connection: Option<Arc<Connection>>,
     info: Option<ServerInfo>,
+    provider_icons_request: Option<String>,
+    provider_images: BTreeMap<String, Arc<gpui::RenderImage>>,
     directory: Directory,
     selected_workspace: Option<String>,
     selected_terminal: Option<String>,
@@ -64,6 +66,8 @@ impl Paseo {
         let mut app = Self {
             connection: None,
             info: None,
+            provider_icons_request: None,
+            provider_images: BTreeMap::new(),
             directory: Directory::default(),
             selected_workspace: None,
             selected_terminal: None,
@@ -100,7 +104,35 @@ impl Paseo {
     fn receive(&mut self, event: Event, cx: &mut Context<Self>) {
         let result = match event {
             Event::Ready(info) => {
+                self.directory.set_host(&info.server_id);
+                self.provider_images.clear();
                 self.info = Some(info);
+                self.provider_icons_request = self.connection.as_ref().and_then(|connection| {
+                    connection
+                        .request("get_providers_snapshot_request", json!({}))
+                        .map_err(|error| {
+                            self.error = Some(format!("Cannot load provider icons: {error}"));
+                        })
+                        .ok()
+                });
+                if let Some(id) = self.provider_icons_request.clone() {
+                    let timer = cx
+                        .background_executor()
+                        .timer(std::time::Duration::from_secs(30));
+                    cx.spawn(async move |this, cx| {
+                        timer.await;
+                        let _ = this.update(cx, |this, cx| {
+                            if this.provider_icons_request.as_ref() == Some(&id) {
+                                this.provider_icons_request = None;
+                                this.error = Some(
+                                    "Timed out loading provider icons. Reconnect to retry.".into(),
+                                );
+                                cx.notify();
+                            }
+                        });
+                    })
+                    .detach();
+                }
                 self.load_directory()
             }
             Event::Session { kind, payload } => {
@@ -109,7 +141,7 @@ impl Paseo {
                     "agent_stream" | "fetch_agent_timeline_response" | "agent.timeline.replacement"
                 );
                 let result = self.apply_session(&kind, payload, cx);
-                if timeline_owned && result.is_ok() {
+                if timeline_owned && result.is_ok() && kind != "agent_stream" {
                     return;
                 }
                 result
@@ -126,6 +158,9 @@ impl Paseo {
                 return;
             }
             Event::Disconnected(error) => {
+                self.directory.clear_provider_icons();
+                self.provider_images.clear();
+                self.provider_icons_request = None;
                 self.terminal = None;
                 self.terminals.clear();
                 for composer in self.composers.values() {
@@ -164,6 +199,32 @@ impl Paseo {
     }
 
     fn apply_session(&mut self, kind: &str, payload: Value, cx: &mut Context<Self>) -> Result<()> {
+        if self
+            .provider_icons_request
+            .as_deref()
+            .is_some_and(|id| payload["requestId"].as_str() == Some(id))
+        {
+            self.provider_icons_request = None;
+            if kind == "rpc_error" {
+                anyhow::bail!("Cannot load provider icons: {}", payload["error"]);
+            }
+            if kind == "get_providers_snapshot_response" {
+                self.directory.replace_provider_icons(&payload)?;
+                self.provider_images =
+                    crate::chrome::render_provider_icons(&self.directory, &payload, cx)?;
+                return Ok(());
+            }
+        }
+        if kind == "get_providers_snapshot_response" {
+            return Ok(());
+        }
+        if kind == "providers_snapshot_update" {
+            self.directory.replace_provider_icons(&payload)?;
+            self.provider_images =
+                crate::chrome::render_provider_icons(&self.directory, &payload, cx)?;
+            return Ok(());
+        }
+
         if kind == "terminal.input.write_raw.response" || kind == "rpc_error" {
             if let Some(terminal) = self
                 .terminals
@@ -307,9 +368,7 @@ impl Paseo {
         }
         for (id, composer) in &self.composers {
             if let Some(agent) = self.directory.agents.get(id) {
-                composer.update(cx, |view, cx| {
-                    view.set_running(agent.status == "running", cx)
-                });
+                composer.update(cx, |view, cx| view.set_running(agent.is_working(), cx));
             }
         }
         Ok(())
@@ -384,17 +443,24 @@ impl Paseo {
         let Some(agent) = self.directory.agents.get(&id).cloned() else {
             return;
         };
-        let workspace = agent.workspace_id.clone().unwrap_or_default();
+        let Some(workspace) = agent.workspace_id.clone() else {
+            self.error = Some("This agent has no workspace.".into());
+            cx.notify();
+            return;
+        };
+        if self.directory.agent_target(&id).is_none() {
+            self.error = Some("This agent execution is not available in this client.".into());
+            cx.notify();
+            return;
+        }
         self.select_workspace(workspace.clone(), cx);
         if self.selected_workspace.as_ref() != Some(&workspace) {
             return;
         }
         match agent.execution {
-            Some(AgentExecution::Terminal { terminal_id }) => {
+            Some(AgentExecution::Terminal { terminal_id, .. }) => {
                 self.select_terminal(terminal_id.clone(), window, cx);
-                if self.selected_terminal.as_ref() == Some(&terminal_id) {
-                    self.selected_agent = Some(id);
-                }
+
                 return;
             }
             Some(AgentExecution::Unknown) => {
@@ -420,7 +486,7 @@ impl Paseo {
                                         crate::composer_view::Composer::new(
                                             id.clone(),
                                             connection.clone(),
-                                            agent.status == "running",
+                                            agent.is_working(),
                                             cx,
                                         )
                                     })
@@ -447,11 +513,22 @@ impl Paseo {
                 }
             }
         }
-        self.selected_agent = Some(id);
+        if self.conversation.is_some() {
+            self.directory
+                .remember_focus(&workspace, FocusedSession::Agent(id.clone()));
+            self.selected_agent = Some(id);
+        }
         cx.notify();
     }
 
     fn select_terminal(&mut self, id: String, window: &mut Window, cx: &mut Context<Self>) {
+        if self.directory.terminal_workspace(&id) != self.selected_workspace.as_deref()
+            || self.selected_workspace.is_none()
+        {
+            self.error = Some("This terminal is no longer available in this workspace.".into());
+            cx.notify();
+            return;
+        }
         let Some(connection) = &self.connection else {
             return;
         };
@@ -478,6 +555,8 @@ impl Paseo {
         match view {
             Ok(view)=>{
                 self.clear_conversation(cx);self.hide_terminal(cx);
+                if let Some(workspace) = &self.selected_workspace { self.directory.remember_focus(workspace, FocusedSession::Terminal(id.clone())); }
+                self.selected_agent = self.directory.terminal_agent(&id).map(|agent|agent.id.clone());
                 self.selected_terminal=Some(id);self.error=None;
                 view.update(cx,|view,cx|view.activate(window,cx));self.terminal=Some(view);
             },
@@ -490,7 +569,7 @@ impl Paseo {
 impl Render for Paseo {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         use crate::{
-            chrome::{Tooltip, icon, provider_icon},
+            chrome::{Tooltip, icon},
             theme::{colors as c, font_size, radius},
         };
         let mut projects = self
@@ -618,24 +697,8 @@ impl Render for Paseo {
                                     .child(project.project_display_name),
                             )
                             .children(workspaces.into_iter().map(|workspace| {
-                                let mut agents = self
-                                    .directory
-                                    .agents
-                                    .values()
-                                    .filter(|a| a.workspace_id.as_deref() == Some(&workspace.id))
-                                    .cloned()
-                                    .collect::<Vec<_>>();
-                                agents.sort_by(|a, b| {
-                                    a.created_at.cmp(&b.created_at).then(a.id.cmp(&b.id))
-                                });
-                                let focused = self
-                                    .selected_agent
-                                    .as_ref()
-                                    .and_then(|id| self.directory.agents.get(id))
-                                    .filter(|a| a.workspace_id.as_deref() == Some(&workspace.id));
-                                let label = focused
-                                    .and_then(|a| a.title.clone())
-                                    .unwrap_or_else(|| workspace.name.clone());
+                                let agents = self.directory.sidebar_agents(&workspace.id).into_iter().cloned().collect::<Vec<_>>();
+                                let label = self.directory.workspace_title(&workspace.id, &workspace.name);
                                 let id = workspace.id.clone();
                                 let selected = self.selected_workspace.as_ref() == Some(&id);
                                 div()
@@ -698,10 +761,7 @@ impl Render for Paseo {
                                                 .gap_1()
                                                 .children(agents.into_iter().map(|agent| {
                                                     let id = agent.id.clone();
-                                                    let title = agent
-                                                        .title
-                                                        .clone()
-                                                        .unwrap_or_else(|| agent.provider.clone());
+                                                    let title = agent.display_title().to_owned();
                                                     div()
                                                         .id(gpui::SharedString::from(format!(
                                                             "agent-{id}"
@@ -712,8 +772,7 @@ impl Render for Paseo {
                                                         .items_center()
                                                         .justify_center()
                                                         .when(
-                                                            self.selected_agent.as_ref()
-                                                                == Some(&id),
+                                                            self.selected_workspace.as_ref() == Some(&workspace.id) && self.directory.agent_target(&id).is_some_and(|target| match target { FocusedSession::Agent(id) => self.selected_agent.as_ref()==Some(&id) && self.conversation.is_some(), FocusedSession::Terminal(id) => self.selected_terminal.as_ref()==Some(&id) }),
                                                             |button| {
                                                                 button.bg(gpui::rgba(0xffffff14))
                                                             },
@@ -727,8 +786,9 @@ impl Render for Paseo {
                                                                 .into()
                                                         })
                                                         .child(crate::chrome::agent_icon(
-                                                            &agent.provider,
-                                                            agent.status == "running",
+                                                            agent.sidebar_icon(),
+                                                            agent.sidebar_status(),
+                                                            self.provider_images.get(agent.sidebar_icon()),
                                                         ))
                                                         .on_mouse_down(
                                                             MouseButton::Left,
@@ -782,7 +842,7 @@ impl Render for Paseo {
             .as_ref()
             .and_then(|id| self.directory.workspaces.get(id));
         let title = workspace
-            .map(|w| w.name.clone())
+            .map(|w| self.directory.workspace_title(&w.id, &w.name))
             .unwrap_or_else(|| "Workspaces".into());
         let subtitle = workspace
             .map(|w| w.project_display_name.clone())
@@ -805,6 +865,8 @@ impl Render for Paseo {
                 self.selected_workspace.is_some()
                     && a.workspace_id.as_ref() == self.selected_workspace.as_ref()
                     && a.execution.is_none()
+                    && a.archived_at.is_none()
+                    && !a.internal
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -848,8 +910,28 @@ impl Render for Paseo {
                                 ),
                         )
                     })
-                    .child(div().font_weight(gpui::FontWeight::LIGHT).child(title))
-                    .child(div().text_color(rgb(c::FOREGROUND_MUTED)).child(subtitle))
+                    .child(
+                        div()
+                            .min_w_0()
+                            .flex_1()
+                            .flex()
+                            .items_center()
+                            .gap_2()
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .truncate()
+                                    .font_weight(gpui::FontWeight::LIGHT)
+                                    .child(title),
+                            )
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .truncate()
+                                    .text_color(rgb(c::FOREGROUND_MUTED))
+                                    .child(subtitle),
+                            ),
+                    )
                     .child(icon("ellipsis", 16.))
                     .child(crate::window_chrome::drag_region())
                     .child(
@@ -905,13 +987,17 @@ impl Render for Paseo {
                                 tab.bg(rgb(c::SURFACE2))
                             })
                             .hover(|tab| tab.bg(rgb(c::SURFACE2)))
-                            .child(provider_icon(&agent.provider, 14.))
+                            .child(crate::chrome::provider_icon_data(
+                                &agent.provider,
+                                14.,
+                                self.provider_images.get(&agent.provider),
+                            ))
                             .child(
                                 div()
                                     .min_w_0()
                                     .flex_1()
                                     .truncate()
-                                    .child(agent.title.unwrap_or(agent.provider)),
+                                    .child(agent.display_title().to_owned()),
                             )
                             .on_mouse_down(
                                 MouseButton::Left,
@@ -936,7 +1022,7 @@ impl Render for Paseo {
                             })
                             .hover(|tab| tab.bg(rgb(c::SURFACE2)))
                             .child(icon("square-terminal", 14.))
-                            .child(terminal.name)
+                            .child(self.directory.terminal_title(&terminal))
                             .on_mouse_down(
                                 MouseButton::Left,
                                 cx.listener(move |this, _, window, cx| {

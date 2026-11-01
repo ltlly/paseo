@@ -9,11 +9,54 @@ pub fn icon(name: &str, size: f32) -> Svg {
         .text_color(rgb(c::FOREGROUND_MUTED))
 }
 
+pub fn provider_icon_data(
+    provider: &str,
+    size: f32,
+    image: Option<&std::sync::Arc<gpui::RenderImage>>,
+) -> gpui::AnyElement {
+    if !paseo_desktop::model::is_builtin_provider(provider)
+        && let Some(image) = image
+    {
+        return gpui::img(image.clone()).size(px(size)).into_any_element();
+    }
+    provider_icon(provider, size).into_any_element()
+}
+
+pub fn render_provider_icons(
+    directory: &paseo_desktop::model::Directory,
+    payload: &serde_json::Value,
+    cx: &gpui::App,
+) -> anyhow::Result<std::collections::BTreeMap<String, std::sync::Arc<gpui::RenderImage>>> {
+    let mut images = std::collections::BTreeMap::new();
+    let renderer = cx.svg_renderer();
+    for entry in payload["entries"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("Missing provider icon snapshot"))?
+    {
+        let Some(provider) = entry["provider"].as_str() else {
+            continue;
+        };
+        let Some(data) = directory.provider_svg(provider) else {
+            continue;
+        };
+        let data = paseo_desktop::model::provider_svg_color(data, c::FOREGROUND_MUTED)?;
+        let parsed = renderer.parse_svg(&data)?;
+        // Explicit output dimensions cap each icon raster at16KiB, independent
+        // of untrusted intrinsic SVG dimensions. Reuse images across frame renders.
+        let image = renderer.render_parsed(
+            &parsed,
+            gpui::SvgSize::ExactSize(gpui::size(gpui::DevicePixels(64), gpui::DevicePixels(64))),
+        )?;
+        images.insert(provider.to_owned(), image);
+    }
+    Ok(images)
+}
+
 pub fn provider_icon(provider: &str, size: f32) -> Svg {
     let name = match provider {
         "antigravity" | "claude" | "codex" | "copilot" | "kiro" | "minimax" | "omp"
         | "opencode" | "pi" => provider,
-        _ => "square-terminal",
+        _ => "bot",
     };
     icon(name, size)
 }
@@ -52,50 +95,82 @@ pub fn project_color(key: &str) -> u32 {
     crate::identity_colors::COLORS[hash as usize % crate::identity_colors::COLORS.len()]
 }
 
-pub fn agent_icon(provider: &str, running: bool) -> impl IntoElement {
+pub fn agent_icon(
+    provider: &str,
+    status: paseo_desktop::model::AgentStatusBucket,
+    image: Option<&std::sync::Arc<gpui::RenderImage>>,
+) -> impl IntoElement {
     div()
         .relative()
         .size(px(26.))
         .flex()
         .items_center()
         .justify_center()
-        .when(running, |frame| {
-            frame
-                .child(
+        .when(
+            status == paseo_desktop::model::AgentStatusBucket::Running,
+            |frame| {
+                frame
+                    .child(
+                        div()
+                            .absolute()
+                            .left(px(1.))
+                            .top(px(1.))
+                            .size(px(24.))
+                            .rounded_full()
+                            .border(px(1.5))
+                            .border_color(rgb(c::STATUS_DOT_RUNNING))
+                            .opacity(0.3),
+                    )
+                    .child(
+                        icon("status-ring-arc", 24.)
+                            .absolute()
+                            .left(px(1.))
+                            .top(px(1.))
+                            .text_color(rgb(c::STATUS_DOT_RUNNING))
+                            .opacity(0.9)
+                            .with_animation(
+                                "running-ring",
+                                Animation::new(std::time::Duration::from_millis(900)).repeat(),
+                                |arc, _| {
+                                    let phase = std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .unwrap_or_default()
+                                        .as_millis()
+                                        % 900;
+                                    arc.with_transformation(Transformation::rotate(percentage(
+                                        phase as f32 / 900.,
+                                    )))
+                                },
+                            ),
+                    )
+            },
+        )
+        .child(provider_icon_data(provider, 16., image))
+        .when(
+            matches!(
+                status,
+                paseo_desktop::model::AgentStatusBucket::NeedsInput
+                    | paseo_desktop::model::AgentStatusBucket::Attention
+                    | paseo_desktop::model::AgentStatusBucket::Failed
+            ),
+            |frame| {
+                frame.child(
                     div()
                         .absolute()
-                        .left(px(1.))
-                        .top(px(1.))
-                        .size(px(24.))
+                        .right(px(0.))
+                        .bottom(px(0.))
+                        .size(px(6.))
                         .rounded_full()
-                        .border(px(1.5))
-                        .border_color(rgb(c::STATUS_DOT_RUNNING))
-                        .opacity(0.3),
-                )
-                .child(
-                    icon("status-ring-arc", 24.)
-                        .absolute()
-                        .left(px(1.))
-                        .top(px(1.))
-                        .text_color(rgb(c::STATUS_DOT_RUNNING))
-                        .opacity(0.9)
-                        .with_animation(
-                            "running-ring",
-                            Animation::new(std::time::Duration::from_millis(900)).repeat(),
-                            |arc, _| {
-                                let phase = std::time::SystemTime::now()
-                                    .duration_since(std::time::UNIX_EPOCH)
-                                    .unwrap_or_default()
-                                    .as_millis()
-                                    % 900;
-                                arc.with_transformation(Transformation::rotate(percentage(
-                                    phase as f32 / 900.,
-                                )))
+                        .bg(rgb(
+                            if status == paseo_desktop::model::AgentStatusBucket::Failed {
+                                c::STATUS_DANGER
+                            } else {
+                                c::STATUS_WARNING
                             },
-                        ),
+                        )),
                 )
-        })
-        .child(provider_icon(provider, 16.))
+            },
+        )
 }
 
 pub struct Tooltip(pub String);
