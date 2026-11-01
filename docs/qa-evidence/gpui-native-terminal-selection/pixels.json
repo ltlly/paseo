@@ -1,0 +1,23 @@
+{
+  "equivalentSelectionStates": [
+    {
+      "state": "simple",
+      "differentPixels": 0
+    },
+    {
+      "state": "empty-paste",
+      "differentPixels": 0
+    },
+    {
+      "state": "mouse-mode-forced",
+      "differentPixels": 0
+    }
+  ],
+  "inputClearDifferenceBounds": [320, 72, 362, 92],
+  "expectedSelectionRect": [320, 72, 42, 20],
+  "authoredSelectionBackground": "rgba(255,255,255,0.2)",
+  "authoredSurface0": "#181b1a",
+  "sampledSelectionRgb": [70, 73, 72],
+  "sampledOutsideRgb": [24, 27, 26],
+  "wholeElectronParity": "not established"
+}

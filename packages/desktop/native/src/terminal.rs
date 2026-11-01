@@ -1,6 +1,8 @@
 use alacritty_terminal::{
     event::VoidListener,
     grid::{Dimensions, Scroll},
+    index::{Column, Line, Point, Side},
+    selection::{Selection, SelectionType},
     term::{Config, RenderableContent, Term, TermMode, cell::Flags},
     vte::ansi::{Color, NamedColor, Processor, Rgb},
 };
@@ -37,6 +39,7 @@ pub struct Cell<'a> {
     pub bold: bool,
     pub italic: bool,
     pub underline: bool,
+    pub selected: bool,
 }
 
 pub struct Screen<'a> {
@@ -88,6 +91,12 @@ impl<'a> Iterator for ScreenCells<'a> {
                 bold: cell.flags.contains(Flags::BOLD),
                 italic: cell.flags.contains(Flags::ITALIC),
                 underline: cell.flags.intersects(Flags::ALL_UNDERLINES),
+                selected: self.content.selection.is_some_and(|selection| {
+                    selection.contains(indexed.point)
+                        || (cell.flags.contains(Flags::WIDE_CHAR)
+                            && selection
+                                .contains(Point::new(indexed.point.line, indexed.point.column + 1)))
+                }),
             });
         }
         None
@@ -163,6 +172,67 @@ impl TerminalBuffer {
 
     pub fn scroll(&mut self, lines: i32) {
         self.term.scroll_display(Scroll::Delta(lines));
+    }
+
+    fn selection_point(&self, row: usize, column: usize) -> (Point, Side) {
+        let cols = usize::from(self.size.cols);
+        let column = column.min(cols);
+        (
+            Point::new(
+                Line(
+                    row.min(usize::from(self.size.rows) - 1) as i32
+                        - self.term.grid().display_offset() as i32,
+                ),
+                Column(column.min(cols - 1)),
+            ),
+            if column == cols {
+                Side::Right
+            } else {
+                Side::Left
+            },
+        )
+    }
+
+    pub fn begin_selection(&mut self, row: usize, column: usize, block: bool) {
+        let (point, side) = self.selection_point(row, column);
+        self.term.selection = Some(Selection::new(
+            if block {
+                SelectionType::Block
+            } else {
+                SelectionType::Simple
+            },
+            point,
+            side,
+        ));
+    }
+
+    pub fn extend_selection(&mut self, row: usize, column: usize) {
+        let (point, side) = self.selection_point(row, column);
+        if let Some(selection) = &mut self.term.selection {
+            selection.update(point, side);
+        }
+    }
+
+    pub fn has_selection(&self) -> bool {
+        self.term
+            .selection
+            .as_ref()
+            .is_some_and(|selection| !selection.is_empty())
+    }
+
+    pub fn selected_text(&self) -> Option<String> {
+        self.term.selection_to_string()
+    }
+
+    pub fn clear_selection(&mut self) {
+        self.term.selection = None;
+    }
+
+    pub fn prepare_input(&mut self) -> bool {
+        let redraw = self.has_selection() || self.term.grid().display_offset() != 0;
+        self.clear_selection();
+        self.term.scroll_display(Scroll::Bottom);
+        redraw
     }
 
     pub fn modes(&self) -> TermMode {
@@ -283,6 +353,42 @@ mod tests {
                 .collect::<String>(),
             "o"
         );
+    }
+
+    #[test]
+    fn selection_copy_tracks_wrapping_reverse_drag_scrollback_and_input_clear() {
+        let mut buffer = TerminalBuffer::new(GridSize { rows: 3, cols: 8 }, 20);
+        buffer.feed("hello中e\u{301}123\r\nsecond\r\nthird\r\nfourth".as_bytes());
+        buffer.scroll(20);
+        buffer.begin_selection(0, 0, false);
+        buffer.extend_selection(1, 3);
+        assert_eq!(
+            buffer.selected_text().as_deref(),
+            Some("hello中e\u{301}123")
+        );
+        buffer.begin_selection(1, 3, false);
+        buffer.extend_selection(0, 0);
+        assert_eq!(
+            buffer.selected_text().as_deref(),
+            Some("hello中e\u{301}123")
+        );
+        assert!(buffer.screen().cells.any(|cell| cell.selected));
+        buffer.prepare_input();
+        assert!(!buffer.has_selection());
+        assert_eq!(buffer.selected_text(), None);
+        assert!(!buffer.screen().cells.any(|cell| cell.selected));
+        assert_eq!(buffer.term.grid().display_offset(), 0);
+    }
+
+    #[test]
+    fn block_selection_preserves_columns_and_does_not_copy_wide_spacers() {
+        let mut buffer = TerminalBuffer::new(GridSize { rows: 3, cols: 10 }, 20);
+        buffer.feed("ab中cd\r\nef中gh".as_bytes());
+        buffer.begin_selection(0, 2, true);
+        buffer.extend_selection(1, 5);
+        assert_eq!(buffer.selected_text().as_deref(), Some("中c\n中g"));
+        buffer.begin_selection(0, 0, false);
+        assert!(!buffer.has_selection());
     }
 
     #[test]

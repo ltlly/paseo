@@ -1,0 +1,105 @@
+{
+  "date": "2026-11-01",
+  "baseCommit": "192622bdf96ff85699d31f351e51f6b2313a9c32",
+  "finalSourceArchiveSha256": "cdc96602b756f5facf57e5d577bcda464bb20ee9753f2cd65c9d51f0fc92fb3b",
+  "primaryGuiSourceArchiveSha256": "88803e3e632fd3e658d8b66d55dcafb434ce5229421506fca228f4ddc3868aa0",
+  "scope": "Native text clipboard and simple/block selection. No app/Android, daemon, worker or wire changes. Installed clients and port 6767 untouched.",
+  "changes": [
+    "Borrowed-grid selection background/foreground use generated authored terminal theme tokens.",
+    "Forward/reverse pointer drag, Shift extension and Alt block model; selected text retained in warm terminal views.",
+    "Ctrl+C copies selection on Linux/Windows; without selection it remains an interrupt. Ctrl+Shift+C consumes the clipboard shortcut. Mac uses Command+C.",
+    "Ctrl+V/Ctrl+Shift+V on Linux/Windows and Command+V on Mac use xterm-matched text paste encoding; empty clipboard leaves selection unchanged.",
+    "Typing clears selection and returns to live bottom only when needed.",
+    "Copied NBSP becomes space; the Windows clipboard boundary uses CRLF."
+  ],
+  "checks": {
+    "terminalModelTestsPerPlatform": 6,
+    "keyboardClipboardTestsPerPlatform": 6,
+    "platforms": [
+      "Linux native build and GUI",
+      "macOS runtime-shaders native check plus focused core tests",
+      "Windows MSVC native check plus focused core tests"
+    ],
+    "format": "passed",
+    "lint": "passed",
+    "typecheck": "passed",
+    "nativeAssets": "passed",
+    "pasteOracleCases": 6,
+    "pasteOracleSource": "packages/app/node_modules/@xterm/xterm/src/browser/Clipboard.ts",
+    "pasteOracleSourceSha256": "84b9ec58910052de1f5ea4b5d3ffc5a2bce9dbe2e8a14ff7f64f6dcde342328d",
+    "osClipboardPrimary": {
+      "reverseDragCopy": "PASEO",
+      "copyDoesNotSendBytes": true,
+      "ctrlShiftCopySupported": true,
+      "selectionRetainedAcrossTabSwitch": true,
+      "ctrlCWithoutSelection": "03",
+      "ctrlShiftCWithoutSelectionSendsNothing": true,
+      "ordinaryPasteHex": "58590d5a0de4b8ad",
+      "emptyClipboardSendsNothing": true,
+      "bracketedPasteHex": "1b5b3230307e580de2909b5b3230317ee4b8ad1b5b3230317e",
+      "actualTypedInputClearsSelection": true
+    },
+    "osClipboardExtra": {
+      "emptyPasteKeepsSelection": true,
+      "shiftForcesSelectionInMouseModeLinux": true,
+      "ordinaryMouseModeDragDoesNotSelectLocally": true,
+      "mouseProtocolForwarding": "not yet implemented"
+    },
+    "finalSourceSmoke": {
+      "sourceArchiveSha256": "cdc96602b756f5facf57e5d577bcda464bb20ee9753f2cd65c9d51f0fc92fb3b",
+      "selectedBufferText": "PASEO TERMINAL",
+      "actualClipboardText": "PASEO TERMINAL",
+      "copySendsNoPtyBytes": true,
+      "pasteOwnClipboardBytesHex": "504153454f205445524d494e414c",
+      "ctrlCOnceSelectionClearedHex": "03",
+      "finalSourceVerified": true
+    }
+  },
+  "sourceCoverage": "Primary GUI checks preceded only the final clipboard text-boundary normalization helper. Final-source smoke verifies NBSP copy normalization, pasting the app-owned OS clipboard, selection clearing and Ctrl+C; both boolean OS branches also have focused tests on all three platforms. Native selection rendering and paste encoding are unchanged between those snapshots.",
+  "visualEvidence": {
+    "equivalentSelectionStates": [
+      {
+        "state": "simple",
+        "differentPixels": 0
+      },
+      {
+        "state": "empty-paste",
+        "differentPixels": 0
+      },
+      {
+        "state": "mouse-mode-forced",
+        "differentPixels": 0
+      }
+    ],
+    "inputClearDifferenceBounds": [320, 72, 362, 92],
+    "expectedSelectionRect": [320, 72, 42, 20],
+    "authoredSelectionBackground": "rgba(255,255,255,0.2)",
+    "authoredSurface0": "#181b1a",
+    "sampledSelectionRgb": [70, 73, 72],
+    "sampledOutsideRgb": [24, 27, 26],
+    "wholeElectronParity": "not established"
+  },
+  "copyOracle": {
+    "producer": "Installed browser xterm in an actual Electron renderer; service selectionText over real terminal buffers",
+    "matchingCases": ["wrapped-wide-combining", "block-wide", "selected-spaces"],
+    "knownMismatch": {
+      "name": "hard-newline",
+      "xterm": "abc   \ndef",
+      "native": "abc\ndef",
+      "reason": "Alacritty trims the row to its nonblank line length; explicit trailing spaces and untouched blanks have the same stored character.",
+      "acceptance": "NOT_PASSED; complete terminal copy fidelity remains required."
+    }
+  },
+  "projectionAllocationRegression": {
+    "result": "0 allocation/reallocation calls per measured traversal in sparse, dense and Unicode/style workloads; see raw log.",
+    "scope": "Same grid-projection stage and benchmark as prior checkpoint; no whole-render or RSS/CPU/latency claim."
+  },
+  "limitations": [
+    "Full original Electron UI and terminal fidelity are NOT_PASSED.",
+    "Hard-line trailing-space copy mismatch remains unresolved. Tab/word/line and full selection fidelity still require audit.",
+    "Double/triple click, drag autoscroll, right-click menus, middle-button paste, images, full IME/keyboard/mouse protocols and reconnect remain incomplete.",
+    "Mouse capture only gates local selection here; pointer protocol forwarding is not implemented.",
+    "Alt block selection is covered by the real models, not an OS modifier/drag test. Mac and Windows GUI clipboard interaction remains unverified."
+  ],
+  "deployment": "No deployment or daemon restart. Both isolated fixture homes, their PTYs and QA display/WM were cleaned; the oracle browser and native windows were closed."
+}

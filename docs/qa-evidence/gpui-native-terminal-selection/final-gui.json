@@ -1,0 +1,9 @@
+{
+  "sourceArchiveSha256": "cdc96602b756f5facf57e5d577bcda464bb20ee9753f2cd65c9d51f0fc92fb3b",
+  "selectedBufferText": "PASEO\u00a0TERMINAL",
+  "actualClipboardText": "PASEO TERMINAL",
+  "copySendsNoPtyBytes": true,
+  "pasteOwnClipboardBytesHex": "504153454f205445524d494e414c",
+  "ctrlCOnceSelectionClearedHex": "03",
+  "finalSourceVerified": true
+}

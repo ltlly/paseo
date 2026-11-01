@@ -1,0 +1,24 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.49s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-bb5f6210a23a746b)
+
+running 1 test
+test keyboard::tests::clipboard_paste_matches_xterm_line_endings_and_visible_escape_sanitization ... FAILED
+
+failures:
+
+---- keyboard::tests::clipboard_paste_matches_xterm_line_endings_and_visible_escape_sanitization stdout ----
+
+thread 'keyboard::tests::clipboard_paste_matches_xterm_line_endings_and_visible_escape_sanitization' (481546) panicked at packages/desktop/native/src/keyboard.rs:122:9:
+assertion `left == right` failed
+  left: "a\nb\nc\nd"
+ right: "a\rb\rc\rd"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    keyboard::tests::clipboard_paste_matches_xterm_line_endings_and_visible_escape_sanitization
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 65 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p paseo-desktop --lib`

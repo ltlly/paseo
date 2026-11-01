@@ -1,0 +1,12 @@
+{
+  "reverseDragCopy": "PASEO",
+  "copyDoesNotSendBytes": true,
+  "ctrlShiftCopySupported": true,
+  "selectionRetainedAcrossTabSwitch": true,
+  "ctrlCWithoutSelection": "03",
+  "ctrlShiftCWithoutSelectionSendsNothing": true,
+  "ordinaryPasteHex": "58590d5a0de4b8ad",
+  "emptyClipboardSendsNothing": true,
+  "bracketedPasteHex": "1b5b3230307e580de2909b5b3230317ee4b8ad1b5b3230317e",
+  "actualTypedInputClearsSelection": true
+}

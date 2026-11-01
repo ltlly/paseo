@@ -1,0 +1,32 @@
+import sys;sys.path.insert(0,'/home/ltlly/.cache/paseo-native-qa')
+from retention_qa import *
+import base64
+m=json.loads((r/'composer.json').read_text());ids=m['terminals'];labels=sorted(['A','B','C','D'],key=lambda v:ids[v])
+def data():
+ p=Path(m['dir'])/'input-A.jsonl';return b''.join(base64.b64decode(json.loads(v)['base64']) for v in p.read_text().splitlines()) if p.exists() else b''
+def key(*keys):run('python',str(r/'input.py'),'key',*keys);time.sleep(.12)
+def drag(x1,y1,x2,y2):
+ w=json.loads(run('python',str(r/'window-state.py')));run('python',str(r/'input.py'),'drag',str(w['x']+x1),str(w['y']+y1),str(w['x']+x2),str(w['y']+y2))
+def clipboard():return json.loads(run('python',str(r/'read-clipboard.py')))
+def set_clip(text):
+ request={'id':str(time.time_ns()),'op':'clipboard','text':text};(r/'selection-reference-command.json').write_text(json.dumps(request))
+ for _ in range(700):
+  p=r/'selection-reference-result.json'
+  if p.exists():
+   v=json.loads(p.read_text())
+   if v['id']==request['id']:assert v['ok'] and v['result']==text,v;return
+  time.sleep(.03)
+ raise AssertionError('clipboard owner timeout')
+def tab(label):native_click(round(368+93.5*labels.index(label)),53)
+
+# Empty paste must preserve the current selection.
+drag(321,82,362,82);set_clip('');before=data();key('Control_L','v');assert data()==before;snapshot('selection-native-empty-paste');key('Control_L','c');assert clipboard()=='PASEO'
+# Linux Shift forces local selection when the PTY requests mouse input.
+run('node','--import','tsx',str(r/'retention-sdk.mts'),'input','A','m');time.sleep(.2);run('python',str(r/'input.py'),'type','z');time.sleep(.12)
+import runpy
+sys.argv=['input.py','noop'];h=runpy.run_path(str(r/'input.py'));code=h['x'].XKeysymToKeycode(h['d'],h['x'].XStringToKeysym(b'Shift_L'));h['xt'].XTestFakeKeyEvent(h['d'],code,1,0);h['x'].XFlush(h['d'])
+try:drag(321,82,362,82)
+finally:h['xt'].XTestFakeKeyEvent(h['d'],code,0,0);h['x'].XFlush(h['d'])
+before=data();key('Control_L','c');assert clipboard()=='PASEO';assert data()==before;snapshot('selection-native-mouse-mode-forced')
+run('python',str(r/'input.py'),'type','z');time.sleep(.12);drag(321,82,362,82);before=data();key('Control_L','c');assert data()[len(before):]==b'\x03'
+(r/'selection-gui-extra.json').write_text(json.dumps({'emptyPasteKeepsSelection':True,'shiftForcesSelectionInMouseModeLinux':True,'ordinaryMouseModeDragDoesNotSelectLocally':True,'mouseProtocolForwarding':'not yet implemented'},indent=2));print('Empty paste and mouse-mode selection ownership passed')

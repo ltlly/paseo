@@ -1,0 +1,37 @@
+{
+  "source": "@xterm/xterm/src/browser/Clipboard.ts",
+  "version": "6.1.0-beta.292",
+  "sourceSha256": "84b9ec58910052de1f5ea4b5d3ffc5a2bce9dbe2e8a14ff7f64f6dcde342328d",
+  "pastes": [
+    {
+      "text": "a\r\nb\nc\rd",
+      "bracketed": false,
+      "value": "a\rb\rc\rd"
+    },
+    {
+      "text": "ESC\u001b[201~中",
+      "bracketed": false,
+      "value": "ESC\u001b[201~中"
+    },
+    {
+      "text": "",
+      "bracketed": false,
+      "value": ""
+    },
+    {
+      "text": "a\r\nb\nc\rd",
+      "bracketed": true,
+      "value": "\u001b[200~a\rb\rc\rd\u001b[201~"
+    },
+    {
+      "text": "ESC\u001b[201~中",
+      "bracketed": true,
+      "value": "\u001b[200~ESC␛[201~中\u001b[201~"
+    },
+    {
+      "text": "",
+      "bracketed": true,
+      "value": "\u001b[200~\u001b[201~"
+    }
+  ]
+}

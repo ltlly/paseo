@@ -1,0 +1,6 @@
+{
+  "emptyPasteKeepsSelection": true,
+  "shiftForcesSelectionInMouseModeLinux": true,
+  "ordinaryMouseModeDragDoesNotSelectLocally": true,
+  "mouseProtocolForwarding": "not yet implemented"
+}

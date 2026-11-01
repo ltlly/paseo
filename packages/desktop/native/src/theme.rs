@@ -89,4 +89,8 @@ pub mod radius {
     pub const FULL: f32 = 9999.0;
 }
 
+pub mod terminal_selection {
+    pub const BACKGROUND: u32 = 0xffffff33;
+    pub const FOREGROUND: u32 = 0xfafafa;
+}
 pub const CONTENT_MAX_WIDTH: f32 = 820.0;

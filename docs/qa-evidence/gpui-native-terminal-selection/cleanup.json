@@ -1,0 +1,12 @@
+{
+  "nativeWindowsClosed": true,
+  "oracleBrowserClosed": true,
+  "fixtureStopped": true,
+  "fixtureHomeRemoved": true,
+  "qaDisplayAndWindowManagerStopped": true,
+  "production6767Untouched": true,
+  "installedClientsUntouched": true,
+  "androidSourceUnchanged": true,
+  "finalSourceSmokeFixtureAndHomeRemoved": true,
+  "finalSourceSmokeDisplayStopped": true
+}

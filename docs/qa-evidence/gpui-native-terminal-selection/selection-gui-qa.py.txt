@@ -1,0 +1,34 @@
+import sys;sys.path.insert(0,'/home/ltlly/.cache/paseo-native-qa')
+from retention_qa import *
+import base64
+m=json.loads((r/'composer.json').read_text());ids=m['terminals'];labels=sorted(['A','B','C','D'],key=lambda v:ids[v])
+def data():
+ p=Path(m['dir'])/'input-A.jsonl';return b''.join(base64.b64decode(json.loads(v)['base64']) for v in p.read_text().splitlines()) if p.exists() else b''
+def key(*keys):run('python',str(r/'input.py'),'key',*keys);time.sleep(.12)
+def drag(x1,y1,x2,y2):
+ w=json.loads(run('python',str(r/'window-state.py')));run('python',str(r/'input.py'),'drag',str(w['x']+x1),str(w['y']+y1),str(w['x']+x2),str(w['y']+y2))
+def clipboard():return json.loads(run('python',str(r/'read-clipboard.py')))
+def set_clip(text):
+ request={'id':str(time.time_ns()),'op':'clipboard','text':text};(r/'selection-reference-command.json').write_text(json.dumps(request))
+ for _ in range(700):
+  p=r/'selection-reference-result.json'
+  if p.exists():
+   v=json.loads(p.read_text())
+   if v['id']==request['id']:assert v['ok'] and v['result']==text,v;return
+  time.sleep(.03)
+ raise AssertionError('clipboard owner timeout')
+def tab(label):native_click(round(368+93.5*labels.index(label)),53)
+run('node','--import','tsx',str(r/'retention-sdk.mts'),'input','A','n');time.sleep(.2)
+tab('B');time.sleep(.2);tab('A');time.sleep(.2)
+# Reverse drag and copying both Linux shortcuts.
+drag(362,82,321,82);before=data();key('Control_L','c');assert clipboard()=='PASEO';assert data()==before
+key('Control_L','Shift_L','c');assert clipboard()=='PASEO';assert data()==before;snapshot('selection-native-reverse')
+# Selection lives in the retained terminal rather than the active tab element.
+start=len(stats()['requests']);tab('B');time.sleep(.2);tab('A');time.sleep(.2);key('Control_L','c');assert clipboard()=='PASEO';assert len([v for v in stats()['requests'][start:] if v['type']=='subscribe_terminal_request'])==0
+native_click(900,82);before=data();key('Control_L','c');assert data()[len(before):]==b'\x03';before=data();key('Control_L','Shift_L','c');assert data()==before
+set_clip('XY\nZ\r\n中');before=data();key('Control_L','v');assert data()[len(before):]=='XY\rZ\r中'.encode(),repr(data()[len(before):]);snapshot('selection-native-pasted')
+set_clip('');before=data();key('Control_L','v');assert data()==before
+run('node','--import','tsx',str(r/'retention-sdk.mts'),'input','A','p');time.sleep(.2);set_clip('X\n\x1b[201~中');before=data();key('Control_L','Shift_L','v');expected='\x1b[200~X\r␛[201~中\x1b[201~'.encode();assert data()[len(before):]==expected,repr(data()[len(before):])
+# Typing clears selected cells even when a raw fixture does not echo the bytes.
+drag(321,82,362,82);key('Control_L','c');assert clipboard()=='PASEO';before=data();run('python',str(r/'input.py'),'type','z');time.sleep(.15);assert data()[len(before):]==b'z';snapshot('selection-native-cleared-by-input')
+(r/'selection-gui.json').write_text(json.dumps({'reverseDragCopy':'PASEO','copyDoesNotSendBytes':True,'ctrlShiftCopySupported':True,'selectionRetainedAcrossTabSwitch':True,'ctrlCWithoutSelection':'03','ctrlShiftCWithoutSelectionSendsNothing':True,'ordinaryPasteHex':'XY\rZ\r中'.encode().hex(),'emptyClipboardSendsNothing':True,'bracketedPasteHex':expected.hex(),'actualTypedInputClearsSelection':True},indent=2));print('Native clipboard, key semantics, input clearing and retention passed')

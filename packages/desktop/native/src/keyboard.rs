@@ -104,9 +104,57 @@ fn control_character(key: &str) -> Option<u8> {
     }
 }
 
+pub fn paste(text: &str, bracketed: bool) -> String {
+    let text = text.replace("\r\n", "\r").replace('\n', "\r");
+    if bracketed {
+        format!("\x1b[200~{}\x1b[201~", text.replace('\x1b', "␛"))
+    } else {
+        text
+    }
+}
+
+/// Format canonical terminal selection text for the OS clipboard, like xterm.
+pub fn clipboard_text(mut text: String, windows: bool) -> String {
+    if text.contains('\u{a0}') {
+        text = text.replace('\u{a0}', " ");
+    }
+    if windows && text.contains('\n') {
+        text = text.replace('\n', "\r\n");
+    }
+    text
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clipboard_paste_matches_xterm_line_endings_and_visible_escape_sanitization() {
+        let oracle: serde_json::Value =
+            serde_json::from_str(include_str!("testdata/terminal-clipboard.json")).unwrap();
+        for case in oracle["pastes"].as_array().unwrap() {
+            assert_eq!(
+                paste(
+                    case["text"].as_str().unwrap(),
+                    case["bracketed"].as_bool().unwrap()
+                ),
+                case["value"].as_str().unwrap()
+            );
+        }
+        assert_eq!(paste("a\r\nb\nc\rd", false), "a\rb\rc\rd");
+        assert_eq!(
+            paste("a\r\nb\n\x1b[201~中", true),
+            "\x1b[200~a\rb\r␛[201~中\x1b[201~"
+        );
+        assert_eq!(paste("\x1b[31m", false), "\x1b[31m");
+    }
+
+    #[test]
+    fn copied_terminal_text_normalizes_nonbreaking_spaces_and_windows_line_endings() {
+        assert_eq!(clipboard_text("中\u{a0}a\nb".into(), false), "中 a\nb");
+        assert_eq!(clipboard_text("中\u{a0}a\nb".into(), true), "中 a\r\nb");
+        assert_eq!(clipboard_text("  a  ".into(), true), "  a  ");
+    }
 
     #[test]
     fn application_cursor_and_modifier_sequences_remain_distinct() {

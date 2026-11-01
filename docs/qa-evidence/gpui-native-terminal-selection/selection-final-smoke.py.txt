@@ -1,0 +1,9 @@
+import sys;sys.path.insert(0,'/home/ltlly/.cache/paseo-native-qa')
+from retention_qa import *
+import base64
+m=json.loads((r/'composer.json').read_text());w=json.loads(run('python',str(r/'window-state.py')));run('python',str(r/'input.py'),'drag',str(w['x']+321),str(w['y']+82),str(w['x']+438),str(w['y']+82));run('python',str(r/'input.py'),'key','Control_L','c');time.sleep(.15);value=json.loads(run('python',str(r/'read-clipboard.py')));assert value=='PASEO TERMINAL',repr(value);snapshot('selection-final-normalized-copy')
+def data():
+ p=Path(m['dir']+'/input-A.jsonl');return b''.join(base64.b64decode(json.loads(v)['base64']) for v in p.read_text().splitlines()) if p.exists() else b''
+assert data()==b'';run('python',str(r/'input.py'),'key','Control_L','v');time.sleep(.2);assert data()==b'PASEO TERMINAL',repr(data());run('python',str(r/'input.py'),'key','Control_L','c');time.sleep(.15);assert data()==b'PASEO TERMINAL\x03';snapshot('selection-final-cleared')
+(r/'selection-final-gui.json').write_text(json.dumps({'sourceArchiveSha256':(r/'selection-source.sha256').read_text().strip(),'selectedBufferText':'PASEO\u00a0TERMINAL','actualClipboardText':value,'copySendsNoPtyBytes':True,'pasteOwnClipboardBytesHex':b'PASEO TERMINAL'.hex(),'ctrlCOnceSelectionClearedHex':'03','finalSourceVerified':True},indent=2));print('Final-source copy normalizes NBSP, pastes own OS clipboard and preserves Ctrl+C semantics')
+run('node','--import','tsx',str(r/'retention-sdk.mts'),'list');before=json.loads((r/'retention-terminals.json').read_text());run('python',str(r/'input.py'),'close');time.sleep(.2);run('node','--import','tsx',str(r/'retention-sdk.mts'),'list');after=json.loads((r/'retention-terminals.json').read_text());assert {v['id'] for v in before['terminals']}=={v['id'] for v in after['terminals']}

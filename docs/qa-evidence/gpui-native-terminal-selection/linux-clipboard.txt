@@ -1,0 +1,1 @@
+Native clipboard, key semantics, input clearing and retention passed

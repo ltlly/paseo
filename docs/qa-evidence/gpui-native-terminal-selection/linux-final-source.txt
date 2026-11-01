@@ -1,0 +1,1 @@
+Final-source copy normalizes NBSP, pastes own OS clipboard and preserves Ctrl+C semantics
