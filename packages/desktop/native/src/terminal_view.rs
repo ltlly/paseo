@@ -33,6 +33,9 @@ pub struct TerminalView {
     wheel_remainder: f32,
     marked: String,
     error: Option<String>,
+    visible: bool,
+    opening: bool,
+    needs_claim: bool,
 }
 
 impl TerminalView {
@@ -60,13 +63,70 @@ impl TerminalView {
             wheel_remainder: 0.,
             marked: String::new(),
             error: None,
+            visible: true,
+            opening: false,
+            needs_claim: true,
         }
     }
 
+    // Slot binding can still be in flight when a workspace is left. The daemon's
+    // ID-addressed input lane preserves the already-committed bytes before unsubscribe.
+    pub fn prepare_detach(&mut self) -> Result<()> {
+        if !self.pending_input.is_empty() {
+            let text = std::str::from_utf8(&self.pending_input)?;
+            self.connection.send_session(json!({"type":"terminal_input","terminalId":self.terminal_id,"message":{"type":"input","data":text}}))?;
+            self.pending_input.clear();
+        }
+        Ok(())
+    }
+    pub fn slot(&self) -> Option<u8> {
+        self.slot
+    }
+    pub fn can_release(&self) -> bool {
+        !self.opening && self.pending_input.is_empty()
+    }
+    pub fn owns_request(&self, payload: &Value) -> bool {
+        self.opening
+            && self
+                .request_id
+                .as_ref()
+                .is_some_and(|id| payload["requestId"].as_str() == Some(id.as_str()))
+    }
+    pub fn visible(&mut self, visible: bool, cx: &mut Context<Self>) {
+        if self.visible != visible {
+            self.visible = visible;
+            if visible {
+                cx.notify();
+            }
+        }
+    }
+    pub fn request_claim(&mut self, cx: &mut Context<Self>) {
+        self.needs_claim = true;
+        self.notify_visible(cx);
+    }
+    pub fn activate(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.error.is_some() && self.slot.is_none() && !self.opening {
+            self.connection
+                .unsubscribe(&format!("terminal:{}", self.terminal_id));
+            self.request_id = None;
+            self.error = None;
+            self.replay_ready = false;
+        }
+        self.visible = window.is_visible();
+        self.needs_claim = true;
+        self.focus.focus(window, cx);
+        cx.notify();
+    }
+    fn notify_visible(&self, cx: &mut Context<Self>) {
+        if self.visible {
+            cx.notify();
+        }
+    }
     pub fn bind(&mut self, payload: &Value, cx: &mut Context<Self>) -> bool {
-        if payload["requestId"].as_str() != self.request_id.as_deref() {
+        if !self.owns_request(payload) {
             return false;
         }
+        self.opening = false;
         if let Some(error) = payload["error"].as_str() {
             self.error = Some(error.into());
         } else {
@@ -74,7 +134,7 @@ impl TerminalView {
                 .as_u64()
                 .and_then(|slot| u8::try_from(slot).ok());
         }
-        cx.notify();
+        self.notify_visible(cx);
         true
     }
 
@@ -91,10 +151,13 @@ impl TerminalView {
                 self.replay_ready = true;
             }
             self.resize_if_ready()?;
+            if self.needs_claim {
+                self.claim(cx);
+            }
             self.flush_input()
         });
         self.finish(result, cx);
-        cx.notify();
+        self.notify_visible(cx);
     }
 
     fn measure(&mut self, bounds: Bounds<Pixels>, width: Pixels, cx: &mut Context<Self>) {
@@ -107,14 +170,28 @@ impl TerminalView {
         self.desired_size = GridSize { rows, cols };
         if self.request_id.is_none() {
             self.buffer.resize(self.desired_size);
-            let result = self.connection.request("subscribe_terminal_request", json!({"terminalId":self.terminal_id,"restore":{"mode":"full-snapshot","scrollbackLines":10_000,"size":{"rows":rows,"cols":cols}}}));
+            let result = self.connection.subscribe(&format!("terminal:{}", self.terminal_id), "subscribe_terminal_request", json!({"terminalId":self.terminal_id,"restore":{"mode":"full-snapshot","scrollbackLines":10_000,"size":{"rows":rows,"cols":cols}}}));
             match result {
-                Ok(id) => self.request_id = Some(id),
+                Ok(id) => {
+                    self.request_id = Some(id.clone());
+                    self.opening = true;
+                    let timer = cx
+                        .background_executor()
+                        .timer(std::time::Duration::from_secs(30));
+                    cx.spawn(async move |this,cx|{timer.await;let _=this.update(cx,|this,cx|{
+                        if this.opening && this.request_id.as_ref()==Some(&id){
+                            this.opening=false;this.error=Some("Timed out opening this terminal. Select the tab again to retry.".into());this.notify_visible(cx);
+                        }
+                    });}).detach();
+                }
                 Err(error) => self.error = Some(error.to_string()),
             }
         } else {
             let result = self.resize_if_ready();
             self.finish(result, cx);
+            if self.needs_claim {
+                self.claim(cx);
+            }
         }
     }
 
@@ -122,7 +199,11 @@ impl TerminalView {
         let Some(slot) = self.slot else {
             return Ok(());
         };
-        if !self.replay_ready || self.buffer.replaying || self.desired_size == self.buffer.size {
+        if !self.visible
+            || !self.replay_ready
+            || self.buffer.replaying
+            || self.desired_size == self.buffer.size
+        {
             return Ok(());
         }
         self.buffer.resize(self.desired_size);
@@ -130,14 +211,20 @@ impl TerminalView {
     }
 
     fn claim(&mut self, cx: &mut Context<Self>) {
-        if !self.replay_ready {
+        if !self.visible || !self.replay_ready || self.buffer.replaying {
             return;
         }
         let result = self.connection.send_session(json!({"type":"terminal_input","terminalId":self.terminal_id,"message":{"type":"resize","rows":self.desired_size.rows,"cols":self.desired_size.cols,"intent":"claim"}}));
+        if result.is_ok() {
+            self.needs_claim = false;
+        }
         self.finish(result, cx);
     }
 
     fn send_input(&mut self, text: &str, cx: &mut Context<Self>) {
+        if self.needs_claim {
+            self.claim(cx);
+        }
         let result = (|| {
             ensure!(
                 self.pending_input.len() + text.len() <= 1024 * 1024,
@@ -168,7 +255,7 @@ impl TerminalView {
     fn finish(&mut self, result: Result<()>, cx: &mut Context<Self>) {
         if let Err(error) = result {
             self.error = Some(error.to_string());
-            cx.notify();
+            self.notify_visible(cx);
         }
     }
 
@@ -255,9 +342,8 @@ impl TerminalView {
 
 impl Drop for TerminalView {
     fn drop(&mut self) {
-        let _ = self.connection.send_session(
-            json!({"type":"unsubscribe_terminal_request","terminalId":self.terminal_id}),
-        );
+        self.connection
+            .unsubscribe(&format!("terminal:{}", self.terminal_id));
     }
 }
 

@@ -1,0 +1,8 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+#< CLIXML
+Verified source archive d2b9e24287a073d6e32c8e0e2fae0ea15ec203a2e3f29cf0f7f913ae9ba3eaf1
+    Checking paseo-desktop v0.14.0 (C:\Users\Administrator\.cache\paseo-gpui-check-terminal-retention\packages\desktop\native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.51s
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><Obj S="progress" RefId="0"><TN RefId="0"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>正在准备首次使用模块。</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>

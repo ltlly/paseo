@@ -1,0 +1,1158 @@
+{
+  "requests": [
+    {
+      "time": 1793525813628,
+      "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+      "restore": {
+        "mode": "full-snapshot",
+        "scrollbackLines": 10000,
+        "size": {
+          "rows": 36,
+          "cols": 114
+        }
+      },
+      "type": "subscribe_terminal_request",
+      "requestId": "05fa855f-9181-47b2-bfea-623131374c9f"
+    },
+    {
+      "time": 1793525844376,
+      "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+      "restore": {
+        "mode": "full-snapshot",
+        "scrollbackLines": 10000,
+        "size": {
+          "rows": 36,
+          "cols": 114
+        }
+      },
+      "type": "subscribe_terminal_request",
+      "requestId": "27a32fa9-daae-417a-acaf-21cdeff319f0"
+    },
+    {
+      "time": 1793525844632,
+      "type": "subscription.release.request",
+      "requestId": "3d79cfdc-546c-4691-8793-4e0caf8b2d60",
+      "subscriptionId": "135a6761-a5f6-4ef7-b1f7-e43667ca756d"
+    },
+    {
+      "time": 1793525844635,
+      "type": "terminal_input",
+      "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+      "message": {
+        "type": "resize",
+        "rows": 36,
+        "cols": 114,
+        "intent": "claim"
+      }
+    }
+  ],
+  "realTimeoutSeconds": 30,
+  "retrySameTerminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+  "stats": {
+    "requests": [
+      {
+        "time": 1793525780858,
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+        "workspaceId": "wks_5b05d037cc13c8b0",
+        "type": "subscribe_terminals_request",
+        "requestId": "0ec5680d-1377-4485-97e0-09131400d3b9"
+      },
+      {
+        "time": 1793525794090,
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project/secondary",
+        "workspaceId": "wks_2fa9ee81cf607647",
+        "type": "subscribe_terminals_request",
+        "requestId": "1baf31eb-70a0-45ff-83e8-a623ea3e3686"
+      },
+      {
+        "time": 1793525794091,
+        "type": "subscription.release.request",
+        "requestId": "db796b0a-59e7-4701-8074-73434cd6418f",
+        "subscriptionId": "7ee79c64-8476-4f98-876c-01566a6b43c2"
+      },
+      {
+        "time": 1793525794578,
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+        "workspaceId": "wks_5b05d037cc13c8b0",
+        "type": "subscribe_terminals_request",
+        "requestId": "63c49e6c-de7b-4d2b-9779-b307daf3e979"
+      },
+      {
+        "time": 1793525794579,
+        "type": "subscription.release.request",
+        "requestId": "dbf426cc-dba7-42fa-8cd1-79ce82a2935f",
+        "subscriptionId": "4c3eadf4-e1d2-4e8d-ac9c-e5feb86003d9"
+      },
+      {
+        "time": 1793525795084,
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "4a89f0fe-191a-4ab8-8830-9314215ea954"
+      },
+      {
+        "time": 1793525795151,
+        "type": "terminal_input",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525795916,
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "ae3fafd3-59b0-4110-9db7-5312cc0dd18e"
+      },
+      {
+        "time": 1793525795969,
+        "type": "terminal_input",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525796183,
+        "type": "terminal_input",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525796407,
+        "type": "terminal_input",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525796632,
+        "type": "terminal_input",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525796840,
+        "type": "terminal_input",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525797047,
+        "type": "terminal_input",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525797288,
+        "type": "terminal_input",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525797527,
+        "type": "terminal_input",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525797735,
+        "type": "terminal_input",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525797943,
+        "type": "terminal_input",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525798552,
+        "type": "terminal_input",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525799576,
+        "type": "terminal_input",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525801242,
+        "terminalId": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "efc8de62-6ef0-4536-bce9-e8e9fec617e7"
+      },
+      {
+        "time": 1793525801292,
+        "type": "terminal_input",
+        "terminalId": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525801677,
+        "type": "subscription.release.request",
+        "requestId": "7f59f336-091f-48ef-ac9f-2fe7747eb889",
+        "subscriptionId": "455397fb-9764-410a-a924-43141dd7fda2"
+      },
+      {
+        "time": 1793525801691,
+        "terminalId": "015de710-24f1-43a1-b0b2-329dc1c63793",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "ff7125f5-835b-4091-9f5f-f32bdbd2d5bc"
+      },
+      {
+        "time": 1793525801744,
+        "type": "terminal_input",
+        "terminalId": "015de710-24f1-43a1-b0b2-329dc1c63793",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525802071,
+        "type": "terminal_input",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525802439,
+        "type": "terminal_input",
+        "terminalId": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525802805,
+        "type": "subscription.release.request",
+        "requestId": "4388e121-cb50-468a-8c59-257b259a0b22",
+        "subscriptionId": "990ca843-8f10-4021-8f9d-7cf1add60783"
+      },
+      {
+        "time": 1793525802810,
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "929899d6-8cc5-46ec-a38a-60341355be6d"
+      },
+      {
+        "time": 1793525802818,
+        "type": "terminal_input",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525803424,
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project/secondary",
+        "workspaceId": "wks_2fa9ee81cf607647",
+        "type": "subscribe_terminals_request",
+        "requestId": "386d5c9d-cbfd-42a5-a04d-1bc0838f5d03"
+      },
+      {
+        "time": 1793525803424,
+        "type": "subscription.release.request",
+        "requestId": "b1049a44-e2d0-4d04-b237-774279393f4c",
+        "subscriptionId": "66ba7fe7-f432-4f7e-bf97-b51aa427126d"
+      },
+      {
+        "time": 1793525803424,
+        "type": "subscription.release.request",
+        "requestId": "7fb9b647-e4fa-4098-8684-48a63adeeefe",
+        "subscriptionId": "bb45ee43-9060-47b4-8f05-d0039d6f2887"
+      },
+      {
+        "time": 1793525803424,
+        "type": "subscription.release.request",
+        "requestId": "1af860be-c6b6-4c38-be77-df92335c9154",
+        "subscriptionId": "b03aca93-4b9a-4fbd-9057-66815fd7b62f"
+      },
+      {
+        "time": 1793525803436,
+        "type": "subscription.release.request",
+        "requestId": "1ea224ec-cc3c-4e45-a3d2-6e0b7e93afe2",
+        "subscriptionId": "0cd42f78-aa14-4742-af9a-5c684c5bc80d"
+      },
+      {
+        "time": 1793525803890,
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+        "workspaceId": "wks_5b05d037cc13c8b0",
+        "type": "subscribe_terminals_request",
+        "requestId": "10b58d4e-c7d5-4b71-a18c-1b7f70d6b610"
+      },
+      {
+        "time": 1793525803891,
+        "type": "subscription.release.request",
+        "requestId": "62af131d-ddc8-432d-ab27-53d75e39479a",
+        "subscriptionId": "00bec4b5-cb65-4586-947c-0be124d1bfeb"
+      },
+      {
+        "time": 1793525804426,
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "5417ad9c-ba04-4803-822c-0dce032bc124"
+      },
+      {
+        "time": 1793525804763,
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "14042e5b-1f11-4ac7-9851-334708f03f51"
+      },
+      {
+        "time": 1793525805045,
+        "type": "terminal_input",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "message": {
+          "type": "input",
+          "data": "earlyb"
+        }
+      },
+      {
+        "time": 1793525805045,
+        "type": "terminal_input",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "message": {
+          "type": "input",
+          "data": "earlya"
+        }
+      },
+      {
+        "time": 1793525805045,
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project/secondary",
+        "workspaceId": "wks_2fa9ee81cf607647",
+        "type": "subscribe_terminals_request",
+        "requestId": "591e084e-99ee-4144-9319-23642746f887"
+      },
+      {
+        "time": 1793525805045,
+        "type": "subscription.release.request",
+        "requestId": "d6a761be-e9a4-46f1-b305-ba37abd55e75",
+        "subscriptionId": "fc8c6786-9e45-466f-b49a-7d43d4cb1384"
+      },
+      {
+        "time": 1793525805384,
+        "type": "subscription.release.request",
+        "requestId": "39957f9b-6d82-46da-ab2d-227a4ac0854f",
+        "subscriptionId": "9077b198-badd-49d0-ba21-16f7aad6167e"
+      },
+      {
+        "time": 1793525805385,
+        "type": "subscription.release.request",
+        "requestId": "d5bc51d2-11bf-494c-9df3-6a20d0739218",
+        "subscriptionId": "b4607158-1d14-451c-960b-8d5888e1a242"
+      },
+      {
+        "time": 1793525805979,
+        "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "f4c11821-36bb-45da-95be-c15617c0cf29"
+      },
+      {
+        "time": 1793525806033,
+        "type": "terminal_input",
+        "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525806909,
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+        "workspaceId": "wks_5b05d037cc13c8b0",
+        "type": "subscribe_terminals_request",
+        "requestId": "7659ab21-4aa5-417b-b087-44879d2e6dcb"
+      },
+      {
+        "time": 1793525806909,
+        "type": "subscription.release.request",
+        "requestId": "abc94454-a22c-45ce-bffd-1d7eab2fd499",
+        "subscriptionId": "f2fc6e1c-c3a1-48f9-976f-5b243d3e0d6a"
+      },
+      {
+        "time": 1793525806924,
+        "type": "subscription.release.request",
+        "requestId": "902552ea-89d9-4fc2-a2f1-5445ec4612d8",
+        "subscriptionId": "1dbc7192-2045-44db-b261-2234a2dc4b68"
+      },
+      {
+        "time": 1793525807340,
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "a6428182-bfdd-4083-873b-b510bb01a591"
+      },
+      {
+        "time": 1793525807350,
+        "type": "terminal_input",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525807786,
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "359f319c-b504-45f2-8569-34b3fc6f968c"
+      },
+      {
+        "time": 1793525807794,
+        "type": "terminal_input",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525809201,
+        "type": "subscription.release.request",
+        "requestId": "ddf464b2-b274-4b2e-af8a-d5a080856658",
+        "subscriptionId": "104aed66-e439-4680-b47d-295739401487"
+      },
+      {
+        "time": 1793525810183,
+        "type": "terminal_input",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      },
+      {
+        "time": 1793525811244,
+        "type": "subscription.release.request",
+        "requestId": "6384e796-8527-4d28-b407-c9208a99ae3d",
+        "subscriptionId": "1a7cd073-6f7d-4e21-b1fe-6f5f8a573559"
+      },
+      {
+        "time": 1793525813005,
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project/secondary",
+        "workspaceId": "wks_2fa9ee81cf607647",
+        "type": "subscribe_terminals_request",
+        "requestId": "6f89308b-3fca-4b73-b1ca-4fc7a994beeb"
+      },
+      {
+        "time": 1793525813006,
+        "type": "subscription.release.request",
+        "requestId": "873a75a1-c960-495f-86b1-131eebca37c2",
+        "subscriptionId": "71561387-2fc9-4839-aa23-07189f3f5db2"
+      },
+      {
+        "time": 1793525813628,
+        "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "05fa855f-9181-47b2-bfea-623131374c9f"
+      },
+      {
+        "time": 1793525844376,
+        "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+        "restore": {
+          "mode": "full-snapshot",
+          "scrollbackLines": 10000,
+          "size": {
+            "rows": 36,
+            "cols": 114
+          }
+        },
+        "type": "subscribe_terminal_request",
+        "requestId": "27a32fa9-daae-417a-acaf-21cdeff319f0"
+      },
+      {
+        "time": 1793525844632,
+        "type": "subscription.release.request",
+        "requestId": "3d79cfdc-546c-4691-8793-4e0caf8b2d60",
+        "subscriptionId": "135a6761-a5f6-4ef7-b1f7-e43667ca756d"
+      },
+      {
+        "time": 1793525844635,
+        "type": "terminal_input",
+        "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+        "message": {
+          "type": "resize",
+          "rows": 36,
+          "cols": 114,
+          "intent": "claim"
+        }
+      }
+    ],
+    "replies": [
+      {
+        "time": 1793525780859,
+        "type": "terminals_changed",
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+        "workspaceId": "wks_5b05d037cc13c8b0",
+        "terminals": [
+          {
+            "id": "c9cde061-75f3-45cb-9587-46820bd74b14",
+            "name": "Cache A",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs A",
+            "activity": null
+          },
+          {
+            "id": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+            "name": "Cache B",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs B",
+            "activity": null
+          },
+          {
+            "id": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+            "name": "Cache C",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs C",
+            "activity": null
+          },
+          {
+            "id": "015de710-24f1-43a1-b0b2-329dc1c63793",
+            "name": "Cache D",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs D",
+            "activity": null
+          }
+        ],
+        "requestId": "0ec5680d-1377-4485-97e0-09131400d3b9",
+        "subscriptionId": "7ee79c64-8476-4f98-876c-01566a6b43c2"
+      },
+      {
+        "time": 1793525794091,
+        "type": "terminals_changed",
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project/secondary",
+        "workspaceId": "wks_2fa9ee81cf607647",
+        "terminals": [
+          {
+            "id": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+            "name": "Cache E",
+            "workspaceId": "wks_2fa9ee81cf607647",
+            "title": "pty-fixture.cjs E",
+            "activity": null
+          }
+        ],
+        "requestId": "1baf31eb-70a0-45ff-83e8-a623ea3e3686",
+        "subscriptionId": "4c3eadf4-e1d2-4e8d-ac9c-e5feb86003d9"
+      },
+      {
+        "time": 1793525794092,
+        "type": "subscription.release.response",
+        "requestId": "db796b0a-59e7-4701-8074-73434cd6418f",
+        "subscriptionId": "7ee79c64-8476-4f98-876c-01566a6b43c2"
+      },
+      {
+        "time": 1793525794579,
+        "type": "terminals_changed",
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+        "workspaceId": "wks_5b05d037cc13c8b0",
+        "terminals": [
+          {
+            "id": "c9cde061-75f3-45cb-9587-46820bd74b14",
+            "name": "Cache A",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs A",
+            "activity": null
+          },
+          {
+            "id": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+            "name": "Cache B",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs B",
+            "activity": null
+          },
+          {
+            "id": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+            "name": "Cache C",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs C",
+            "activity": null
+          },
+          {
+            "id": "015de710-24f1-43a1-b0b2-329dc1c63793",
+            "name": "Cache D",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs D",
+            "activity": null
+          }
+        ],
+        "requestId": "63c49e6c-de7b-4d2b-9779-b307daf3e979",
+        "subscriptionId": "b03aca93-4b9a-4fbd-9057-66815fd7b62f"
+      },
+      {
+        "time": 1793525794579,
+        "type": "subscription.release.response",
+        "requestId": "dbf426cc-dba7-42fa-8cd1-79ce82a2935f",
+        "subscriptionId": "4c3eadf4-e1d2-4e8d-ac9c-e5feb86003d9"
+      },
+      {
+        "time": 1793525795088,
+        "type": "subscribe_terminal_response",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "slot": 0,
+        "subscriptionId": "bb45ee43-9060-47b4-8f05-d0039d6f2887",
+        "error": null,
+        "requestId": "4a89f0fe-191a-4ab8-8830-9314215ea954"
+      },
+      {
+        "time": 1793525795918,
+        "type": "subscribe_terminal_response",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "slot": 1,
+        "subscriptionId": "455397fb-9764-410a-a924-43141dd7fda2",
+        "error": null,
+        "requestId": "ae3fafd3-59b0-4110-9db7-5312cc0dd18e"
+      },
+      {
+        "time": 1793525801243,
+        "type": "subscribe_terminal_response",
+        "terminalId": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+        "slot": 2,
+        "subscriptionId": "66ba7fe7-f432-4f7e-bf97-b51aa427126d",
+        "error": null,
+        "requestId": "efc8de62-6ef0-4536-bce9-e8e9fec617e7"
+      },
+      {
+        "time": 1793525801678,
+        "type": "subscription.release.response",
+        "requestId": "7f59f336-091f-48ef-ac9f-2fe7747eb889",
+        "subscriptionId": "455397fb-9764-410a-a924-43141dd7fda2"
+      },
+      {
+        "time": 1793525801692,
+        "type": "subscribe_terminal_response",
+        "terminalId": "015de710-24f1-43a1-b0b2-329dc1c63793",
+        "slot": 3,
+        "subscriptionId": "990ca843-8f10-4021-8f9d-7cf1add60783",
+        "error": null,
+        "requestId": "ff7125f5-835b-4091-9f5f-f32bdbd2d5bc"
+      },
+      {
+        "time": 1793525802806,
+        "type": "subscription.release.response",
+        "requestId": "4388e121-cb50-468a-8c59-257b259a0b22",
+        "subscriptionId": "990ca843-8f10-4021-8f9d-7cf1add60783"
+      },
+      {
+        "time": 1793525802811,
+        "type": "subscribe_terminal_response",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "slot": 4,
+        "subscriptionId": "0cd42f78-aa14-4742-af9a-5c684c5bc80d",
+        "error": null,
+        "requestId": "929899d6-8cc5-46ec-a38a-60341355be6d"
+      },
+      {
+        "time": 1793525803425,
+        "type": "subscription.release.response",
+        "requestId": "b1049a44-e2d0-4d04-b237-774279393f4c",
+        "subscriptionId": "66ba7fe7-f432-4f7e-bf97-b51aa427126d"
+      },
+      {
+        "time": 1793525803425,
+        "type": "subscription.release.response",
+        "requestId": "7fb9b647-e4fa-4098-8684-48a63adeeefe",
+        "subscriptionId": "bb45ee43-9060-47b4-8f05-d0039d6f2887"
+      },
+      {
+        "time": 1793525803425,
+        "type": "subscription.release.response",
+        "requestId": "1af860be-c6b6-4c38-be77-df92335c9154",
+        "subscriptionId": "b03aca93-4b9a-4fbd-9057-66815fd7b62f"
+      },
+      {
+        "time": 1793525803425,
+        "type": "terminals_changed",
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project/secondary",
+        "workspaceId": "wks_2fa9ee81cf607647",
+        "terminals": [
+          {
+            "id": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+            "name": "Cache E",
+            "workspaceId": "wks_2fa9ee81cf607647",
+            "title": "pty-fixture.cjs E",
+            "activity": null
+          }
+        ],
+        "requestId": "386d5c9d-cbfd-42a5-a04d-1bc0838f5d03",
+        "subscriptionId": "00bec4b5-cb65-4586-947c-0be124d1bfeb"
+      },
+      {
+        "time": 1793525803437,
+        "type": "subscription.release.response",
+        "requestId": "1ea224ec-cc3c-4e45-a3d2-6e0b7e93afe2",
+        "subscriptionId": "0cd42f78-aa14-4742-af9a-5c684c5bc80d"
+      },
+      {
+        "time": 1793525803891,
+        "type": "terminals_changed",
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+        "workspaceId": "wks_5b05d037cc13c8b0",
+        "terminals": [
+          {
+            "id": "c9cde061-75f3-45cb-9587-46820bd74b14",
+            "name": "Cache A",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs A",
+            "activity": null
+          },
+          {
+            "id": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+            "name": "Cache B",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs B",
+            "activity": null
+          },
+          {
+            "id": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+            "name": "Cache C",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs C",
+            "activity": null
+          },
+          {
+            "id": "015de710-24f1-43a1-b0b2-329dc1c63793",
+            "name": "Cache D",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs D",
+            "activity": null
+          }
+        ],
+        "requestId": "10b58d4e-c7d5-4b71-a18c-1b7f70d6b610",
+        "subscriptionId": "fc8c6786-9e45-466f-b49a-7d43d4cb1384"
+      },
+      {
+        "time": 1793525803891,
+        "type": "subscription.release.response",
+        "requestId": "62af131d-ddc8-432d-ab27-53d75e39479a",
+        "subscriptionId": "00bec4b5-cb65-4586-947c-0be124d1bfeb"
+      },
+      {
+        "time": 1793525804426,
+        "type": "subscribe_terminal_response",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "slot": 5,
+        "subscriptionId": "9077b198-badd-49d0-ba21-16f7aad6167e",
+        "error": null,
+        "requestId": "5417ad9c-ba04-4803-822c-0dce032bc124"
+      },
+      {
+        "time": 1793525804764,
+        "type": "subscribe_terminal_response",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "slot": 6,
+        "subscriptionId": "b4607158-1d14-451c-960b-8d5888e1a242",
+        "error": null,
+        "requestId": "14042e5b-1f11-4ac7-9851-334708f03f51"
+      },
+      {
+        "time": 1793525805046,
+        "type": "subscription.release.response",
+        "requestId": "d6a761be-e9a4-46f1-b305-ba37abd55e75",
+        "subscriptionId": "fc8c6786-9e45-466f-b49a-7d43d4cb1384"
+      },
+      {
+        "time": 1793525805046,
+        "type": "terminals_changed",
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project/secondary",
+        "workspaceId": "wks_2fa9ee81cf607647",
+        "terminals": [
+          {
+            "id": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+            "name": "Cache E",
+            "workspaceId": "wks_2fa9ee81cf607647",
+            "title": "pty-fixture.cjs E",
+            "activity": null
+          }
+        ],
+        "requestId": "591e084e-99ee-4144-9319-23642746f887",
+        "subscriptionId": "f2fc6e1c-c3a1-48f9-976f-5b243d3e0d6a"
+      },
+      {
+        "time": 1793525805385,
+        "type": "subscription.release.response",
+        "requestId": "39957f9b-6d82-46da-ab2d-227a4ac0854f",
+        "subscriptionId": "9077b198-badd-49d0-ba21-16f7aad6167e"
+      },
+      {
+        "time": 1793525805385,
+        "type": "subscription.release.response",
+        "requestId": "d5bc51d2-11bf-494c-9df3-6a20d0739218",
+        "subscriptionId": "b4607158-1d14-451c-960b-8d5888e1a242"
+      },
+      {
+        "time": 1793525805980,
+        "type": "subscribe_terminal_response",
+        "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+        "slot": 7,
+        "subscriptionId": "1dbc7192-2045-44db-b261-2234a2dc4b68",
+        "error": null,
+        "requestId": "f4c11821-36bb-45da-95be-c15617c0cf29"
+      },
+      {
+        "time": 1793525806909,
+        "type": "subscription.release.response",
+        "requestId": "abc94454-a22c-45ce-bffd-1d7eab2fd499",
+        "subscriptionId": "f2fc6e1c-c3a1-48f9-976f-5b243d3e0d6a"
+      },
+      {
+        "time": 1793525806909,
+        "type": "terminals_changed",
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+        "workspaceId": "wks_5b05d037cc13c8b0",
+        "terminals": [
+          {
+            "id": "c9cde061-75f3-45cb-9587-46820bd74b14",
+            "name": "Cache A",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs A",
+            "activity": null
+          },
+          {
+            "id": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+            "name": "Cache B",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs B",
+            "activity": null
+          },
+          {
+            "id": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+            "name": "Cache C",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs C",
+            "activity": null
+          },
+          {
+            "id": "015de710-24f1-43a1-b0b2-329dc1c63793",
+            "name": "Cache D",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs D",
+            "activity": null
+          }
+        ],
+        "requestId": "7659ab21-4aa5-417b-b087-44879d2e6dcb",
+        "subscriptionId": "71561387-2fc9-4839-aa23-07189f3f5db2"
+      },
+      {
+        "time": 1793525806924,
+        "type": "subscription.release.response",
+        "requestId": "902552ea-89d9-4fc2-a2f1-5445ec4612d8",
+        "subscriptionId": "1dbc7192-2045-44db-b261-2234a2dc4b68"
+      },
+      {
+        "time": 1793525807341,
+        "type": "subscribe_terminal_response",
+        "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+        "slot": 8,
+        "subscriptionId": "104aed66-e439-4680-b47d-295739401487",
+        "error": null,
+        "requestId": "a6428182-bfdd-4083-873b-b510bb01a591"
+      },
+      {
+        "time": 1793525807787,
+        "type": "subscribe_terminal_response",
+        "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+        "slot": 9,
+        "subscriptionId": "1a7cd073-6f7d-4e21-b1fe-6f5f8a573559",
+        "error": null,
+        "requestId": "359f319c-b504-45f2-8569-34b3fc6f968c"
+      },
+      {
+        "time": 1793525809201,
+        "type": "terminals_changed",
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+        "workspaceId": "wks_5b05d037cc13c8b0",
+        "terminals": [
+          {
+            "id": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+            "name": "Cache B",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs B",
+            "activity": null
+          },
+          {
+            "id": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+            "name": "Cache C",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs C",
+            "activity": null
+          },
+          {
+            "id": "015de710-24f1-43a1-b0b2-329dc1c63793",
+            "name": "Cache D",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs D",
+            "activity": null
+          }
+        ],
+        "subscriptionId": "71561387-2fc9-4839-aa23-07189f3f5db2"
+      },
+      {
+        "time": 1793525809202,
+        "type": "subscription.release.response",
+        "requestId": "ddf464b2-b274-4b2e-af8a-d5a080856658",
+        "subscriptionId": "104aed66-e439-4680-b47d-295739401487"
+      },
+      {
+        "time": 1793525811233,
+        "type": "terminals_changed",
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+        "workspaceId": "wks_5b05d037cc13c8b0",
+        "terminals": [
+          {
+            "id": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+            "name": "Cache C",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs C",
+            "activity": null
+          },
+          {
+            "id": "015de710-24f1-43a1-b0b2-329dc1c63793",
+            "name": "Cache D",
+            "workspaceId": "wks_5b05d037cc13c8b0",
+            "title": "pty-fixture.cjs D",
+            "activity": null
+          }
+        ],
+        "subscriptionId": "71561387-2fc9-4839-aa23-07189f3f5db2"
+      },
+      {
+        "time": 1793525811244,
+        "type": "subscription.release.response",
+        "requestId": "6384e796-8527-4d28-b407-c9208a99ae3d",
+        "subscriptionId": "1a7cd073-6f7d-4e21-b1fe-6f5f8a573559"
+      },
+      {
+        "time": 1793525813005,
+        "type": "terminals_changed",
+        "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project/secondary",
+        "workspaceId": "wks_2fa9ee81cf607647",
+        "terminals": [
+          {
+            "id": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+            "name": "Cache E",
+            "workspaceId": "wks_2fa9ee81cf607647",
+            "title": "pty-fixture.cjs E",
+            "activity": null
+          }
+        ],
+        "requestId": "6f89308b-3fca-4b73-b1ca-4fc7a994beeb",
+        "subscriptionId": "3558901d-a279-4aa8-9df5-d81f8ff930fc"
+      },
+      {
+        "time": 1793525813006,
+        "type": "subscription.release.response",
+        "requestId": "873a75a1-c960-495f-86b1-131eebca37c2",
+        "subscriptionId": "71561387-2fc9-4839-aa23-07189f3f5db2"
+      },
+      {
+        "time": 1793525813630,
+        "type": "subscribe_terminal_response",
+        "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+        "slot": 10,
+        "subscriptionId": "135a6761-a5f6-4ef7-b1f7-e43667ca756d",
+        "error": null,
+        "requestId": "05fa855f-9181-47b2-bfea-623131374c9f"
+      },
+      {
+        "time": 1793525844377,
+        "type": "subscribe_terminal_response",
+        "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+        "slot": 11,
+        "subscriptionId": "45ae558a-10a5-4059-81fc-55c06d93858e",
+        "error": null,
+        "requestId": "27a32fa9-daae-417a-acaf-21cdeff319f0"
+      },
+      {
+        "time": 1793525844632,
+        "type": "subscription.release.response",
+        "requestId": "3d79cfdc-546c-4691-8793-4e0caf8b2d60",
+        "subscriptionId": "135a6761-a5f6-4ef7-b1f7-e43667ca756d"
+      }
+    ],
+    "frames": {
+      "1": 3,
+      "6": 12,
+      "7": 12,
+      "8": 12
+    },
+    "restoreBytes": 78138,
+    "connections": 1,
+    "heldNow": 0
+  }
+}

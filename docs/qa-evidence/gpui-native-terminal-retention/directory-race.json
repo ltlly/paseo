@@ -1,0 +1,81 @@
+{
+  "staleOwnerReleased": "6a8ca148-453c-4f5d-9aff-0bf593d9f09c",
+  "currentOwner": "f5c03961-7759-40d9-b1cb-890c2ec420ed",
+  "requests": [
+    {
+      "time": 1793526066482,
+      "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+      "workspaceId": "wks_5b05d037cc13c8b0",
+      "type": "subscribe_terminals_request",
+      "requestId": "4f403105-054a-4a4f-89ab-232c7dd5604d"
+    },
+    {
+      "time": 1793526066482,
+      "type": "subscription.release.request",
+      "requestId": "07ded5fb-1da8-43ac-98d0-bad51ea53c8c",
+      "subscriptionId": "3558901d-a279-4aa8-9df5-d81f8ff930fc"
+    },
+    {
+      "time": 1793526066493,
+      "type": "subscription.release.request",
+      "requestId": "be1636f8-1703-4a45-b237-cb91391060cd",
+      "subscriptionId": "45ae558a-10a5-4059-81fc-55c06d93858e"
+    },
+    {
+      "time": 1793526066658,
+      "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project/secondary",
+      "workspaceId": "wks_2fa9ee81cf607647",
+      "type": "subscribe_terminals_request",
+      "requestId": "307dc8d8-68c7-4e1a-89cd-1a562ba9afef"
+    },
+    {
+      "time": 1793526066897,
+      "type": "subscription.release.request",
+      "requestId": "c3ea525f-e5b6-4f7e-becd-217cca65402b",
+      "subscriptionId": "6a8ca148-453c-4f5d-9aff-0bf593d9f09c"
+    }
+  ],
+  "snapshots": [
+    {
+      "time": 1793526066484,
+      "type": "terminals_changed",
+      "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+      "workspaceId": "wks_5b05d037cc13c8b0",
+      "terminals": [
+        {
+          "id": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+          "name": "Cache C",
+          "workspaceId": "wks_5b05d037cc13c8b0",
+          "title": "pty-fixture.cjs C",
+          "activity": null
+        },
+        {
+          "id": "015de710-24f1-43a1-b0b2-329dc1c63793",
+          "name": "Cache D",
+          "workspaceId": "wks_5b05d037cc13c8b0",
+          "title": "pty-fixture.cjs D",
+          "activity": null
+        }
+      ],
+      "requestId": "4f403105-054a-4a4f-89ab-232c7dd5604d",
+      "subscriptionId": "6a8ca148-453c-4f5d-9aff-0bf593d9f09c"
+    },
+    {
+      "time": 1793526066659,
+      "type": "terminals_changed",
+      "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project/secondary",
+      "workspaceId": "wks_2fa9ee81cf607647",
+      "terminals": [
+        {
+          "id": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+          "name": "Cache E",
+          "workspaceId": "wks_2fa9ee81cf607647",
+          "title": "pty-fixture.cjs E",
+          "activity": null
+        }
+      ],
+      "requestId": "307dc8d8-68c7-4e1a-89cd-1a562ba9afef",
+      "subscriptionId": "f5c03961-7759-40d9-b1cb-890c2ec420ed"
+    }
+  ]
+}

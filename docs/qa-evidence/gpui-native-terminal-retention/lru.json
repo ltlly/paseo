@@ -1,0 +1,12 @@
+{
+  "lruWireEvents": [
+    ["subscribe_terminal_request", "C"],
+    ["subscription.release.request", "B"],
+    ["subscribe_terminal_request", "D"],
+    ["subscription.release.request", "D"],
+    ["subscribe_terminal_request", "B"]
+  ],
+  "retainedViewsCap": 3,
+  "hiddenOutputPreservedScroll": true,
+  "hiddenOutputReceived": true
+}

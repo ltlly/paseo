@@ -1,0 +1,17 @@
+{
+  "noNewSubscription": true,
+  "reclaimedSizeOwnership": true,
+  "requests": [
+    {
+      "time": 1793525995943,
+      "type": "terminal_input",
+      "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+      "message": {
+        "type": "resize",
+        "rows": 36,
+        "cols": 114,
+        "intent": "claim"
+      }
+    }
+  ]
+}

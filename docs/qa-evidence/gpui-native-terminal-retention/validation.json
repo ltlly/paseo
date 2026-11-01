@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-01",
+  "baseCommit": "bd870ebe6ce5cce32a156caa91fdd7fc0e3f36f7",
+  "sourceArchiveSha256": "d2b9e24287a073d6e32c8e0e2fae0ea15ec203a2e3f29cf0f7f913ae9ba3eaf1",
+  "scope": "Native desktop terminal retention and owned subscription lifetimes; no app/server/protocol or Android source changes. Installed clients and port 6767 unchanged.",
+  "environment": {
+    "platform": "Linux X11 Xvfb/Openbox",
+    "renderer": "software Vulkan lavapipe",
+    "viewport": [1280, 800],
+    "deviceScale": 1,
+    "fixture": "Real isolated daemon and five real Node PTYs; no model calls or user agents",
+    "fixtureScriptSha256": "c05298b0693e10d2a490cc4550dcf9662fc7c400e86b2b5b92dfc481f6dada32",
+    "interactionScriptSha256": "e5939e2093da93a38782ff07a35e7447518c7158e4c271fb497a11a94b696e5b"
+  },
+  "baseline": {
+    "switches": 10,
+    "subscriptions": 11,
+    "restoreBytes": 71544,
+    "canvasDifferentPixelsOnReturn": 4868,
+    "viewportPreserved": false
+  },
+  "after": {
+    "switches": 10,
+    "subscriptions": 2,
+    "restoreBytes": 13008,
+    "canvasDifferentPixelsOnReturn": 0,
+    "viewportPreserved": true,
+    "ownedSubscriptions": true
+  },
+  "canvasComparison": {
+    "rect": [320, 72, 960, 728],
+    "mask": null,
+    "purpose": "Same native terminal scroll position before leaving and after returning, within each build; not an Electron/native parity comparison"
+  },
+  "checks": {
+    "cachePolicyTests": 3,
+    "subscriptionLifecycleTests": 3,
+    "linuxGui": [
+      "ten A/B switches preserve scroll without resubscribe",
+      "hidden A receives output while B is selected; inspected after return",
+      "four-terminal LRU retains three views and reuses A/C",
+      "delayed A/B binding then workspace leave delivers earlya/earlyb exactly once",
+      "late terminal and directory owners release after leaving workspace",
+      "SDK-closing hidden A removes its tab while B retains its stream",
+      "SDK-closing selected B removes the view; C/D/E remain live",
+      "real 30-second timeout, reselect, old binding release and same E recovery",
+      "minimize, hidden output and restore retain the stream and reclaim size ownership",
+      "three pending bindings protect their views; a fourth open preserves F focus and exact input, then succeeds after binding",
+      "two delayed workspace directory snapshots cannot replace the latest workspace inventory",
+      "client close leaves the same three PTY IDs and E output alive",
+      "existing fake-provider Agent history renders after owned subscription negotiation; returning to E reuses its stream"
+    ],
+    "nativeCargoCheck": ["Linux", "macOS runtime-shaders", "Windows MSVC"],
+    "typecheck": "passed",
+    "lint": "passed",
+    "format": "passed"
+  },
+  "limitations": [
+    "No overall latency, CPU or RSS performance claim; retaining up to three buffers may use more resident memory than retaining one.",
+    "No complete terminal or desktop acceptance. Pixel parity with Electron remains NOT_PASSED.",
+    "Mac/Windows checks are compilation only; GPU, GUI, IME and end-to-end behavior remain pending.",
+    "Reconnect, offline input delivery, full-window close with unacknowledged input, selection/copy/paste, complete keyboard/mouse modes and terminal images remain pending.",
+    "Original empty/loading/error UI parity remains pending.",
+    "Embedded Agent footer work is postponed and preserved separately."
+  ],
+  "deployment": "Not deployed. All QA native windows, fake agent, fixture PTYs/home, window manager and display cleaned; see cleanup.json."
+}

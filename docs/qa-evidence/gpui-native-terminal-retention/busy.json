@@ -1,0 +1,103 @@
+{
+  "openingViews": 3,
+  "fourthBlockedUntilRelease": true,
+  "selectedFInputPreserved": "earlyfstillf",
+  "otherInputs": {
+    "C": "earlyc",
+    "D": "earlyd"
+  },
+  "fourthOpensAfterRelease": true,
+  "requests": [
+    {
+      "time": 1793526129782,
+      "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project",
+      "workspaceId": "wks_5b05d037cc13c8b0",
+      "type": "subscribe_terminals_request",
+      "requestId": "06e447e7-de74-4287-8366-d93a5ecae567"
+    },
+    {
+      "time": 1793526130458,
+      "terminalId": "259de73c-439c-47d4-8c3e-301089f7ffe7",
+      "restore": {
+        "mode": "full-snapshot",
+        "scrollbackLines": 10000,
+        "size": {
+          "rows": 36,
+          "cols": 114
+        }
+      },
+      "type": "subscribe_terminal_request",
+      "requestId": "028e79f7-742f-44dd-a99d-19c596170db6"
+    },
+    {
+      "time": 1793526130809,
+      "terminalId": "015de710-24f1-43a1-b0b2-329dc1c63793",
+      "restore": {
+        "mode": "full-snapshot",
+        "scrollbackLines": 10000,
+        "size": {
+          "rows": 36,
+          "cols": 114
+        }
+      },
+      "type": "subscribe_terminal_request",
+      "requestId": "74894b61-5c08-44c4-9773-2c4f81a59a4d"
+    },
+    {
+      "time": 1793526131080,
+      "terminalId": "34784891-7341-4555-9d73-09ccdc103edf",
+      "restore": {
+        "mode": "full-snapshot",
+        "scrollbackLines": 10000,
+        "size": {
+          "rows": 36,
+          "cols": 114
+        }
+      },
+      "type": "subscribe_terminal_request",
+      "requestId": "20288d32-6e31-4768-9a8b-f4501912665e"
+    },
+    {
+      "time": 1793526132126,
+      "type": "terminal_input",
+      "terminalId": "34784891-7341-4555-9d73-09ccdc103edf",
+      "message": {
+        "type": "resize",
+        "rows": 34,
+        "cols": 114,
+        "intent": "claim"
+      }
+    },
+    {
+      "time": 1793526174069,
+      "type": "subscription.release.request",
+      "requestId": "bbe3b0d0-7507-4810-89ca-4c45789db583",
+      "subscriptionId": "ccaf5f23-6cb6-4cf2-be0d-917054d6c45d"
+    },
+    {
+      "time": 1793526174089,
+      "terminalId": "3fb21a48-8d4d-440a-933e-d86d2a0d21e5",
+      "restore": {
+        "mode": "full-snapshot",
+        "scrollbackLines": 10000,
+        "size": {
+          "rows": 36,
+          "cols": 114
+        }
+      },
+      "type": "subscribe_terminal_request",
+      "requestId": "c9bfdf4a-4dfb-4ec3-a19d-f1a8c1b2ea97"
+    },
+    {
+      "time": 1793526174142,
+      "type": "terminal_input",
+      "terminalId": "3fb21a48-8d4d-440a-933e-d86d2a0d21e5",
+      "message": {
+        "type": "resize",
+        "rows": 36,
+        "cols": 114,
+        "intent": "claim"
+      }
+    }
+  ]
+}

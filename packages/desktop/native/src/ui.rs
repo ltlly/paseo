@@ -5,6 +5,7 @@ use gpui::{Context, Entity, Focusable, MouseButton, Render, Window, div, prelude
 use serde_json::{Value, json};
 
 use crate::terminal_view::TerminalView;
+use paseo_desktop::terminal_retention::TerminalCache;
 use paseo_desktop::{
     client::{Connection, Event, Target},
     model::{AgentExecution, AgentPage, Directory, ServerInfo, WorkspacePage},
@@ -17,6 +18,7 @@ pub struct Paseo {
     selected_workspace: Option<String>,
     selected_terminal: Option<String>,
     terminal: Option<Entity<TerminalView>>,
+    terminals: TerminalCache<Entity<TerminalView>>,
     error: Option<String>,
     selected_agent: Option<String>,
     conversation: Option<Entity<crate::conversation::Conversation>>,
@@ -24,6 +26,7 @@ pub struct Paseo {
     sidebar_open: bool,
     window_visible: bool,
     _visibility: gpui::Subscription,
+    _activation: gpui::Subscription,
 }
 
 impl Drop for Paseo {
@@ -44,7 +47,19 @@ impl Paseo {
             {
                 conversation.update(cx, |view, cx| view.resume(cx));
             }
+            if let Some(terminal) = &this.terminal {
+                terminal.update(cx, |view, cx| view.visible(visible, cx));
+            }
             this.window_visible = visible;
+        });
+        let activation = cx.observe_window_activation(window, |this, window, cx| {
+            if window.is_window_active()
+                && let Some(terminal) = &this.terminal
+            {
+                if terminal.read(cx).focus_handle(cx).is_focused(window) {
+                    terminal.update(cx, |view, cx| view.request_claim(cx));
+                }
+            }
         });
         let mut app = Self {
             connection: None,
@@ -53,6 +68,8 @@ impl Paseo {
             selected_workspace: None,
             selected_terminal: None,
             terminal: None,
+            // Matches the existing workspace pane retention cap.
+            terminals: TerminalCache::new(3),
             error: None,
             selected_agent: None,
             conversation: None,
@@ -60,6 +77,7 @@ impl Paseo {
             sidebar_open: true,
             window_visible: window.is_visible(),
             _visibility: visibility,
+            _activation: activation,
         };
         match target.and_then(Connection::start) {
             Ok(connection) => {
@@ -97,13 +115,19 @@ impl Paseo {
                 result
             }
             Event::Terminal(frame) => {
-                if let Some(terminal) = &self.terminal {
+                if let Some(terminal) = self
+                    .terminals
+                    .values()
+                    .find(|terminal| terminal.read(cx).slot() == Some(frame.slot))
+                    .cloned()
+                {
                     terminal.update(cx, |terminal, cx| terminal.receive(frame, cx));
                 }
                 return;
             }
             Event::Disconnected(error) => {
                 self.terminal = None;
+                self.terminals.clear();
                 for composer in self.composers.values() {
                     composer.update(cx, |view, cx| view.disconnected(cx));
                 }
@@ -118,11 +142,21 @@ impl Paseo {
     }
 
     fn load_directory(&self) -> Result<()> {
+        anyhow::ensure!(
+            self.info.as_ref().is_some_and(
+                |info| info.features.get("ownedSubscriptions") == Some(&Value::Bool(true))
+            ),
+            "Update the host to use native desktop subscriptions."
+        );
         let connection = self.connection.as_ref().context("host is disconnected")?;
         connection.request("project.list.request", json!({}))?;
-        connection.request("fetch_workspaces_request", json!({"subscribe":{}}))?;
-        connection.request("list_terminals_request", json!({}))?;
-        connection.request(
+        connection.subscribe(
+            "workspaces",
+            "fetch_workspaces_request",
+            json!({"subscribe":{}}),
+        )?;
+        connection.subscribe(
+            "agents",
             "fetch_agents_request",
             json!({"scope":"active","subscribe":{}}),
         )?;
@@ -130,6 +164,17 @@ impl Paseo {
     }
 
     fn apply_session(&mut self, kind: &str, payload: Value, cx: &mut Context<Self>) -> Result<()> {
+        if kind == "rpc_error" {
+            if let Some(terminal) = self
+                .terminals
+                .values()
+                .find(|terminal| terminal.read(cx).owns_request(&payload))
+                .cloned()
+            {
+                terminal.update(cx, |view, cx| view.bind(&payload, cx));
+                return Ok(());
+            }
+        }
         if matches!(
             kind,
             "send_agent_message_response"
@@ -185,7 +230,12 @@ impl Paseo {
             }
             "rpc_error" => anyhow::bail!("{}", payload["error"]),
             "subscribe_terminal_response" => {
-                if let Some(terminal) = &self.terminal {
+                if let Some(terminal) = self
+                    .terminals
+                    .values()
+                    .find(|terminal| terminal.read(cx).owns_request(&payload))
+                    .cloned()
+                {
                     terminal.update(cx, |terminal, cx| terminal.bind(&payload, cx));
                 }
             }
@@ -222,7 +272,22 @@ impl Paseo {
             }
             _ => {}
         }
+        let terminal_inventory = kind == "list_terminals_response"
+            || (kind == "terminals_changed"
+                && payload["workspaceId"].as_str() == self.selected_workspace.as_deref());
         self.directory.apply(kind, payload)?;
+        if terminal_inventory {
+            self.terminals
+                .retain(|id| self.directory.terminals.contains_key(id));
+            if self
+                .selected_terminal
+                .as_ref()
+                .is_some_and(|id| !self.directory.terminals.contains_key(id))
+            {
+                self.terminal = None;
+                self.selected_terminal = None;
+            }
+        }
         for (id, composer) in &self.composers {
             if let Some(agent) = self.directory.agents.get(id) {
                 composer.update(cx, |view, cx| {
@@ -233,13 +298,46 @@ impl Paseo {
         Ok(())
     }
 
-    fn select_workspace(&mut self, id: String, cx: &mut Context<Self>) {
-        self.clear_conversation(cx);
-        self.terminal = None;
+    fn hide_terminal(&mut self, cx: &mut Context<Self>) {
+        if let Some(terminal) = self.terminal.take() {
+            terminal.update(cx, |view, cx| view.visible(false, cx));
+        }
         self.selected_terminal = None;
+    }
+    fn select_workspace(&mut self, id: String, cx: &mut Context<Self>) {
+        if self.selected_workspace.as_ref() == Some(&id) {
+            return;
+        }
+        for terminal in self.terminals.values() {
+            if let Err(error) = terminal.update(cx, |view, _| view.prepare_detach()) {
+                self.error = Some(error.to_string());
+                cx.notify();
+                return;
+            }
+        }
+        self.clear_conversation(cx);
+        self.hide_terminal(cx);
+        self.terminals.clear();
         self.selected_workspace = Some(id);
         if let Some(connection) = &self.connection {
-            if let Err(error) = connection.request("list_terminals_request", json!({})) {
+            let workspace = self
+                .selected_workspace
+                .as_ref()
+                .and_then(|id| self.directory.workspaces.get(id));
+            let result = workspace
+                .context("Workspace is no longer available")
+                .and_then(|workspace| {
+                    let cwd = workspace
+                        .workspace_directory
+                        .as_deref()
+                        .unwrap_or(&workspace.project_root_path);
+                    connection.subscribe(
+                        "terminals",
+                        "subscribe_terminals_request",
+                        json!({"cwd":cwd,"workspaceId":workspace.id}),
+                    )
+                });
+            if let Err(error) = result {
                 self.error = Some(error.to_string());
             }
         }
@@ -247,6 +345,7 @@ impl Paseo {
     }
 
     fn clear_conversation(&mut self, cx: &mut Context<Self>) {
+        let had_conversation = self.conversation.is_some();
         if let Some(composer) = self
             .selected_agent
             .as_ref()
@@ -258,11 +357,8 @@ impl Paseo {
         self.conversation = None;
         self.composers
             .retain(|_, view| !view.read(cx).is_disposable());
-        if let Some(connection) = &self.connection {
-            let _ = connection.request(
-                "agent.timeline.set_subscription.request",
-                json!({"agentIds":[]}),
-            );
+        if had_conversation && let Some(connection) = &self.connection {
+            connection.unsubscribe("timeline");
         }
     }
 
@@ -270,17 +366,28 @@ impl Paseo {
         let Some(agent) = self.directory.agents.get(&id).cloned() else {
             return;
         };
-        self.select_workspace(agent.workspace_id.clone().unwrap_or_default(), cx);
+        let workspace = agent.workspace_id.clone().unwrap_or_default();
+        self.select_workspace(workspace.clone(), cx);
+        if self.selected_workspace.as_ref() != Some(&workspace) {
+            return;
+        }
         match agent.execution {
             Some(AgentExecution::Terminal { terminal_id }) => {
-                self.select_terminal(terminal_id, window, cx)
+                self.select_terminal(terminal_id.clone(), window, cx);
+                if self.selected_terminal.as_ref() == Some(&terminal_id) {
+                    self.selected_agent = Some(id);
+                }
+                return;
             }
             Some(AgentExecution::Unknown) => {
                 self.error = Some("Update this client to open this agent execution type.".into());
             }
             None => {
+                self.clear_conversation(cx);
+                self.hide_terminal(cx);
                 if let Some(connection) = &self.connection {
-                    match connection.request(
+                    match connection.subscribe(
+                        "timeline",
                         "agent.timeline.set_subscription.request",
                         json!({"agentIds":[id]}),
                     ) {
@@ -327,7 +434,6 @@ impl Paseo {
     }
 
     fn select_terminal(&mut self, id: String, window: &mut Window, cx: &mut Context<Self>) {
-        self.clear_conversation(cx);
         let Some(connection) = &self.connection else {
             return;
         };
@@ -341,9 +447,24 @@ impl Paseo {
             cx.notify();
             return;
         }
-        self.selected_terminal = Some(id.clone());
         let connection = connection.clone();
-        self.terminal = Some(cx.new(|cx| TerminalView::new(id, connection, window, cx)));
+        let protected = self
+            .terminals
+            .iter()
+            .filter(|(_, view)| !view.read(cx).can_release())
+            .map(|(id, _)| id.clone())
+            .collect();
+        let view = self.terminals.open(&id, &protected, || {
+            cx.new(|cx| TerminalView::new(id.clone(), connection, window, cx))
+        });
+        match view {
+            Ok(view)=>{
+                self.clear_conversation(cx);self.hide_terminal(cx);
+                self.selected_terminal=Some(id);self.error=None;
+                view.update(cx,|view,cx|view.activate(window,cx));self.terminal=Some(view);
+            },
+            Err(_)=>self.error=Some("Wait for the other terminals to finish opening or sending input, then select this tab again.".into()),
+        }
         cx.notify();
     }
 }

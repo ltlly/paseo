@@ -1,0 +1,11 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.64s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-bb5f6210a23a746b)
+
+running 3 tests
+test terminal_retention::tests::authoritative_removal_and_workspace_clear_release_retained_membership ... ok
+test terminal_retention::tests::recent_tabs_reuse_state_and_evict_the_least_recent_view_at_the_limit ... ok
+test terminal_retention::tests::opening_or_unsent_terminals_are_not_evicted_and_a_full_busy_cache_is_unchanged ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 58 filtered out; finished in 0.00s
+

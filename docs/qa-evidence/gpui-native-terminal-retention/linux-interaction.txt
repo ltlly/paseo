@@ -1,0 +1,4 @@
+Switch/hidden output/LRU passed
+Delayed input/workspace return passed
+Hidden and selected terminal removal passed
+30s timeout and same-terminal retry passed; inspect captures

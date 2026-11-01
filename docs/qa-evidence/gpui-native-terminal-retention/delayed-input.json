@@ -1,0 +1,105 @@
+{
+  "exactlyOnce": {
+    "A": "earlya",
+    "B": "earlyb"
+  },
+  "requests": [
+    {
+      "time": 1793525804426,
+      "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+      "restore": {
+        "mode": "full-snapshot",
+        "scrollbackLines": 10000,
+        "size": {
+          "rows": 36,
+          "cols": 114
+        }
+      },
+      "type": "subscribe_terminal_request",
+      "requestId": "5417ad9c-ba04-4803-822c-0dce032bc124"
+    },
+    {
+      "time": 1793525804763,
+      "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+      "restore": {
+        "mode": "full-snapshot",
+        "scrollbackLines": 10000,
+        "size": {
+          "rows": 36,
+          "cols": 114
+        }
+      },
+      "type": "subscribe_terminal_request",
+      "requestId": "14042e5b-1f11-4ac7-9851-334708f03f51"
+    },
+    {
+      "time": 1793525805045,
+      "type": "terminal_input",
+      "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+      "message": {
+        "type": "input",
+        "data": "earlyb"
+      }
+    },
+    {
+      "time": 1793525805045,
+      "type": "terminal_input",
+      "terminalId": "c9cde061-75f3-45cb-9587-46820bd74b14",
+      "message": {
+        "type": "input",
+        "data": "earlya"
+      }
+    },
+    {
+      "time": 1793525805045,
+      "cwd": "/tmp/paseo-home-A04kAa/.paseo/native-project/secondary",
+      "workspaceId": "wks_2fa9ee81cf607647",
+      "type": "subscribe_terminals_request",
+      "requestId": "591e084e-99ee-4144-9319-23642746f887"
+    },
+    {
+      "time": 1793525805045,
+      "type": "subscription.release.request",
+      "requestId": "d6a761be-e9a4-46f1-b305-ba37abd55e75",
+      "subscriptionId": "fc8c6786-9e45-466f-b49a-7d43d4cb1384"
+    },
+    {
+      "time": 1793525805384,
+      "type": "subscription.release.request",
+      "requestId": "39957f9b-6d82-46da-ab2d-227a4ac0854f",
+      "subscriptionId": "9077b198-badd-49d0-ba21-16f7aad6167e"
+    },
+    {
+      "time": 1793525805385,
+      "type": "subscription.release.request",
+      "requestId": "d5bc51d2-11bf-494c-9df3-6a20d0739218",
+      "subscriptionId": "b4607158-1d14-451c-960b-8d5888e1a242"
+    },
+    {
+      "time": 1793525805979,
+      "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+      "restore": {
+        "mode": "full-snapshot",
+        "scrollbackLines": 10000,
+        "size": {
+          "rows": 36,
+          "cols": 114
+        }
+      },
+      "type": "subscribe_terminal_request",
+      "requestId": "f4c11821-36bb-45da-95be-c15617c0cf29"
+    },
+    {
+      "time": 1793525806033,
+      "type": "terminal_input",
+      "terminalId": "643e1ee7-4c0e-47c9-9ca1-59d86d7cd739",
+      "message": {
+        "type": "resize",
+        "rows": 36,
+        "cols": 114,
+        "intent": "claim"
+      }
+    }
+  ],
+  "recoveredWorkspaceTerminal": "E"
+}

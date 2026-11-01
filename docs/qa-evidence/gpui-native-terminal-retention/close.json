@@ -1,0 +1,31 @@
+{
+  "hiddenClosed": "A",
+  "selectedRetainedWithoutReplay": "B",
+  "activeClosed": "B",
+  "remainingFixtureTerminals": 3,
+  "requests": [
+    {
+      "time": 1793525809201,
+      "type": "subscription.release.request",
+      "requestId": "ddf464b2-b274-4b2e-af8a-d5a080856658",
+      "subscriptionId": "104aed66-e439-4680-b47d-295739401487"
+    },
+    {
+      "time": 1793525810183,
+      "type": "terminal_input",
+      "terminalId": "c54e6804-2a5f-41f4-a35c-cc4fd1573442",
+      "message": {
+        "type": "resize",
+        "rows": 36,
+        "cols": 114,
+        "intent": "claim"
+      }
+    },
+    {
+      "time": 1793525811244,
+      "type": "subscription.release.request",
+      "requestId": "6384e796-8527-4d28-b407-c9208a99ae3d",
+      "subscriptionId": "1a7cd073-6f7d-4e21-b1fe-6f5f8a573559"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.99s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-bb5f6210a23a746b)
+
+running 3 tests
+test subscriptions::tests::independent_terminal_owners_and_failed_requests_do_not_replace_each_other ... ok
+test subscriptions::tests::switching_before_binding_releases_late_owners_and_rejects_their_updates ... ok
+test subscriptions::tests::unanswered_request_debt_is_bounded_even_after_close ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 61 filtered out; finished in 0.00s
+

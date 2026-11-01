@@ -3,7 +3,7 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
     time::Duration,
@@ -91,9 +91,11 @@ pub enum Event {
 
 enum Command {
     Send(Frame),
+    Release(String),
 }
 
 pub struct Connection {
+    subscriptions: Arc<Mutex<crate::subscriptions::Subscriptions>>,
     commands: mpsc::Sender<Command>,
     uploads: mpsc::Sender<Frame>,
     shutdown: watch::Sender<bool>,
@@ -102,6 +104,8 @@ pub struct Connection {
 
 impl Connection {
     pub fn start(target: Target) -> Result<Self> {
+        let subscriptions = Arc::new(Mutex::new(crate::subscriptions::Subscriptions::default()));
+        let network_subscriptions = subscriptions.clone();
         let (commands, receiver) = mpsc::channel(256);
         // Bulk transfers have two bounded frames and yield to interactive input and replies.
         let (uploads, upload_receiver) = mpsc::channel(2);
@@ -115,13 +119,14 @@ impl Connection {
                     .build()
                     .context("start network runtime")
                     .and_then(|runtime| {
-                        runtime.block_on(async {tokio::select!{result=run(target, receiver, upload_receiver, &events)=>result,_=shutdown_receiver.changed()=>Ok(())}})
+                        runtime.block_on(async {tokio::select!{result=run(target, receiver, upload_receiver, &events, network_subscriptions)=>result,_=shutdown_receiver.changed()=>Ok(())}})
                     });
                 if let Err(error) = result {
                     let _ = events.send_blocking(Event::Disconnected(format!("{error:#}")));
                 }
             })?;
         Ok(Self {
+            subscriptions,
             commands,
             uploads,
             shutdown,
@@ -142,6 +147,26 @@ impl Connection {
         object.insert("requestId".into(), request_id.clone().into());
         self.send_session(fields)?;
         Ok(request_id)
+    }
+
+    pub fn subscribe(&self, key: &str, kind: &str, fields: Value) -> Result<String> {
+        let mut subscriptions = self.subscriptions.lock().expect("subscription lock");
+        subscriptions.can_open()?;
+        let request = self.request(kind, fields)?;
+        subscriptions.open(key, request.clone());
+        Ok(request)
+    }
+
+    pub fn unsubscribe(&self, key: &str) {
+        let mut subscriptions = self.subscriptions.lock().expect("subscription lock");
+        if let Some(id) = subscriptions.close(key)
+            && let Err(error) = self.commands.try_send(Command::Release(id))
+            && let Command::Release(id) = error.into_inner()
+        {
+            // Drain already-queued input before releasing its slot. A full
+            // command queue already wakes the network loop.
+            subscriptions.defer_release(id);
+        }
     }
 
     pub fn send_session(&self, message: Value) -> Result<()> {
@@ -321,11 +346,20 @@ async fn send(socket: &mut Socket, frame: Frame, chunked: bool) -> Result<()> {
     Ok(())
 }
 
+async fn release_subscription(
+    socket: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+    id: String,
+    chunked: bool,
+) -> Result<()> {
+    send(socket, Frame::Text(json!({"type":"session","message":{"type":"subscription.release.request","requestId":Uuid::new_v4().to_string(),"subscriptionId":id}}).to_string()), chunked).await
+}
+
 async fn run(
     target: Target,
     mut commands: mpsc::Receiver<Command>,
     mut uploads: mpsc::Receiver<Frame>,
     events: &Sender<Event>,
+    subscriptions: Arc<Mutex<crate::subscriptions::Subscriptions>>,
 ) -> Result<()> {
     let config = WebSocketConfig {
         max_message_size: Some(MAX_MESSAGE_BYTES),
@@ -339,7 +373,7 @@ async fn run(
     .await
     .context("daemon connection timed out")??;
     let mut hello = json!({"type":"hello","clientId":Uuid::new_v4().to_string(),"clientType":"browser","protocolVersion":1,"appVersion":env!("CARGO_PKG_VERSION"),"capabilities":{
-        "hello_rejection":true,"explicit_event_subscriptions":true,"all_providers":true,"selective_agent_timeline":true,"terminal_chunked_replay":true,"binary_chunking_v1":true,"project_updates":true,"timeline_replacement_invalidation":true
+        "hello_rejection":true,"explicit_event_subscriptions":true,"all_providers":true,"selective_agent_timeline":true,"terminal_chunked_replay":true,"binary_chunking_v1":true,"project_updates":true,"timeline_replacement_invalidation":true,"owned_subscriptions":true
     }});
     if let Some(auth) = target.auth {
         hello["auth"] = auth;
@@ -352,8 +386,19 @@ async fn run(
     let mut heartbeat = time::interval(Duration::from_secs(15));
     heartbeat.tick().await;
     loop {
-        if let Ok(Command::Send(frame)) = commands.try_recv() {
-            send(&mut socket, frame, chunked).await?;
+        if let Ok(command) = commands.try_recv() {
+            match command {
+                Command::Send(frame) => send(&mut socket, frame, chunked).await?,
+                Command::Release(id) => release_subscription(&mut socket, id, chunked).await?,
+            }
+            continue;
+        }
+        let release = subscriptions
+            .lock()
+            .expect("subscription lock")
+            .next_release();
+        if let Some(id) = release {
+            release_subscription(&mut socket, id, chunked).await?;
             continue;
         }
         // Give bulk data a turn between inbound records, even while a terminal streams.
@@ -366,6 +411,7 @@ async fn run(
             biased;
             command = commands.recv() => match command {
                 Some(Command::Send(frame)) => send(&mut socket, frame, chunked).await?,
+                Some(Command::Release(id)) => release_subscription(&mut socket, id, chunked).await?,
                 None => { socket.close(None).await?; return Ok(()); }
             },
             _ = heartbeat.tick() => socket.send(Message::Text(json!({"type":"ping"}).to_string())).await?,
@@ -399,7 +445,8 @@ async fn run(
                             ready = true;
                             events.send(Event::Ready(info)).await?;
                         } else if ready {
-                            events.send(Event::Session { kind: kind.into(), payload }).await?;
+                            let accepted = kind != "subscription.release.response" && subscriptions.lock().expect("subscription lock").receive(&payload);
+                            if accepted { events.send(Event::Session { kind: kind.into(), payload }).await?; }
                         }
                     }
                 }
