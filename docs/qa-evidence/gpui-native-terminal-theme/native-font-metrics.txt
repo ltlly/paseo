@@ -1,0 +1,1 @@
+family="Noto Sans Mono" fallbacks=Some(FontFallbacks([])) fontSize=12 advance=7.2000003px ascent=12.828px descent=3.5160003px cell=Metrics { width: 7.0, height: 17.0 }

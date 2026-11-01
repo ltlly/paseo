@@ -45,6 +45,7 @@ pub struct Cell<'a> {
 pub struct Screen<'a> {
     pub cells: ScreenCells<'a>,
     pub cursor: Option<(usize, usize)>,
+    pub cursor_color: u32,
 }
 
 impl Cell<'_> {
@@ -71,11 +72,17 @@ impl<'a> Iterator for ScreenCells<'a> {
                 continue;
             }
             let cell = indexed.cell;
-            let mut foreground = resolve_color(cell.fg, self.content.colors);
-            let mut background = resolve_color(cell.bg, self.content.colors);
-            if cell.flags.contains(Flags::INVERSE) {
-                std::mem::swap(&mut foreground, &mut background);
-            }
+            let (foreground, background) = if cell.flags.contains(Flags::INVERSE) {
+                (cell.bg, cell.fg)
+            } else {
+                (cell.fg, cell.bg)
+            };
+            let foreground = resolve_color(
+                foreground,
+                self.content.colors,
+                cell.flags.contains(Flags::BOLD),
+            );
+            let background = resolve_color(background, self.content.colors, false);
             return Some(Cell {
                 row: row as usize,
                 col: indexed.point.column.0,
@@ -262,42 +269,49 @@ impl TerminalBuffer {
             && cursor_row >= 0
             && cursor_row < i32::from(self.size.rows))
         .then_some((cursor_row as usize, content.cursor.point.column.0));
+        let cursor_color = resolve_color(Color::Named(NamedColor::Cursor), content.colors, false);
         Screen {
             cells: ScreenCells {
                 content,
                 rows: self.size.rows,
             },
             cursor,
+            cursor_color,
         }
     }
 }
 
-fn resolve_color(color: Color, colors: &alacritty_terminal::term::color::Colors) -> u32 {
+fn resolve_color(
+    color: Color,
+    colors: &alacritty_terminal::term::color::Colors,
+    bold: bool,
+) -> u32 {
+    let color = match color {
+        Color::Indexed(index) if bold && index < 8 => Color::Indexed(index + 8),
+        Color::Named(named) if bold && (named as usize) < 8 => Color::Indexed(named as u8 + 8),
+        value => value,
+    };
     match color {
         Color::Spec(Rgb { r, g, b }) => (u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b),
         Color::Named(named) => colors[named as usize]
-            .map(|rgb| resolve_color(Color::Spec(rgb), colors))
+            .map(|rgb| resolve_color(Color::Spec(rgb), colors, false))
             .unwrap_or_else(|| match named {
                 NamedColor::Foreground
                 | NamedColor::BrightForeground
-                | NamedColor::DimForeground => 0xd8dee9,
-                NamedColor::Background => 0x171919,
-                NamedColor::Cursor => 0x82aaff,
+                | NamedColor::DimForeground => crate::theme::terminal::FOREGROUND,
+                NamedColor::Background => crate::theme::terminal::BACKGROUND,
+                NamedColor::Cursor => crate::theme::terminal::CURSOR,
                 _ => indexed_color(named as usize),
             }),
         Color::Indexed(index) => colors[index as usize]
-            .map(|rgb| resolve_color(Color::Spec(rgb), colors))
+            .map(|rgb| resolve_color(Color::Spec(rgb), colors, false))
             .unwrap_or_else(|| indexed_color(index as usize)),
     }
 }
 
 fn indexed_color(index: usize) -> u32 {
-    const BASE: [u32; 16] = [
-        0x171919, 0xf07178, 0xc3e88d, 0xffcb6b, 0x82aaff, 0xc792ea, 0x89ddff, 0xd8dee9, 0x676e95,
-        0xff5370, 0xd5ffa8, 0xffe082, 0xadd7ff, 0xe1acff, 0xb2ffff, 0xffffff,
-    ];
     if index < 16 {
-        return BASE[index];
+        return crate::theme::terminal::ANSI[index];
     }
     if index < 232 {
         const LEVELS: [u32; 6] = [0, 95, 135, 175, 215, 255];
@@ -308,12 +322,58 @@ fn indexed_color(index: usize) -> u32 {
         let gray = 8 + (index as u32 - 232) * 10;
         return gray * 0x010101;
     }
-    0xd8dee9
+    crate::theme::terminal::FOREGROUND
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn palette_matches_actual_electron_terminal_pixels_including_osc_and_inverse_bold() {
+        let oracle: serde_json::Value =
+            serde_json::from_str(include_str!("testdata/terminal-palette.json")).unwrap();
+        for case in oracle["cases"].as_array().unwrap() {
+            let mut buffer = TerminalBuffer::new(GridSize { rows: 2, cols: 8 }, 0);
+            buffer.feed(case["data"].as_str().unwrap().as_bytes());
+            let cell = buffer.screen().cells.next().unwrap();
+            assert_eq!(
+                cell.foreground,
+                case["foreground"].as_u64().unwrap() as u32,
+                "{} foreground",
+                case["name"]
+            );
+            assert_eq!(
+                cell.background,
+                case["background"].as_u64().unwrap() as u32,
+                "{} background",
+                case["name"]
+            );
+        }
+    }
+
+    #[test]
+    fn default_theme_and_bold_ansi_match_the_authored_desktop_terminal() {
+        let mut buffer = TerminalBuffer::new(GridSize { rows: 2, cols: 20 }, 0);
+        buffer.feed(b"\x1b[31mR\x1b[1mB\x1b[0mX");
+        let colors: Vec<_> = buffer
+            .screen()
+            .cells
+            .take(3)
+            .map(|cell| (cell.foreground, cell.background))
+            .collect();
+        assert_eq!(
+            colors,
+            [
+                (0xe07070, 0x181b1a),
+                (0xe89090, 0x181b1a),
+                (0xfafafa, 0x181b1a)
+            ]
+        );
+        assert_eq!(buffer.screen().cursor_color, 0xfafafa);
+        buffer.feed(b"\x1b]12;#123456\x07");
+        assert_eq!(buffer.screen().cursor_color, 0x123456);
+    }
 
     fn frame(opcode: TerminalOpcode, data: &[u8]) -> TerminalFrame {
         TerminalFrame {
@@ -345,7 +405,7 @@ mod tests {
         buffer.apply(frame(TerminalOpcode::ReplayEnd, b"")).unwrap();
         let first = buffer.screen().cells.next().unwrap();
         assert_eq!(first.chars().collect::<String>(), "中");
-        assert_eq!(first.foreground, 0xf07178);
+        assert_eq!(first.foreground, 0xe07070);
         assert_eq!(buffer.size, GridSize { rows: 12, cols: 40 });
         assert!(!buffer.replaying);
     }
@@ -446,7 +506,7 @@ mod tests {
                     true
                 ),
                 (0, 3, 1, " ".into(), 0x0a141e, 0x28323c, true, true, true),
-                (0, 4, 1, "X".into(), 0xd8dee9, 0x171919, false, false, false),
+                (0, 4, 1, "X".into(), 0xfafafa, 0x181b1a, false, false, false),
             ]
         );
         assert_eq!(

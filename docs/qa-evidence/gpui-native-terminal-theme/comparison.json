@@ -1,0 +1,62 @@
+{
+  "terminalRegion": [320, 72, 960, 728],
+  "comparisons": [
+    {
+      "scene": "a",
+      "before": {
+        "differentPixels": 98468,
+        "bounds": [0, 3, 839, 658]
+      },
+      "final": {
+        "differentPixels": 49788,
+        "bounds": [0, 3, 700, 560]
+      }
+    },
+    {
+      "scene": "u",
+      "before": {
+        "differentPixels": 14715,
+        "bounds": [0, 3, 429, 141]
+      },
+      "final": {
+        "differentPixels": 7676,
+        "bounds": [0, 3, 357, 119]
+      }
+    },
+    {
+      "scene": "c",
+      "before": {
+        "differentPixels": 14360,
+        "bounds": [0, 3, 318, 120]
+      },
+      "final": {
+        "differentPixels": 4364,
+        "bounds": [0, 3, 265, 101]
+      }
+    },
+    {
+      "scene": "e",
+      "before": {
+        "differentPixels": 399,
+        "bounds": [1, 3, 58, 15]
+      },
+      "final": {
+        "differentPixels": 230,
+        "bounds": [1, 3, 49, 13]
+      }
+    },
+    {
+      "scene": "t",
+      "before": {
+        "differentPixels": 919,
+        "bounds": [0, 4, 254, 400]
+      },
+      "final": {
+        "differentPixels": 478,
+        "bounds": [0, 4, 105, 16]
+      }
+    }
+  ],
+  "focusedSteadyBarRegion": [530, 395, 1, 17],
+  "cursorDifferentPixels": 0
+}

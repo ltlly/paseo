@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-01",
+  "baseCommit": "18caea6cf410ecbb611b8099d62b9b66574ca6b5",
+  "sourceArchiveSha256": "26ffdb33ff01355d578fca7bccd64bcf5c66114ab047ce63c5bc33364b567a05",
+  "scope": "Native default terminal theme, font choice, grid quantization, steady bar cursor and hit testing. Authored app sources are read by the asset generator; app/Android, daemon, worker and wire code unchanged. No installed-client change or production6767 restart.",
+  "changes": [
+    "Generate the authored dark terminal palette, platform font stacks and default code size. Native color projection promotes bold ANSI foregrounds after inverse-role swapping and respects OSC palette/default/cursor overrides.",
+    "Resolve system font stack before registering bundled fallback faces. Carry the ordered fallback list into GPUI Font. Linux default is Noto Sans Mono, matching the original runtime. Windows uses the authored Cascadia/Consolas stack.",
+    "Derive cell geometry using the selected font, integer browser bounding boxes and WebGL device-pixel rounding. Fit reserves the existing scrollbar width. Mouse/selection/IME coordinates use the same measured geometry.",
+    "Steady bar cursor uses the authored color and one-pixel width; OSC12 color reaches the renderer. Empty horizontal-gutter clicks clamp to last column like xterm; unused bottom space sends nothing."
+  ],
+  "checks": {
+    "platforms": {
+      "Linux": "Native build/check, 8 terminal tests, 4 font-selection tests, 1 geometry test, real X11 window and real PTYs.",
+      "macOS": "Fresh runtime-shaders cargo check and the same 8+4+1 focused tests.",
+      "Windows": "Fresh MSVC cargo check and the same 8+4+1 focused tests."
+    },
+    "freshness": "Native package artifacts removed before final platform checks to rule out shared-target provenance errors. Final files match checked source archive byte for byte.",
+    "format": "passed",
+    "lint": "passed",
+    "typecheck": "passed",
+    "noFullLocalSuite": true,
+    "paletteOracle": "295 pixel-derived foreground/background pairs from the real original TerminalEmulatorRuntime with actual WebGL renderer. Includes all 256 indexed colors, normal/bold ANSI, inverse roles, RGB and OSC4/10/11. The existing terminal test suite consumes the corpus; sync-native-ui checks recorded source SHA256 values.",
+    "actualNativePixels": "All 16 ANSI center pixels match the corresponding original-renderer samples.",
+    "fontMetrics": "See native-font-metrics.txt and reference-defaults.json: selected Noto Sans Mono at 12px; native advance7.2000003/ascent12.828/descent3.516 ->7x17 device grid at scale1. Reference canvas width7.200058, integer bounding box13+4 ->same grid.",
+    "daemonGeometry": "Read actual PTY replay metadata through a separate owned observer without claiming size: 136 columns x42 rows, matching the reference at 960x728 terminal bounds.",
+    "input": "Real OS clicks captured at the fixture PTY; first and last cells and empty right/bottom regions match original-runtime browser mouse-event records."
+  },
+  "visualEvidence": {
+    "reference": "Actual Electron, bundled original TerminalEmulatorRuntime and authored dark theme/default code size. WebGL enabled with SwiftShader in private Xvfb. No reimplementation of reference font/theme/options.",
+    "native": "GPUI debug executable, Xvfb/Openbox/lavapipe, immutable hashed source builds.",
+    "viewport": [1280, 800],
+    "terminalRegion": [320, 72, 960, 728],
+    "regionScope": "Normalize terminal placement and compare only the terminal. This does not validate original application chrome, sidebar or overall layout. No masks within the compared region.",
+    "images": "Representative ASCII, Unicode, attributes and steady-cursor images are included. Exact counts for five terminal scenes in comparison.json.",
+    "result": "Different-pixel counts decrease in every scene, but remain nonzero. Full Electron pixel parity NOT_PASSED.",
+    "steadyFocusedCursor": "Original terminal is focused and set to steady bar to remove blink nondeterminism. Its 1x17 cursor rectangle matches exactly; blink, inactive and alternate cursor styles remain unverified/incomplete.",
+    "finalSource": "All five final-source captures are byte-equivalent in pixel content to the primary post-change render captures; final-source pointer and native palette checks also passed.",
+    "fixtureOverrides": "Fixed terminal bounds/origin, scrollback100 for short isolated scenes, private software GPU, focused steady-bar cursor for cursor comparison; no production state or user settings loaded."
+  },
+  "binaryProvenance": {
+    "beforeSha256": "ce80cb0383566f34d1e328c502c74651d611cdd2a40bd25c9c5d17a7acd6fdd2",
+    "primaryAfterSha256": "00320c52a01f874b02a8fae4af30d9d66b3636ba100d2b067d2bd73a8cfcff58",
+    "finalAfterSha256": "67782a620b3c0c56c16edec6a53d318689733dba6c1e3c5b622234be6e929f82",
+    "sourceVerification": {
+      "date": "2026-11-01",
+      "method": "Recomputed archive SHA256 and compared every regular archived file with the checkout byte for byte; zero mismatches across 114 files. Recomputed all three independent executable SHA256 values; they match the recorded values.",
+      "currentFilesManifestSha256": "10c3f56cd51422f5e3067744ef0bab56bf171b78c1e3275806da0df8f6cea3f6",
+      "manifestFormat": "Sorted lines of archive-relative path, one space, file SHA256, newline. Snapshot covers native build inputs, not the later shared input-mode parser changes.",
+      "scope": "Archive and executables remain in the local QA cache; this repository evidence records verification, not a portable source/binary artifact bundle."
+    },
+    "issue": "Building separate source snapshots into one Cargo target reused a stale top-level executable and library. The first supposed post-change captures matched the old binary and were discarded. Rebuilt the native package and used immutable executable copies/hashes. Final platform checks cleaned native package artifacts first.",
+    "referenceFocus": "An initial cursor reference lacked terminal DOM focus and drew no caret. Recaptured with actual terminal focus and recorded cursor state; comparison.json uses the corrected reference."
+  },
+  "diagnostic": "A private no-enhancement/gamma1 raster experiment reduced ASCII difference only from49788 to49494 pixels. No gamma/contrast environment change was shipped; backend text rasterization remains unresolved.",
+  "limitations": [
+    "Full GPUI migration and original UI pixel parity remain NOT_PASSED.",
+    "Only default appearance covered. Existing/custom font preferences, theme/tint changes and settings persistence still require migration; native code spans on other platforms are not addressed here.",
+    "Swash/GPUI versus Chromium/Skia glyph rasterization, fallback/ligatures, cross-cell shaping, emoji width and box/block drawing still differ.",
+    "Dim/hidden/strike and rich underline attributes, blink/inactive/alternate cursors, scrollbar UI, full selection/IME/input, raw-byte lane, replay edge cases and reconnect remain incomplete.",
+    "Mac/Windows native interaction and pixel acceptance not established by their compilation/core tests.",
+    "No real Pi/Grok run or overall hardware CPU/RSS/typing/scroll performance acceptance in this checkpoint.",
+    "Published screenshots cover ASCII, Unicode, attributes and cursor, not erase or the five final-source captures. Their JSON counts are retained results; this directory alone cannot independently rederive all counts. Native fixture/capture/comparison and platform execution helpers remain in the local QA cache.",
+    "The palette source manifest is a freshness guard for its recorded inputs, not a complete transitive dependency or capture-time bundle fingerprint."
+  ],
+  "cleanup": {
+    "date": "2026-11-01",
+    "nativeClose": "Verified executable SHA256 and DISPLAY=:94, then sent WM_DELETE_WINDOW. SDK readback confirmed all six fixture PTYs survived client close.",
+    "extraTerminal": "Verified F c078e949-db6a-4cc9-9249-67390612070a as Cache F, pointer.cjs, second workspace and secondary cwd; matched its PTY command. Explicit killTerminal succeeded and all original A-E IDs remained.",
+    "fixture": "Revalidated PID641278 command line, sent SIGTERM and observed its exit via pidfd. Private worker641594 and all six PTY processes are gone; fixture home /tmp/paseo-home-Wn8ABz was removed by teardown.",
+    "display": "Revalidated private Openbox executable and DISPLAY=:94 and Xvfb executable/argv, stopped only those processes and observed their exit. Private daemon41983 and proxy43079 listeners are absent.",
+    "production": "Production6767, installed clients, real sessions and preserved Agent-footer stash untouched. Full migration and pixel acceptance remain NOT_PASSED."
+  },
+  "reproduce": {
+    "runFrom": "checkout root, with an isolated Xvfb display :94",
+    "commands": [
+      "PASEO_NATIVE_QA=/tmp/paseo-terminal-reference node --import tsx docs/qa-evidence/gpui-native-terminal-theme/bundle-reference.mts",
+      "PASEO_NATIVE_QA=/tmp/paseo-terminal-reference node --import tsx docs/qa-evidence/gpui-native-terminal-theme/capture-palette.mts",
+      "python docs/qa-evidence/gpui-native-terminal-theme/extract-palette.py /tmp/paseo-terminal-reference",
+      "PASEO_NATIVE_QA=/tmp/paseo-terminal-reference node --import tsx docs/qa-evidence/gpui-native-terminal-theme/capture-scenes.mts"
+    ],
+    "result": "Published producer/extractor scripts reproduced the complete committed JSON corpus including all source hashes. Native pixel checks, source-matched captures and actual PTY input are separately recorded."
+  }
+}

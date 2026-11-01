@@ -7,7 +7,7 @@ use anyhow::{Result, ensure};
 use gpui::{
     App, Bounds, Context, ElementInputHandler, EntityInputHandler, FocusHandle, Focusable,
     KeyDownEvent, MouseButton, Pixels, Point, Render, ScrollEvent, TextRun, UTF16Selection, Window,
-    canvas, div, fill, font, point, prelude::*, px, rgb, rgba, size,
+    canvas, div, fill, point, prelude::*, px, rgb, rgba, size,
 };
 use serde_json::{Value, json};
 
@@ -21,8 +21,8 @@ use paseo_desktop::{
     wire::{TerminalFrame, TerminalOpcode},
 };
 
-const FONT_SIZE: f32 = 14.;
-const ROW_HEIGHT: f32 = 20.;
+const FONT_SIZE: f32 = crate::theme::terminal::FONT_SIZE;
+const SCROLLBAR_WIDTH: f32 = 8.;
 
 pub struct TerminalView {
     terminal_id: String,
@@ -36,6 +36,7 @@ pub struct TerminalView {
     desired_size: GridSize,
     bounds: Bounds<Pixels>,
     cell_width: Pixels,
+    row_height: f32,
     wheel: paseo_desktop::mouse::Wheel,
     marked: String,
     error: Option<String>,
@@ -71,6 +72,7 @@ impl TerminalView {
             desired_size: initial,
             bounds: Bounds::default(),
             cell_width: px(8.),
+            row_height: 17.,
             wheel: paseo_desktop::mouse::Wheel::default(),
             marked: String::new(),
             error: None,
@@ -201,13 +203,22 @@ impl TerminalView {
         self.notify_visible(cx);
     }
 
-    fn measure(&mut self, bounds: Bounds<Pixels>, width: Pixels, cx: &mut Context<Self>) {
+    fn measure(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        metrics: paseo_desktop::terminal_geometry::Metrics,
+        cx: &mut Context<Self>,
+    ) {
+        let width = px(metrics.width);
+        self.row_height = metrics.height;
         self.bounds = bounds;
         self.cell_width = width;
-        let rows = (f32::from(bounds.size.height) / ROW_HEIGHT)
+        let rows = (f32::from(bounds.size.height) / self.row_height)
             .floor()
             .clamp(1., 1000.) as u16;
-        let cols = (bounds.size.width / width).floor().clamp(2., 1000.) as u16;
+        let cols = ((bounds.size.width - px(SCROLLBAR_WIDTH)) / width)
+            .floor()
+            .clamp(2., 1000.) as u16;
         self.desired_size = GridSize { rows, cols };
         if self.request_id.is_none() {
             self.buffer.resize(self.desired_size);
@@ -364,7 +375,7 @@ impl TerminalView {
     }
 
     fn selection_position(&self, position: Point<Pixels>) -> (usize, usize) {
-        let row = ((position.y - self.bounds.top()) / px(ROW_HEIGHT))
+        let row = ((position.y - self.bounds.top()) / px(self.row_height))
             .floor()
             .clamp(0., f32::from(self.buffer.size.rows - 1)) as usize;
         let column = ((position.x - self.bounds.left()) / self.cell_width)
@@ -380,6 +391,16 @@ impl TerminalView {
             MouseButton::Right => Some((PointerButton::Right, 4)),
             _ => None,
         }
+    }
+
+    fn pointer_in_terminal(&self, position: Point<Pixels>) -> bool {
+        // xterm clamps empty horizontal-gutter clicks to the final column, but
+        // rejects the unused space below the final screen row.
+        position.x >= self.bounds.left()
+            && position.y >= self.bounds.top()
+            && position.x < self.bounds.right()
+            && position.y
+                < self.bounds.top() + px(self.row_height * f32::from(self.buffer.size.rows))
     }
 
     fn send_pointer(
@@ -400,10 +421,10 @@ impl TerminalView {
             (f32::from(self.cell_width) * f32::from(size.cols) - 1.).max(0.),
         );
         let y = f32::from(position.y - self.bounds.top())
-            .clamp(0., (ROW_HEIGHT * f32::from(size.rows) - 1.).max(0.));
+            .clamp(0., (self.row_height * f32::from(size.rows) - 1.).max(0.));
         let event = PointerEvent {
             col: (x / f32::from(self.cell_width)).floor() as u32,
-            row: (y / ROW_HEIGHT).floor() as u32,
+            row: (y / self.row_height).floor() as u32,
             x: x.floor() as u32,
             y: y.floor() as u32,
             button,
@@ -444,7 +465,7 @@ impl TerminalView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.bounds.contains(&event.position) {
+        if !self.pointer_in_terminal(event.position) {
             return;
         }
         self.focus.focus(window, cx);
@@ -507,7 +528,7 @@ impl TerminalView {
                 PointerButton::Right
             }
         } else {
-            if event.pressed_button.is_some() || !self.bounds.contains(&event.position) {
+            if event.pressed_button.is_some() || !self.pointer_in_terminal(event.position) {
                 return;
             }
             PointerButton::None
@@ -546,7 +567,7 @@ impl TerminalView {
     }
 
     fn scroll(&mut self, event: &ScrollEvent, _window: &mut Window, cx: &mut Context<Self>) {
-        let delta = f32::from(event.delta.pixel_delta(px(ROW_HEIGHT)).y) / ROW_HEIGHT;
+        let delta = f32::from(event.delta.pixel_delta(px(self.row_height)).y) / self.row_height;
         if delta == 0. {
             return;
         }
@@ -635,14 +656,27 @@ impl Render for TerminalView {
             .child(
                 canvas(
                     move |bounds, window, cx| {
-                        let font = font(crate::fonts::TERMINAL_FAMILY);
-                        let width = window
-                            .text_system()
-                            .advance(window.text_system().resolve_font(&font), px(FONT_SIZE), 'M')
-                            .map(|s| s.width)
-                            .unwrap_or(px(8.));
-                        measure_view.update(cx, |view, cx| view.measure(bounds, width, cx));
-                        (font, width)
+                        let font = crate::fonts::terminal_font();
+                        let run = TextRun {
+                            len: 1,
+                            font: font.clone(),
+                            color: rgb(crate::theme::terminal::FOREGROUND).into(),
+                            ..Default::default()
+                        };
+                        let line = window.text_system().shape_line(
+                            "W".into(),
+                            px(FONT_SIZE),
+                            &[run],
+                            None,
+                        );
+                        let metrics = paseo_desktop::terminal_geometry::Metrics::new(
+                            line.width().into(),
+                            line.ascent.into(),
+                            line.descent.into(),
+                            window.scale_factor(),
+                        );
+                        measure_view.update(cx, |view, cx| view.measure(bounds, metrics, cx));
+                        (font, px(metrics.width))
                     },
                     move |bounds, (base_font, width), window, cx| {
                         let focus = paint_view.read(cx).focus.clone();
@@ -681,15 +715,15 @@ impl Render for TerminalView {
                                         let origin = bounds.origin
                                             + point(
                                                 width * cell.col as f32,
-                                                px(ROW_HEIGHT * cell.row as f32),
+                                                px(view.row_height * cell.row as f32),
                                             );
-                                        if cell.background != 0x171919 {
+                                        if cell.background != crate::theme::terminal::BACKGROUND {
                                             window.paint_quad(fill(
                                                 Bounds::new(
                                                     origin,
                                                     size(
                                                         width * cell.columns as f32,
-                                                        px(ROW_HEIGHT),
+                                                        px(view.row_height),
                                                     ),
                                                 ),
                                                 rgb(cell.background),
@@ -701,7 +735,7 @@ impl Render for TerminalView {
                                                     origin,
                                                     size(
                                                         width * cell.columns as f32,
-                                                        px(ROW_HEIGHT),
+                                                        px(view.row_height),
                                                     ),
                                                 ),
                                                 rgba(crate::theme::terminal_selection::BACKGROUND),
@@ -717,7 +751,7 @@ impl Render for TerminalView {
                                         );
                                         let _ = line.paint(
                                             origin,
-                                            px(ROW_HEIGHT),
+                                            px(view.row_height),
                                             gpui::TextAlign::Left,
                                             None,
                                             window,
@@ -730,11 +764,11 @@ impl Render for TerminalView {
                                                 bounds.origin
                                                     + point(
                                                         width * col as f32,
-                                                        px(ROW_HEIGHT * row as f32),
+                                                        px(view.row_height * row as f32),
                                                     ),
-                                                size(px(2.), px(ROW_HEIGHT)),
+                                                size(px(1.), px(view.row_height)),
                                             ),
-                                            rgb(0x82aaff),
+                                            rgb(screen.cursor_color),
                                         ));
                                     }
                                     let marked = view.marked.clone();
@@ -762,9 +796,9 @@ impl Render for TerminalView {
                                             bounds.origin
                                                 + point(
                                                     width * col as f32,
-                                                    px(ROW_HEIGHT * row as f32),
+                                                    px(view.row_height * row as f32),
                                                 ),
-                                            px(ROW_HEIGHT),
+                                            px(view.row_height),
                                             gpui::TextAlign::Left,
                                             None,
                                             window,
@@ -849,8 +883,12 @@ impl EntityInputHandler for TerminalView {
     ) -> Option<Bounds<Pixels>> {
         let (row, col) = self.buffer.screen().cursor.unwrap_or((0, 0));
         Some(Bounds::new(
-            self.bounds.origin + point(self.cell_width * col as f32, px(ROW_HEIGHT * row as f32)),
-            size(self.cell_width, px(ROW_HEIGHT)),
+            self.bounds.origin
+                + point(
+                    self.cell_width * col as f32,
+                    px(self.row_height * row as f32),
+                ),
+            size(self.cell_width, px(self.row_height)),
         ))
     }
     fn character_index_for_point(

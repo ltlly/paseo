@@ -94,3 +94,37 @@ pub mod terminal_selection {
     pub const FOREGROUND: u32 = 0xfafafa;
 }
 pub const CONTENT_MAX_WIDTH: f32 = 820.0;
+pub mod terminal {
+    pub const BACKGROUND: u32 = 0x181b1a;
+    pub const FOREGROUND: u32 = 0xfafafa;
+    pub const CURSOR: u32 = 0xfafafa;
+    pub const CURSOR_ACCENT: u32 = 0x181b1a;
+    pub const ANSI: [u32; 16] = [
+        0x141716, 0xe07070, 0x5dba80, 0xd4a44a, 0x6a9de0, 0xb07ad0, 0x4aabb8, 0xd4d4d8, 0x434645,
+        0xe89090, 0x7ecf9a, 0xe0be6e, 0x8ab4e8, 0xc49ae0, 0x6ec2cc, 0xf0f0f2,
+    ];
+    pub const FONT_SIZE: f32 = 12.0;
+    pub const FONT_FAMILIES: &[&str] = &[
+        "JetBrains Mono",
+        "JetBrainsMono Nerd Font",
+        "JetBrainsMono NF",
+        "MesloLGM Nerd Font",
+        "MesloLGM NF",
+        "Hack Nerd Font",
+        "FiraCode Nerd Font",
+        "Symbols Nerd Font",
+        "SF Mono",
+        "Menlo",
+        "Monaco",
+        "Consolas",
+        "Liberation Mono",
+        "monospace",
+    ];
+    pub const WINDOWS_FONT_FAMILIES: &[&str] = &[
+        "Cascadia Mono",
+        "Cascadia Code",
+        "Consolas",
+        "Symbols Nerd Font",
+        "monospace",
+    ];
+}

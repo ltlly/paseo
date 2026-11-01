@@ -26,10 +26,10 @@ fn main() {
     gpui_platform::application()
         .with_assets(assets::Assets)
         .run(|cx: &mut App| {
+            fonts::configure(cx);
             cx.text_system()
                 .add_fonts(fonts::terminal_faces())
                 .expect("load bundled terminal fonts");
-            fonts::configure(cx);
             let bounds = Bounds::centered(None, size(px(1280.), px(800.)), cx);
             cx.open_window(
                 WindowOptions {

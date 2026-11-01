@@ -1,0 +1,18 @@
+[
+  {
+    "name": "first",
+    "inputs": ["\u001b[<0;1;1M", "\u001b[<0;1;1m"]
+  },
+  {
+    "name": "scrollbar",
+    "inputs": ["\u001b[<0;136;1M", "\u001b[<0;136;1m"]
+  },
+  {
+    "name": "bottom",
+    "inputs": []
+  },
+  {
+    "name": "last",
+    "inputs": ["\u001b[<0;136;1M", "\u001b[<0;136;1m"]
+  }
+]

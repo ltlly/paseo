@@ -1,0 +1,10 @@
+{
+  "palette16ActualNativeCenterPixels": [
+    1316630, 14708848, 6142592, 13935690, 6987232, 11565776, 4893624, 13948120, 4408901, 15241360,
+    8310682, 14728814, 9090280, 12884704, 7258828, 15790322
+  ],
+  "firstCellMouseHex": "1b5b3c303b313b314d1b5b3c303b313b316d",
+  "lastColumn": 136,
+  "horizontalGutterClampsToLastColumnLikeXterm": true,
+  "bottomPaddingSendsNoPtyBytes": true
+}

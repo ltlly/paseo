@@ -1,11 +1,24 @@
 use std::borrow::Cow;
 
 pub const TERMINAL_FAMILY: &str = "JetBrains Mono";
+static TERMINAL_FONT: std::sync::OnceLock<gpui::Font> = std::sync::OnceLock::new();
 
 #[cfg(target_os = "linux")]
 static UI_FAMILY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 
 pub fn configure(cx: &mut gpui::App) {
+    let available = cx.text_system().all_font_names();
+    let preferred = if cfg!(target_os = "windows") {
+        crate::theme::terminal::WINDOWS_FONT_FAMILIES
+    } else {
+        crate::theme::terminal::FONT_FAMILIES
+    };
+    let mut families =
+        paseo_desktop::font_selection::terminal_families(preferred, &available, code_family());
+    let primary = families.remove(0);
+    let mut face = gpui::font(primary);
+    face.fallbacks = Some(gpui::FontFallbacks::from_fonts(families));
+    let _ = TERMINAL_FONT.set(face);
     #[cfg(target_os = "linux")]
     {
         use paseo_desktop::font_selection::{description_family, gtk_settings_font};
@@ -57,6 +70,13 @@ pub fn configure(cx: &mut gpui::App) {
     {
         let _ = cx;
     }
+}
+
+pub fn terminal_font() -> gpui::Font {
+    TERMINAL_FONT
+        .get()
+        .expect("configure platform fonts before opening a terminal")
+        .clone()
 }
 
 pub fn ui_family() -> &'static str {

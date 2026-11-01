@@ -1,0 +1,24 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.41s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-f3eb6b59809beb03)
+
+running 1 test
+test terminal::tests::default_theme_and_bold_ansi_match_the_authored_desktop_terminal ... FAILED
+
+failures:
+
+---- terminal::tests::default_theme_and_bold_ansi_match_the_authored_desktop_terminal stdout ----
+
+thread 'terminal::tests::default_theme_and_bold_ansi_match_the_authored_desktop_terminal' (634412) panicked at packages/desktop/native/src/terminal.rs:323:9:
+assertion `left == right` failed
+  left: [(15757688, 1513753), (15757688, 1513753), (14212841, 1513753)]
+ right: [(14708848, 1579802), (15241360, 1579802), (16448250, 1579802)]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal::tests::default_theme_and_bold_ansi_match_the_authored_desktop_terminal
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 74 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p paseo-desktop --lib`

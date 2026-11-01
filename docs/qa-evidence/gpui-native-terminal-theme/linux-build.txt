@@ -1,0 +1,2 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.64s

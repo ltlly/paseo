@@ -1,0 +1,15 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.03s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-f3eb6b59809beb03)
+
+running 8 tests
+test terminal::tests::block_selection_preserves_columns_and_does_not_copy_wide_spacers ... ok
+test terminal::tests::default_theme_and_bold_ansi_match_the_authored_desktop_terminal ... ok
+test terminal::tests::palette_matches_actual_electron_terminal_pixels_including_osc_and_inverse_bold ... ok
+test terminal::tests::query_replies_are_not_sent_by_the_display_parser ... ok
+test terminal::tests::replay_keeps_utf8_and_escape_parser_state_across_chunks ... ok
+test terminal::tests::scrolling_and_resize_preserve_bounded_history ... ok
+test terminal::tests::selection_copy_tracks_wrapping_reverse_drag_scrollback_and_input_clear ... ok
+test terminal::tests::visible_cells_keep_wide_columns_colored_spaces_and_unbounded_combining_text ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 70 filtered out; finished in 0.01s

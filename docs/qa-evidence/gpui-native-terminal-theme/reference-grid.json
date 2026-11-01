@@ -1,0 +1,40 @@
+{
+  "fontSize": 12,
+  "fontFamily": "JetBrains Mono, JetBrainsMono Nerd Font, JetBrainsMono NF, MesloLGM Nerd Font, MesloLGM NF, Hack Nerd Font, FiraCode Nerd Font, Symbols Nerd Font, SF Mono, Menlo, Monaco, Consolas, 'Liberation Mono', monospace",
+  "dimensions": {
+    "css": {
+      "canvas": {
+        "width": 952,
+        "height": 714
+      },
+      "cell": {
+        "width": 7,
+        "height": 17
+      }
+    },
+    "device": {
+      "canvas": {
+        "width": 952,
+        "height": 714
+      },
+      "cell": {
+        "width": 7,
+        "height": 17
+      },
+      "char": {
+        "width": 7,
+        "height": 17,
+        "left": 0,
+        "top": 0
+      }
+    }
+  },
+  "rows": 42,
+  "cols": 136,
+  "cursor": {
+    "x": 30,
+    "y": 19,
+    "focused": true,
+    "hidden": false
+  }
+}

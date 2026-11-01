@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-f3eb6b59809beb03)
+
+running 4 tests
+test font_selection::tests::gtk_family_wins_over_an_unrelated_fontconfig_system_ui_alias ... ok
+test font_selection::tests::gtk_file_reads_only_the_active_settings_section ... ok
+test font_selection::tests::style_size_and_prefix_collisions_do_not_change_the_family ... ok
+test font_selection::tests::terminal_defaults_preserve_css_preference_and_resolve_the_generic_family ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 74 filtered out; finished in 0.00s

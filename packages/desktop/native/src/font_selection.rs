@@ -50,9 +50,66 @@ pub fn gtk_settings_font(settings: &str) -> Option<&str> {
     None
 }
 
+/// Resolve the authored CSS stack against system fonts before bundled fallback
+/// faces are registered. Bundling a face must not change the user's default.
+pub fn terminal_families(preferred: &[&str], available: &[String], generic: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    for family in preferred {
+        let resolved = if *family == "monospace" {
+            Some(generic)
+        } else {
+            available
+                .iter()
+                .find(|name| name.eq_ignore_ascii_case(family))
+                .map(String::as_str)
+        };
+        if let Some(name) = resolved
+            && !result
+                .iter()
+                .any(|existing: &String| existing.eq_ignore_ascii_case(name))
+        {
+            result.push(name.to_owned());
+        }
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn terminal_defaults_preserve_css_preference_and_resolve_the_generic_family() {
+        let available = [
+            "Consolas".into(),
+            "Cascadia Code".into(),
+            "Noto Sans Mono".into(),
+        ];
+        assert_eq!(
+            terminal_families(
+                &["Cascadia Mono", "Cascadia Code", "Consolas", "monospace"],
+                &available,
+                "Consolas"
+            ),
+            ["Cascadia Code", "Consolas"]
+        );
+        assert_eq!(
+            terminal_families(
+                &["JetBrains Mono", "Missing", "monospace"],
+                &available,
+                "Noto Sans Mono"
+            ),
+            ["Noto Sans Mono"]
+        );
+        assert_eq!(
+            terminal_families(
+                &["consolas", "CASCADIA CODE", "monospace"],
+                &available,
+                "Consolas"
+            ),
+            ["Consolas", "Cascadia Code"]
+        );
+    }
 
     #[test]
     fn gtk_family_wins_over_an_unrelated_fontconfig_system_ui_alias() {
