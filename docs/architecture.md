@@ -206,6 +206,9 @@ authorization, ownership, persistence, and lifecycle contract is documented in [
 
 Electron wrapper for macOS, Linux, and Windows.
 
+The native desktop replacement is in progress under `packages/desktop/native`. See
+[GPUI desktop migration](desktop-gpui.md) for its boundaries and acceptance matrix.
+
 - Can spawn the daemon as a managed subprocess
 - Native file access for workspace integration
 - Same WebSocket client as mobile app
