@@ -2,76 +2,152 @@ use anyhow::{Result, ensure};
 use gpui::{Context, Entity, MouseButton, Render, Window, div, prelude::*, px, rgb};
 use paseo_desktop::{
     client::Connection,
-    history::{History, Page},
+    history::{Cursor, History, LiveBuffer, LiveChange, Page, SyncNeed},
 };
 use serde_json::{Value, json};
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc, time::Duration};
+
+#[derive(Clone, Copy, PartialEq)]
+enum Query {
+    Tail,
+    Before,
+    After,
+}
+impl Query {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Tail => "tail",
+            Self::Before => "before",
+            Self::After => "after",
+        }
+    }
+}
+struct Pending {
+    id: String,
+    query: Query,
+    from: Option<Cursor>,
+    generation: u64,
+}
 
 pub struct Conversation {
     agent_id: String,
     connection: Arc<Connection>,
     history: History,
-    pending: Option<String>,
+    buffer: LiveBuffer,
+    pending: Option<Pending>,
     dirty: bool,
+    want_tail: bool,
     error: Option<String>,
     refresh_scheduled: bool,
+    schedule_generation: u64,
+    retry_ms: u64,
+    retry_query: Query,
     whole_turns: bool,
     composer: Entity<crate::composer_view::Composer>,
     messages: BTreeMap<u64, Entity<crate::message_view::MessageView>>,
 }
-
 impl Conversation {
+    pub fn owns_request(&self, payload: &Value) -> bool {
+        self.pending
+            .as_ref()
+            .is_some_and(|pending| payload["requestId"].as_str() == Some(pending.id.as_str()))
+    }
     pub fn new(
         agent_id: String,
         connection: Arc<Connection>,
         whole_turns: bool,
         composer: Entity<crate::composer_view::Composer>,
+        cx: &mut Context<Self>,
     ) -> Self {
         let mut view = Self {
             agent_id,
             connection,
             history: History::default(),
+            buffer: LiveBuffer::default(),
             pending: None,
             dirty: false,
+            want_tail: false,
             error: None,
             refresh_scheduled: false,
+            schedule_generation: 0,
+            retry_ms: 1000,
+            retry_query: Query::After,
             whole_turns,
             composer,
             messages: BTreeMap::new(),
         };
-        if let Err(error) = view.fetch("tail") {
-            view.error = Some(error.to_string());
+        if let Err(error) = view.fetch(Query::Tail, cx) {
+            view.failed(error.to_string(), Some(Query::Tail), cx);
         }
         view
     }
-    fn fetch(&mut self, direction: &str) -> Result<()> {
+    fn fetch(&mut self, query: Query, cx: &mut Context<Self>) -> Result<()> {
         if self.pending.is_some() {
             return Ok(());
         }
-        let mut fields = json!({"agentId":self.agent_id,"direction":direction,"projection":"projected","limit":40});
-        if self.whole_turns && direction != "after" {
+        let query = if self.want_tail || (query == Query::After && self.history.cursor().is_none())
+        {
+            Query::Tail
+        } else {
+            query
+        };
+        let from = match query {
+            Query::Before => self.history.start.clone(),
+            Query::After => self.history.cursor(),
+            Query::Tail => None,
+        };
+        let mut fields = json!({"agentId":self.agent_id,"direction":query.name(),"projection":"projected","limit":40});
+        // The daemon also uses wholeTurns if an after-query resets to a replacement tail.
+        if self.whole_turns {
             fields["wholeTurns"] = true.into();
         }
-        let cursor = match direction {
-            "before" => self.history.start.as_ref(),
-            "after" => self.history.end.as_ref(),
-            _ => None,
-        };
-        if let Some(cursor) = cursor {
+        if let Some(cursor) = &from {
             fields["cursor"] = json!({"epoch":cursor.epoch,"seq":cursor.seq});
         }
-        self.pending = Some(
-            self.connection
-                .request("fetch_agent_timeline_request", fields)?,
-        );
+        let id = self
+            .connection
+            .request("fetch_agent_timeline_request", fields)?;
+        self.pending = Some(Pending {
+            id: id.clone(),
+            query,
+            from,
+            generation: self.buffer.generation(),
+        });
         self.dirty = false;
+        self.want_tail = false;
+        let timer = cx.background_executor().timer(Duration::from_secs(30));
+        cx.spawn(async move |this, cx| {
+            timer.await;
+            let _ = this.update(cx, |this, cx| {
+                if this
+                    .pending
+                    .as_ref()
+                    .is_some_and(|pending| pending.id == id)
+                {
+                    let pending = this.pending.take().unwrap();
+                    this.failed(
+                        "Timed out while updating messages. Retry to update the conversation."
+                            .into(),
+                        Some(pending.query),
+                        cx,
+                    );
+                }
+            });
+        })
+        .detach();
         Ok(())
     }
     pub fn receive(&mut self, kind: &str, payload: &Value, cx: &mut Context<Self>) -> Result<()> {
-        if kind == "rpc_error" && payload["requestId"].as_str() == self.pending.as_deref() {
-            self.pending = None;
-            self.error = Some(payload["error"].to_string());
-            cx.notify();
+        if kind == "rpc_error" && self.owns_request(payload) {
+            let pending = self.pending.take();
+            self.failed(
+                payload["error"]
+                    .as_str()
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| payload["error"].to_string()),
+                pending.map(|p| p.query),
+                cx,
+            );
             return Ok(());
         }
         if payload["agentId"].as_str() != Some(&self.agent_id) {
@@ -79,45 +155,122 @@ impl Conversation {
         }
         match kind {
             "fetch_agent_timeline_response" => {
-                if payload["requestId"].as_str() != self.pending.as_deref() {
+                if !self.owns_request(payload) {
                     return Ok(());
                 }
-                self.pending = None;
-                let page: Page = serde_json::from_value(payload.clone())?;
-                ensure!(
-                    page.agent_id == self.agent_id,
-                    "timeline belongs to another agent"
-                );
-                let previous = self.history.end.clone();
-                let reset_views = page.reset || self.history.epoch.as_deref() != Some(&page.epoch);
-                self.history.apply(&page)?;
-                if reset_views {
-                    self.messages.clear();
-                }
-                self.sync_messages(cx);
-                if page.has_newer {
+                let pending = self.pending.take().unwrap();
+                let result = (|| -> Result<SyncNeed> {
+                    let page: Page = serde_json::from_value(payload.clone())?;
                     ensure!(
-                        page.end_cursor.is_some() && page.end_cursor != previous,
-                        "timeline catch-up cursor did not advance"
+                        page.agent_id == self.agent_id,
+                        "Timeline belongs to another agent"
                     );
+                    let reset = page.reset || self.history.epoch.as_deref() != Some(&page.epoch);
+                    self.history.apply(&page)?;
+                    if reset {
+                        self.messages.clear();
+                    }
+                    let need = self
+                        .buffer
+                        .finish_snapshot(&mut self.history, pending.generation)?;
+                    if need == SyncNeed::After
+                        && pending.query == Query::After
+                        && pending.from.as_ref().is_some_and(|from| {
+                            from.epoch == page.epoch
+                                && self.history.cursor().is_some_and(|end| end.seq <= from.seq)
+                        })
+                    {
+                        anyhow::bail!(
+                            "The host did not advance the conversation history. Retry to update messages."
+                        );
+                    }
+                    Ok(need)
+                })();
+                self.sync_messages(cx);
+                match result {
+                    Err(error) => self.failed(error.to_string(), Some(pending.query), cx),
+                    Ok(need) => {
+                        self.error = None;
+                        self.retry_ms = 1000;
+                        self.dirty = need != SyncNeed::Current || self.want_tail;
+                        self.want_tail |= need == SyncNeed::Tail;
+                        if self.dirty {
+                            self.schedule_refresh(cx);
+                        }
+                        cx.notify();
+                    }
                 }
-                if page.has_newer {
-                    self.fetch("after")?;
-                } else if self.dirty {
+            }
+            "agent_stream" => {
+                if payload["event"]["type"] != "timeline" {
+                    return Ok(());
+                }
+                if self.pending.is_some() || self.dirty || self.want_tail {
+                    self.buffer.push(payload);
+                    if self.pending.is_none() {
+                        self.dirty = true;
+                        self.schedule_refresh(cx);
+                    }
+                    return Ok(());
+                }
+                match self.history.apply_live(payload) {
+                    Ok(LiveChange::Ignored) => {}
+                    Ok(LiveChange::Applied { anchor, inserted }) => {
+                        if self.sync_message(anchor, cx) || inserted {
+                            cx.notify();
+                        }
+                    }
+                    Ok(LiveChange::Reconcile) => {
+                        self.buffer.push(payload);
+                        self.dirty = true;
+                        self.want_tail |= payload["epoch"]
+                            .as_str()
+                            .is_some_and(|epoch| self.history.epoch.as_deref() != Some(epoch));
+                        self.schedule_refresh(cx);
+                    }
+                    Err(error) => {
+                        self.buffer.push(payload);
+                        self.failed(error.to_string(), None, cx);
+                    }
+                }
+            }
+            "agent.timeline.replacement" => {
+                self.want_tail = true;
+                self.dirty = true;
+                if self.pending.is_none() {
                     self.schedule_refresh(cx);
                 }
             }
-            "agent_stream" | "agent.timeline.replacement" => {
-                self.dirty = true;
-                self.schedule_refresh(cx);
-            }
-            _ => return Ok(()),
+            _ => {}
         }
-        self.error = None;
-        cx.notify();
         Ok(())
     }
-
+    fn sync_message(&mut self, id: u64, cx: &mut Context<Self>) -> bool {
+        let Some(entry) = self.history.entries.get(&id) else {
+            return false;
+        };
+        let user = entry.item["type"] == "user_message";
+        if !user && entry.item["type"] != "assistant_message" {
+            return true;
+        }
+        let source = entry.item["text"].as_str().unwrap_or("");
+        if let Some(view) = self.messages.get(&id) {
+            view.update(cx, |view, cx| view.set_text(source, user, cx));
+            false
+        } else {
+            let view =
+                cx.new(|cx| crate::message_view::MessageView::new(source.to_owned(), user, cx));
+            cx.subscribe(
+                &view,
+                |_, _, event: &crate::message_view::MessageEvent, cx| match event {
+                    crate::message_view::MessageEvent::OpenUrl(url) => cx.open_url(url),
+                },
+            )
+            .detach();
+            self.messages.insert(id, view);
+            true
+        }
+    }
     fn sync_messages(&mut self, cx: &mut Context<Self>) {
         self.messages.retain(|id, _| {
             self.history.entries.get(id).is_some_and(|entry| {
@@ -127,44 +280,60 @@ impl Conversation {
                 )
             })
         });
-        for (id, entry) in &self.history.entries {
-            let user = entry.item["type"] == "user_message";
-            if !user && entry.item["type"] != "assistant_message" {
-                continue;
-            }
-            let source = entry.item["text"].as_str().unwrap_or("");
-            if let Some(view) = self.messages.get(id) {
-                view.update(cx, |view, cx| view.set_text(source, user, cx));
-            } else {
-                let view =
-                    cx.new(|cx| crate::message_view::MessageView::new(source.to_owned(), user, cx));
-                cx.subscribe(
-                    &view,
-                    |_, _, event: &crate::message_view::MessageEvent, cx| match event {
-                        crate::message_view::MessageEvent::OpenUrl(url) => cx.open_url(url),
-                    },
-                )
-                .detach();
-                self.messages.insert(*id, view);
-            }
+        for id in self.history.entries.keys().copied().collect::<Vec<_>>() {
+            self.sync_message(id, cx);
         }
     }
-
+    fn failed(&mut self, error: String, query: Option<Query>, cx: &mut Context<Self>) {
+        self.error = Some(error);
+        self.retry_query = query.unwrap_or(Query::After);
+        self.dirty = true;
+        self.want_tail |= query == Some(Query::Tail);
+        self.schedule_generation = self.schedule_generation.saturating_add(1);
+        self.refresh_scheduled = false;
+        self.schedule_refresh(cx);
+        self.retry_ms = (self.retry_ms * 2).min(30_000);
+        cx.notify();
+    }
+    fn retry(&mut self, cx: &mut Context<Self>) {
+        if self.pending.is_some() {
+            return;
+        }
+        self.schedule_generation = self.schedule_generation.saturating_add(1);
+        self.refresh_scheduled = false;
+        self.retry_ms = 1000;
+        if let Err(error) = self.fetch(self.retry_query, cx) {
+            self.failed(error.to_string(), None, cx);
+        }
+        cx.notify();
+    }
     fn schedule_refresh(&mut self, cx: &mut Context<Self>) {
         if self.refresh_scheduled {
             return;
         }
         self.refresh_scheduled = true;
-        let timer = cx
-            .background_executor()
-            .timer(std::time::Duration::from_millis(50));
+        let generation = self.schedule_generation;
+        let delay = if self.error.is_some() {
+            self.retry_ms
+        } else {
+            50
+        };
+        let timer = cx.background_executor().timer(Duration::from_millis(delay));
         cx.spawn(async move |this, cx| {
             timer.await;
             let _ = this.update(cx, |this, cx| {
+                if this.schedule_generation != generation {
+                    return;
+                }
                 this.refresh_scheduled = false;
                 if this.dirty && this.pending.is_none() {
-                    if let Err(error) = this.fetch("after") {
-                        this.error = Some(error.to_string());
+                    let query = if this.error.is_some() {
+                        this.retry_query
+                    } else {
+                        Query::After
+                    };
+                    if let Err(error) = this.fetch(query, cx) {
+                        this.failed(error.to_string(), None, cx);
                     }
                     cx.notify();
                 }
@@ -201,7 +370,10 @@ impl Render for Conversation {
                             .flex()
                             .items_center()
                             .justify_center()
-                            .when(self.history.has_older, |slot| {
+                            .when(self.pending.is_some(), |slot| {
+                                slot.child("Loading messages…")
+                            })
+                            .when(self.pending.is_none() && self.history.has_older, |slot| {
                                 slot.child(
                                     div()
                                         .id("older-messages")
@@ -210,8 +382,12 @@ impl Render for Conversation {
                                         .on_mouse_down(
                                             MouseButton::Left,
                                             cx.listener(|this, _, _, cx| {
-                                                if let Err(error) = this.fetch("before") {
-                                                    this.error = Some(error.to_string());
+                                                if let Err(error) = this.fetch(Query::Before, cx) {
+                                                    this.failed(
+                                                        error.to_string(),
+                                                        Some(Query::Before),
+                                                        cx,
+                                                    );
                                                 }
                                                 cx.notify();
                                             }),
@@ -220,14 +396,33 @@ impl Render for Conversation {
                             }),
                     )
                     .when_some(self.error.clone(), |view, error| {
-                        view.child(div().text_color(rgb(c::STATUS_DANGER)).child(error))
-                    })
-                    .when(self.pending.is_some(), |view| {
                         view.child(
                             div()
-                                .py_2()
-                                .text_color(rgb(c::FOREGROUND_MUTED))
-                                .child("Loading messages…"),
+                                .flex()
+                                .flex_col()
+                                .items_start()
+                                .gap_2()
+                                .child(div().text_color(rgb(c::STATUS_DANGER)).child(error))
+                                .child(
+                                    div()
+                                        .id("retry-timeline")
+                                        .px_2()
+                                        .py_1()
+                                        .rounded_md()
+                                        .bg(rgb(c::SURFACE2))
+                                        .child(if self.pending.is_some() {
+                                            "Retrying…"
+                                        } else {
+                                            "Retry"
+                                        })
+                                        .when(self.pending.is_some(), |button| button.opacity(0.5))
+                                        .when(self.pending.is_none(), |button| {
+                                            button.cursor_pointer().on_mouse_down(
+                                                MouseButton::Left,
+                                                cx.listener(|this, _, _, cx| this.retry(cx)),
+                                            )
+                                        }),
+                                ),
                         )
                     })
                     .when(

@@ -1,0 +1,239 @@
+{
+  "requests": [
+    {
+      "time": 1793519711062,
+      "id": "6d3b255a-5901-4aad-bcea-142d3e723614",
+      "agentId": "9e523a42-085b-4f00-9e63-d93e138ccda1",
+      "direction": "tail",
+      "cursor": null
+    }
+  ],
+  "delivered": [
+    {
+      "seq": 1,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "user_message"
+    },
+    {
+      "seq": 2,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 3,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 4,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 5,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 6,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 7,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 8,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 9,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 10,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 11,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 12,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 13,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 14,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 15,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 16,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 17,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 18,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 19,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 20,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 21,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 22,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 23,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 24,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 25,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 26,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 27,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 28,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 29,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 30,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 31,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 32,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 33,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 34,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 35,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 36,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 37,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 38,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 39,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 40,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 41,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 42,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    },
+    {
+      "seq": 43,
+      "epoch": "66afe619-58a4-427e-8c07-bba879587f95",
+      "kind": "assistant_message"
+    }
+  ],
+  "dropped": [],
+  "rejected": [],
+  "held": [
+    {
+      "time": 1793519711064,
+      "id": "6d3b255a-5901-4aad-bcea-142d3e723614"
+    }
+  ],
+  "replacements": [],
+  "connections": 1,
+  "heldNow": 0
+}

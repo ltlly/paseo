@@ -1,0 +1,4101 @@
+{
+  "generatedFrom": "packages/server/src/server/agent/timeline-projection.ts",
+  "sourceSha256": "13fe8fd0fddd1de3738a3463d2e444a4ca7b6dad0a464e0dbc23715b26f5e32d",
+  "initial": {
+    "requestId": "oracle",
+    "agentId": "a",
+    "epoch": "e",
+    "reset": false,
+    "direction": "tail",
+    "window": {
+      "minSeq": 0,
+      "maxSeq": 0,
+      "nextSeq": 1
+    },
+    "entries": [],
+    "startCursor": null,
+    "endCursor": null,
+    "hasOlder": false,
+    "hasNewer": false,
+    "error": null
+  },
+  "snapshots": [
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 1,
+        "timestamp": "time-1",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1
+            }
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1
+            }
+          },
+          "timestamp": "time-1",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 1,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 2,
+        "timestamp": "time-2",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1
+            }
+          },
+          "timestamp": "time-1",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 1,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 3,
+        "timestamp": "time-3",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "reasoning",
+            "text": "r1"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1
+            }
+          },
+          "timestamp": "time-1",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 1,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1"
+          },
+          "timestamp": "time-3",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 3,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 3
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 4,
+        "timestamp": "time-4",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "reasoning",
+            "text": "r2"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1
+            }
+          },
+          "timestamp": "time-1",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 1,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 5,
+        "timestamp": "time-5",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "unknown",
+              "input": null,
+              "output": "partial"
+            },
+            "metadata": {
+              "second": 2
+            }
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 6,
+        "timestamp": "time-6",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "B"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "B"
+          },
+          "timestamp": "time-6",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 6,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 6
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 7,
+        "timestamp": "time-7",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "assistant_message",
+            "text": "C"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 8,
+        "timestamp": "time-8",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 9,
+        "timestamp": "time-9",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 1
+            }
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 1
+            }
+          },
+          "timestamp": "time-9",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 9,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 10,
+        "timestamp": "time-10",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 1
+            }
+          },
+          "timestamp": "time-9",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 9,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 11,
+        "timestamp": "time-11",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 2
+            }
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 2
+            }
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            },
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": ["identity"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 12,
+        "timestamp": "time-12",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "assistant_message",
+            "text": "F"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 2
+            }
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            },
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": ["identity"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "F"
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 12,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 13,
+        "timestamp": "time-13",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "one"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 2
+            }
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            },
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": ["identity"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "F"
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 12,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "one"
+          },
+          "timestamp": "time-13",
+          "turnId": "t",
+          "seqStart": 13,
+          "seqEnd": 13,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 13,
+              "endSeq": 13
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 14,
+        "timestamp": "time-14",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "two"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 2
+            }
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            },
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": ["identity"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "F"
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 12,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "one"
+          },
+          "timestamp": "time-13",
+          "turnId": "t",
+          "seqStart": 13,
+          "seqEnd": 13,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 13,
+              "endSeq": 13
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "two"
+          },
+          "timestamp": "time-14",
+          "turnId": "t",
+          "seqStart": 14,
+          "seqEnd": 14,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 14,
+              "endSeq": 14
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 15,
+        "timestamp": "time-15",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "new",
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 2
+            }
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            },
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": ["identity"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "F"
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 12,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "one"
+          },
+          "timestamp": "time-13",
+          "turnId": "t",
+          "seqStart": 13,
+          "seqEnd": 13,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 13,
+              "endSeq": 13
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "two"
+          },
+          "timestamp": "time-14",
+          "turnId": "t",
+          "seqStart": 14,
+          "seqEnd": 14,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 14,
+              "endSeq": 14
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          },
+          "timestamp": "time-15",
+          "turnId": "new",
+          "seqStart": 15,
+          "seqEnd": 15,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 15,
+              "endSeq": 15
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 16,
+        "timestamp": "time-16",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "failed",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "late": 1
+            }
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 2
+            }
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            },
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": ["identity"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "F"
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 12,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "one"
+          },
+          "timestamp": "time-13",
+          "turnId": "t",
+          "seqStart": 13,
+          "seqEnd": 13,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 13,
+              "endSeq": 13
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "two"
+          },
+          "timestamp": "time-14",
+          "turnId": "t",
+          "seqStart": 14,
+          "seqEnd": 14,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 14,
+              "endSeq": 14
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          },
+          "timestamp": "time-15",
+          "turnId": "new",
+          "seqStart": 15,
+          "seqEnd": 15,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 15,
+              "endSeq": 15
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "failed",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "late": 1
+            }
+          },
+          "timestamp": "time-16",
+          "turnId": "t",
+          "seqStart": 16,
+          "seqEnd": 16,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 16,
+              "endSeq": 16
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 17,
+        "timestamp": "time-17",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "t",
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "completed",
+            "detail": {
+              "type": "unknown",
+              "input": null,
+              "output": "finished"
+            },
+            "metadata": {
+              "late": 2
+            }
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 2
+            }
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            },
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": ["identity"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "F"
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 12,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "one"
+          },
+          "timestamp": "time-13",
+          "turnId": "t",
+          "seqStart": 13,
+          "seqEnd": 13,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 13,
+              "endSeq": 13
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "two"
+          },
+          "timestamp": "time-14",
+          "turnId": "t",
+          "seqStart": 14,
+          "seqEnd": 14,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 14,
+              "endSeq": 14
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          },
+          "timestamp": "time-15",
+          "turnId": "new",
+          "seqStart": 15,
+          "seqEnd": 15,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 15,
+              "endSeq": 15
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "completed",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "late": 2
+            },
+            "error": null
+          },
+          "timestamp": "time-17",
+          "turnId": "t",
+          "seqStart": 16,
+          "seqEnd": 17,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 16,
+              "endSeq": 17
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 18,
+        "timestamp": "time-18",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "new",
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "canceled",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 2
+            }
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            },
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": ["identity"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "F"
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 12,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "one"
+          },
+          "timestamp": "time-13",
+          "turnId": "t",
+          "seqStart": 13,
+          "seqEnd": 13,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 13,
+              "endSeq": 13
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "two"
+          },
+          "timestamp": "time-14",
+          "turnId": "t",
+          "seqStart": 14,
+          "seqEnd": 14,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 14,
+              "endSeq": 14
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          },
+          "timestamp": "time-15",
+          "turnId": "new",
+          "seqStart": 15,
+          "seqEnd": 15,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 15,
+              "endSeq": 15
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "completed",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "late": 2
+            },
+            "error": null
+          },
+          "timestamp": "time-17",
+          "turnId": "t",
+          "seqStart": 16,
+          "seqEnd": 17,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 16,
+              "endSeq": 17
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "canceled",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          },
+          "timestamp": "time-18",
+          "turnId": "new",
+          "seqStart": 18,
+          "seqEnd": 18,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 18,
+              "endSeq": 18
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 19,
+        "timestamp": "time-19",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "new",
+          "item": {
+            "type": "reasoning",
+            "text": "new turn"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 2
+            }
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            },
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": ["identity"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "F"
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 12,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "one"
+          },
+          "timestamp": "time-13",
+          "turnId": "t",
+          "seqStart": 13,
+          "seqEnd": 13,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 13,
+              "endSeq": 13
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "two"
+          },
+          "timestamp": "time-14",
+          "turnId": "t",
+          "seqStart": 14,
+          "seqEnd": 14,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 14,
+              "endSeq": 14
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          },
+          "timestamp": "time-15",
+          "turnId": "new",
+          "seqStart": 15,
+          "seqEnd": 15,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 15,
+              "endSeq": 15
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "completed",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "late": 2
+            },
+            "error": null
+          },
+          "timestamp": "time-17",
+          "turnId": "t",
+          "seqStart": 16,
+          "seqEnd": 17,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 16,
+              "endSeq": 17
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "canceled",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          },
+          "timestamp": "time-18",
+          "turnId": "new",
+          "seqStart": 18,
+          "seqEnd": 18,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 18,
+              "endSeq": 18
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "new turn"
+          },
+          "timestamp": "time-19",
+          "turnId": "new",
+          "seqStart": 19,
+          "seqEnd": 19,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 19,
+              "endSeq": 19
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    },
+    {
+      "payload": {
+        "agentId": "a",
+        "epoch": "e",
+        "seq": 20,
+        "timestamp": "time-20",
+        "event": {
+          "type": "timeline",
+          "provider": "codex",
+          "turnId": "other",
+          "item": {
+            "type": "reasoning",
+            "text": "other turn"
+          }
+        }
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "first": 1,
+              "second": 2
+            }
+          },
+          "timestamp": "time-5",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 5,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m1",
+            "text": "A"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "r1r2"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": ["reasoning_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "BC",
+            "messageId": "m1"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": ["assistant_merge"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "D"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "plugin",
+            "pluginId": "p",
+            "id": "same",
+            "kind": "fixture",
+            "version": 1,
+            "data": {
+              "value": 2
+            }
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            },
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": ["identity"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "E"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "text": "F"
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 12,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "one"
+          },
+          "timestamp": "time-13",
+          "turnId": "t",
+          "seqStart": 13,
+          "seqEnd": 13,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 13,
+              "endSeq": 13
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "user_message",
+            "clientMessageId": "client",
+            "text": "two"
+          },
+          "timestamp": "time-14",
+          "turnId": "t",
+          "seqStart": 14,
+          "seqEnd": 14,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 14,
+              "endSeq": 14
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          },
+          "timestamp": "time-15",
+          "turnId": "new",
+          "seqStart": 15,
+          "seqEnd": 15,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 15,
+              "endSeq": 15
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "completed",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {
+              "late": 2
+            },
+            "error": null
+          },
+          "timestamp": "time-17",
+          "turnId": "t",
+          "seqStart": 16,
+          "seqEnd": 17,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 16,
+              "endSeq": 17
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "canceled",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          },
+          "timestamp": "time-18",
+          "turnId": "new",
+          "seqStart": 18,
+          "seqEnd": 18,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 18,
+              "endSeq": 18
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "new turn"
+          },
+          "timestamp": "time-19",
+          "turnId": "new",
+          "seqStart": 19,
+          "seqEnd": 19,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 19,
+              "endSeq": 19
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "reasoning",
+            "text": "other turn"
+          },
+          "timestamp": "time-20",
+          "turnId": "other",
+          "seqStart": 20,
+          "seqEnd": 20,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 20,
+              "endSeq": 20
+            }
+          ],
+          "collapsed": []
+        }
+      ]
+    }
+  ],
+  "future": {
+    "before": {
+      "requestId": "oracle",
+      "agentId": "a",
+      "epoch": "e",
+      "reset": false,
+      "direction": "tail",
+      "window": {
+        "minSeq": 1,
+        "maxSeq": 4,
+        "nextSeq": 5
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "running",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {}
+          },
+          "timestamp": "time-1",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 1,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "text-2"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m3",
+            "text": "text-3"
+          },
+          "timestamp": "time-3",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 3,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 3
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m4",
+            "text": "text-4"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 4,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 4,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": []
+        }
+      ],
+      "startCursor": {
+        "epoch": "e",
+        "seq": 1
+      },
+      "endCursor": {
+        "epoch": "e",
+        "seq": 4
+      },
+      "hasOlder": false,
+      "hasNewer": false,
+      "error": null
+    },
+    "partial": {
+      "requestId": "oracle",
+      "agentId": "a",
+      "epoch": "e",
+      "reset": false,
+      "direction": "after",
+      "window": {
+        "minSeq": 1,
+        "maxSeq": 12,
+        "nextSeq": 13
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "completed",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {},
+            "error": null
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            },
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        }
+      ],
+      "startCursor": {
+        "epoch": "e",
+        "seq": 5
+      },
+      "endCursor": {
+        "epoch": "e",
+        "seq": 5
+      },
+      "hasOlder": true,
+      "hasNewer": true,
+      "error": null
+    },
+    "rest": {
+      "requestId": "oracle",
+      "agentId": "a",
+      "epoch": "e",
+      "reset": false,
+      "direction": "after",
+      "window": {
+        "minSeq": 1,
+        "maxSeq": 12,
+        "nextSeq": 13
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "completed",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {},
+            "error": null
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            },
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m6",
+            "text": "text-6"
+          },
+          "timestamp": "time-6",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 6,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 6
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m7",
+            "text": "text-7"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 7,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 7,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m8",
+            "text": "text-8"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m9",
+            "text": "text-9"
+          },
+          "timestamp": "time-9",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 9,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m10",
+            "text": "text-10"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m11",
+            "text": "text-11"
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 11,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": []
+        }
+      ],
+      "startCursor": {
+        "epoch": "e",
+        "seq": 6
+      },
+      "endCursor": {
+        "epoch": "e",
+        "seq": 12
+      },
+      "hasOlder": true,
+      "hasNewer": false,
+      "error": null
+    },
+    "final": {
+      "requestId": "oracle",
+      "agentId": "a",
+      "epoch": "e",
+      "reset": false,
+      "direction": "tail",
+      "window": {
+        "minSeq": 1,
+        "maxSeq": 12,
+        "nextSeq": 13
+      },
+      "entries": [
+        {
+          "item": {
+            "type": "tool_call",
+            "callId": "reused",
+            "name": "shell",
+            "status": "completed",
+            "detail": {
+              "type": "shell",
+              "command": "echo fixture"
+            },
+            "metadata": {},
+            "error": null
+          },
+          "timestamp": "time-12",
+          "turnId": "t",
+          "seqStart": 1,
+          "seqEnd": 12,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 1,
+              "endSeq": 1
+            },
+            {
+              "startSeq": 5,
+              "endSeq": 5
+            },
+            {
+              "startSeq": 12,
+              "endSeq": 12
+            }
+          ],
+          "collapsed": ["tool_lifecycle"]
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m2",
+            "text": "text-2"
+          },
+          "timestamp": "time-2",
+          "turnId": "t",
+          "seqStart": 2,
+          "seqEnd": 2,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 2,
+              "endSeq": 2
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m3",
+            "text": "text-3"
+          },
+          "timestamp": "time-3",
+          "turnId": "t",
+          "seqStart": 3,
+          "seqEnd": 3,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 3,
+              "endSeq": 3
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m4",
+            "text": "text-4"
+          },
+          "timestamp": "time-4",
+          "turnId": "t",
+          "seqStart": 4,
+          "seqEnd": 4,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 4,
+              "endSeq": 4
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m6",
+            "text": "text-6"
+          },
+          "timestamp": "time-6",
+          "turnId": "t",
+          "seqStart": 6,
+          "seqEnd": 6,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 6,
+              "endSeq": 6
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m7",
+            "text": "text-7"
+          },
+          "timestamp": "time-7",
+          "turnId": "t",
+          "seqStart": 7,
+          "seqEnd": 7,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 7,
+              "endSeq": 7
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m8",
+            "text": "text-8"
+          },
+          "timestamp": "time-8",
+          "turnId": "t",
+          "seqStart": 8,
+          "seqEnd": 8,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 8,
+              "endSeq": 8
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m9",
+            "text": "text-9"
+          },
+          "timestamp": "time-9",
+          "turnId": "t",
+          "seqStart": 9,
+          "seqEnd": 9,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 9,
+              "endSeq": 9
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m10",
+            "text": "text-10"
+          },
+          "timestamp": "time-10",
+          "turnId": "t",
+          "seqStart": 10,
+          "seqEnd": 10,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 10,
+              "endSeq": 10
+            }
+          ],
+          "collapsed": []
+        },
+        {
+          "item": {
+            "type": "assistant_message",
+            "messageId": "m11",
+            "text": "text-11"
+          },
+          "timestamp": "time-11",
+          "turnId": "t",
+          "seqStart": 11,
+          "seqEnd": 11,
+          "sourceSeqRanges": [
+            {
+              "startSeq": 11,
+              "endSeq": 11
+            }
+          ],
+          "collapsed": []
+        }
+      ],
+      "startCursor": {
+        "epoch": "e",
+        "seq": 1
+      },
+      "endCursor": {
+        "epoch": "e",
+        "seq": 12
+      },
+      "hasOlder": false,
+      "hasNewer": false,
+      "error": null
+    }
+  }
+}

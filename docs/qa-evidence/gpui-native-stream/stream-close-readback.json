@@ -1,0 +1,13 @@
+{
+  "agentA": {
+    "userMessages": 2,
+    "assistantMessages": 2,
+    "exactTextAfterNativeClose": true
+  },
+  "agentB": {
+    "userMessages": 1,
+    "assistantMessages": 1,
+    "exactTextAfterNativeClose": true
+  },
+  "zeroRealModelCalls": true
+}

@@ -146,7 +146,11 @@ impl Paseo {
             }
         }
         if let Some(conversation) = &self.conversation {
+            let owns_error = kind == "rpc_error" && conversation.read(cx).owns_request(&payload);
             conversation.update(cx, |view, cx| view.receive(kind, &payload, cx))?;
+            if owns_error {
+                return Ok(());
+            }
         }
         match kind {
             "fetch_agents_response" => {
@@ -289,12 +293,13 @@ impl Paseo {
                                 .as_ref()
                                 .and_then(|info| info.features.get("wholeTurnTimeline"))
                                 == Some(&Value::Bool(true));
-                            self.conversation = Some(cx.new(|_| {
+                            self.conversation = Some(cx.new(|cx| {
                                 crate::conversation::Conversation::new(
                                     agent_id,
                                     connection,
                                     whole_turns,
                                     composer,
+                                    cx,
                                 )
                             }));
                         }

@@ -1,0 +1,153 @@
+{
+  "requestId": "adfde2a2-a098-46e0-88de-cffbab9e678e",
+  "agentId": "599f263e-ab5f-45f8-8e8b-a682216f49c1",
+  "agent": {
+    "id": "599f263e-ab5f-45f8-8e8b-a682216f49c1",
+    "provider": "codex",
+    "cwd": "/tmp/paseo-home-tnIqAE/.paseo/native-project",
+    "workspaceId": "wks_5f160211bd5185ff",
+    "model": "gpt-5.4-mini",
+    "thinkingOptionId": null,
+    "effectiveThinkingOptionId": null,
+    "runtimeInfo": {
+      "provider": "codex",
+      "sessionId": "9d9bf4b0-9328-45a5-96b6-216f3506a12c",
+      "model": "gpt-5.4-mini",
+      "modeId": null
+    },
+    "createdAt": "2026-11-01T07:48:40.455Z",
+    "updatedAt": "2026-11-01T07:57:31.819Z",
+    "lastUserMessageAt": "2026-11-01T07:57:28.602Z",
+    "status": "idle",
+    "activeTurn": null,
+    "capabilities": {
+      "supportsStreaming": true,
+      "supportsSessionPersistence": true,
+      "supportsDynamicModes": true,
+      "supportsMcpServers": false,
+      "supportsReasoningStream": true,
+      "supportsToolInvocations": true,
+      "supportsRewindConversation": false,
+      "supportsRewindFiles": false,
+      "supportsRewindBoth": false
+    },
+    "currentModeId": null,
+    "availableModes": [
+      {
+        "id": "bypassPermissions",
+        "label": "Bypass",
+        "description": "No permissions"
+      },
+      {
+        "id": "default",
+        "label": "Default",
+        "description": "Ask for permissions"
+      },
+      {
+        "id": "full-access",
+        "label": "Full access",
+        "description": "No prompts"
+      },
+      {
+        "id": "auto",
+        "label": "Auto",
+        "description": "Ask/allow based on policy"
+      },
+      {
+        "id": "always-ask",
+        "label": "Always Ask",
+        "description": "Always prompt"
+      }
+    ],
+    "features": [
+      {
+        "type": "toggle",
+        "id": "test_feature",
+        "label": "Test feature",
+        "description": "Deterministic provider feature used by MCP integration tests.",
+        "value": false
+      }
+    ],
+    "pendingPermissions": [],
+    "persistence": {
+      "provider": "codex",
+      "sessionId": "9d9bf4b0-9328-45a5-96b6-216f3506a12c",
+      "metadata": {
+        "conversationId": "9d9bf4b0-9328-45a5-96b6-216f3506a12c",
+        "cwd": "/tmp/paseo-home-tnIqAE/.paseo/native-project"
+      }
+    },
+    "title": "Native conversation B",
+    "labels": {},
+    "archivedAt": null,
+    "lastUsage": {
+      "inputTokens": 1,
+      "outputTokens": 1
+    },
+    "requiresAttention": true,
+    "attentionReason": "finished",
+    "attentionTimestamp": "2026-11-01T07:57:31.817Z"
+  },
+  "direction": "tail",
+  "projection": "projected",
+  "epoch": "1bcd7069-0c6f-46ae-8c95-d8cb59a840b6",
+  "reset": false,
+  "staleCursor": false,
+  "gap": false,
+  "window": {
+    "minSeq": 1,
+    "maxSeq": 43,
+    "nextSeq": 44
+  },
+  "startCursor": {
+    "epoch": "1bcd7069-0c6f-46ae-8c95-d8cb59a840b6",
+    "seq": 1
+  },
+  "endCursor": {
+    "epoch": "1bcd7069-0c6f-46ae-8c95-d8cb59a840b6",
+    "seq": 43
+  },
+  "hasOlder": false,
+  "hasNewer": false,
+  "entries": [
+    {
+      "provider": "codex",
+      "item": {
+        "type": "user_message",
+        "text": "stream timeout",
+        "clientMessageId": "291f91e4-3dc5-4e3f-a98a-c2512c9af562",
+        "messageId": "291f91e4-3dc5-4e3f-a98a-c2512c9af562"
+      },
+      "timestamp": "2026-11-01T07:57:28.602Z",
+      "seqStart": 1,
+      "seqEnd": 1,
+      "sourceSeqRanges": [
+        {
+          "startSeq": 1,
+          "endSeq": 1
+        }
+      ],
+      "turnId": "fake-turn-0",
+      "collapsed": []
+    },
+    {
+      "provider": "codex",
+      "item": {
+        "type": "assistant_message",
+        "text": "Hello world\n\nLive chunks: 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39.\n\nFinished report."
+      },
+      "timestamp": "2026-11-01T07:57:31.816Z",
+      "seqStart": 2,
+      "seqEnd": 43,
+      "sourceSeqRanges": [
+        {
+          "startSeq": 2,
+          "endSeq": 43
+        }
+      ],
+      "turnId": "fake-turn-0",
+      "collapsed": ["assistant_merge"]
+    }
+  ],
+  "error": null
+}

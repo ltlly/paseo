@@ -1,0 +1,184 @@
+{
+  "requestId": "83871464-6ee6-4f8d-86c0-ffb11394e9b5",
+  "agentId": "9e523a42-085b-4f00-9e63-d93e138ccda1",
+  "agent": {
+    "id": "9e523a42-085b-4f00-9e63-d93e138ccda1",
+    "provider": "codex",
+    "cwd": "/tmp/paseo-home-tnIqAE/.paseo/native-project",
+    "workspaceId": "wks_5f160211bd5185ff",
+    "model": "gpt-5.4-mini",
+    "thinkingOptionId": null,
+    "effectiveThinkingOptionId": null,
+    "runtimeInfo": {
+      "provider": "codex",
+      "sessionId": "3e0b77ec-0733-4aa5-b534-3c4d218111bb",
+      "model": "gpt-5.4-mini",
+      "modeId": null
+    },
+    "createdAt": "2026-11-01T07:48:40.443Z",
+    "updatedAt": "2026-11-01T07:55:42.436Z",
+    "lastUserMessageAt": "2026-11-01T07:55:39.219Z",
+    "status": "idle",
+    "activeTurn": null,
+    "capabilities": {
+      "supportsStreaming": true,
+      "supportsSessionPersistence": true,
+      "supportsDynamicModes": true,
+      "supportsMcpServers": false,
+      "supportsReasoningStream": true,
+      "supportsToolInvocations": true,
+      "supportsRewindConversation": false,
+      "supportsRewindFiles": false,
+      "supportsRewindBoth": false
+    },
+    "currentModeId": null,
+    "availableModes": [
+      {
+        "id": "bypassPermissions",
+        "label": "Bypass",
+        "description": "No permissions"
+      },
+      {
+        "id": "default",
+        "label": "Default",
+        "description": "Ask for permissions"
+      },
+      {
+        "id": "full-access",
+        "label": "Full access",
+        "description": "No prompts"
+      },
+      {
+        "id": "auto",
+        "label": "Auto",
+        "description": "Ask/allow based on policy"
+      },
+      {
+        "id": "always-ask",
+        "label": "Always Ask",
+        "description": "Always prompt"
+      }
+    ],
+    "features": [
+      {
+        "type": "toggle",
+        "id": "test_feature",
+        "label": "Test feature",
+        "description": "Deterministic provider feature used by MCP integration tests.",
+        "value": false
+      }
+    ],
+    "pendingPermissions": [],
+    "persistence": {
+      "provider": "codex",
+      "sessionId": "3e0b77ec-0733-4aa5-b534-3c4d218111bb",
+      "metadata": {
+        "conversationId": "3e0b77ec-0733-4aa5-b534-3c4d218111bb",
+        "marker": "3e0b77ec-0733-4aa5-b534-3c4d218111bb",
+        "cwd": "/tmp/paseo-home-tnIqAE/.paseo/native-project"
+      }
+    },
+    "title": "Native conversation A",
+    "labels": {},
+    "archivedAt": null,
+    "lastUsage": {
+      "inputTokens": 1,
+      "outputTokens": 1
+    },
+    "requiresAttention": true,
+    "attentionReason": "finished",
+    "attentionTimestamp": "2026-11-01T07:55:14.958Z"
+  },
+  "direction": "tail",
+  "projection": "projected",
+  "epoch": "d3247df9-10e7-49e3-b0e0-a41032b4a5d8",
+  "reset": false,
+  "staleCursor": false,
+  "gap": false,
+  "window": {
+    "minSeq": 1,
+    "maxSeq": 90,
+    "nextSeq": 91
+  },
+  "startCursor": {
+    "epoch": "d3247df9-10e7-49e3-b0e0-a41032b4a5d8",
+    "seq": 1
+  },
+  "endCursor": {
+    "epoch": "d3247df9-10e7-49e3-b0e0-a41032b4a5d8",
+    "seq": 90
+  },
+  "hasOlder": false,
+  "hasNewer": false,
+  "entries": [
+    {
+      "provider": "codex",
+      "item": {
+        "type": "user_message",
+        "text": "stream init"
+      },
+      "timestamp": "2026-11-01T07:56:41.915Z",
+      "seqStart": 1,
+      "seqEnd": 1,
+      "sourceSeqRanges": [
+        {
+          "startSeq": 1,
+          "endSeq": 1
+        }
+      ],
+      "collapsed": []
+    },
+    {
+      "provider": "codex",
+      "item": {
+        "type": "assistant_message",
+        "text": "Hello world\n\nLive chunks: 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39.\n\nFinished report."
+      },
+      "timestamp": "2026-11-01T07:56:41.917Z",
+      "seqStart": 2,
+      "seqEnd": 45,
+      "sourceSeqRanges": [
+        {
+          "startSeq": 2,
+          "endSeq": 45
+        }
+      ],
+      "collapsed": ["assistant_merge"]
+    },
+    {
+      "provider": "codex",
+      "item": {
+        "type": "user_message",
+        "text": "stream gap"
+      },
+      "timestamp": "2026-11-01T07:56:41.917Z",
+      "seqStart": 46,
+      "seqEnd": 46,
+      "sourceSeqRanges": [
+        {
+          "startSeq": 46,
+          "endSeq": 46
+        }
+      ],
+      "collapsed": []
+    },
+    {
+      "provider": "codex",
+      "item": {
+        "type": "assistant_message",
+        "text": "Hello world\n\nLive chunks: 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39.\n\nFinished report."
+      },
+      "timestamp": "2026-11-01T07:56:41.919Z",
+      "seqStart": 47,
+      "seqEnd": 90,
+      "sourceSeqRanges": [
+        {
+          "startSeq": 47,
+          "endSeq": 90
+        }
+      ],
+      "collapsed": ["assistant_merge"]
+    }
+  ],
+  "error": null
+}
