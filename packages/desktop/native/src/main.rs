@@ -5,6 +5,8 @@ mod composer_view;
 mod conversation;
 mod fonts;
 mod identity_colors;
+mod message_geometry;
+mod message_view;
 mod terminal_view;
 mod theme;
 mod ui;

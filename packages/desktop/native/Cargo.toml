@@ -49,3 +49,5 @@ name = "paseo-desktop"
 path = "src/main.rs"
 required-features = ["desktop"]
 
+[build-dependencies]
+cc = "1.10.0"

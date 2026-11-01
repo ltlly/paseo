@@ -1,0 +1,8 @@
+{
+  "source": "react-native-enriched-markdown/cpp/md4c",
+  "version": "1.2.0-nightly-20261014-766fc0e67",
+  "sha256": {
+    "md4c.c": "5202eba5b6f432cbfbc47f2561cbce4b0ffc1e11ab62b3b00b59808e0d91b178",
+    "md4c.h": "c03b2d722bf283ee4b520f449a85d8a96ba1575ee531917afbd713a6249ca7d9"
+  }
+}

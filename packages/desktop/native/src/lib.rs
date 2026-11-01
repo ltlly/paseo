@@ -7,6 +7,8 @@ pub mod editing;
 pub mod font_selection;
 pub mod history;
 pub mod keyboard;
+pub mod markdown;
+pub mod message_document;
 pub mod model;
 pub mod terminal;
 pub mod wire;

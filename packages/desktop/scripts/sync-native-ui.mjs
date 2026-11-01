@@ -7,6 +7,8 @@ import { runInNewContext } from "node:vm";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { characterEntities } from "character-entities";
 import ts from "typescript";
 
 // The authored app theme remains the source of truth. Cargo consumes the checked-in output,
@@ -113,6 +115,88 @@ async function authoredNode(file, symbolName) {
   }
   throw new Error(`Native UI source is missing: ${file}:${symbolName}`);
 }
+// Vendor the pinned app parser so Cargo builds do not need Node or node_modules.
+for (const file of ["md4c.c", "md4c.h"]) {
+  const source = await fs.readFile(
+    path.join(root, "packages/app/node_modules/react-native-enriched-markdown/cpp/md4c", file),
+  );
+  const destination = path.join(root, "packages/desktop/native/vendor/md4c", file);
+  if (check) {
+    const current = await fs.readFile(destination);
+    if (!current.equals(source)) throw new Error(`Native Markdown parser drift: ${file}`);
+  } else await fs.writeFile(destination, source);
+}
+await output(
+  "packages/desktop/native/vendor/md4c/character-entities.LICENSE",
+  await fs.readFile(path.join(root, "node_modules/character-entities/license"), "utf8"),
+);
+await output(
+  "packages/desktop/native/src/markdown_entities.json",
+  JSON.stringify(characterEntities, null, 2) + "\n",
+);
+const markdownStylesSource = await authoredNode(
+  "packages/app/src/components/markdown/styles.ts",
+  "createMarkdownStyles",
+);
+const { outputFiles: markdownOutput } = await bundle({
+  stdin: {
+    contents: `const isWeb=true;const WEB_CONTAINER={};${markdownStylesSource}`,
+    loader: "ts",
+    resolveDir: root,
+  },
+  write: false,
+  format: "esm",
+  platform: "node",
+});
+const { createMarkdownStyles } = await import(
+  `data:text/javascript;base64,${Buffer.from(markdownOutput[0].text).toString("base64")}`
+);
+const densitySource = await authoredNode("packages/app/src/styles/density.ts", "density");
+const { outputFiles: densityOutput } = await bundle({
+  stdin: {
+    contents: `const byLayout=(xs,md)=>({xs,md});${densitySource};export {density};`,
+    loader: "ts",
+    resolveDir: root,
+  },
+  write: false,
+  format: "esm",
+  platform: "node",
+});
+const { density } = await import(
+  `data:text/javascript;base64,${Buffer.from(densityOutput[0].text).toString("base64")}`
+);
+const markdownStyles = createMarkdownStyles(theme, { blockGap: density.blockGap.md }).markdownStyle;
+await output(
+  "packages/desktop/native/src/message_geometry.rs",
+  `// Generated from the existing message and Markdown presentation. Do not edit.\npub const BLOCK_GAP:f32=${markdownStyles.paragraph.marginBottom}.0;\npub const BODY_SIZE:f32=${markdownStyles.paragraph.fontSize}.0;\npub const BODY_LINE:f32=${markdownStyles.paragraph.lineHeight}.0;\npub const HEADINGS:[(f32,f32);6]=[${[1, 2, 3, 4, 5, 6].map((level) => `(${markdownStyles["h" + level].fontSize}.0,${markdownStyles["h" + level].lineHeight}.0)`).join(",")}];\npub const CODE_SIZE:f32=${markdownStyles.codeBlock.fontSize}.0;\npub const CODE_PADDING:f32=${markdownStyles.codeBlock.padding}.0;\npub const QUOTE_PADDING:f32=${markdownStyles.blockquote.padding}.0;\npub const QUOTE_BORDER:f32=${markdownStyles.blockquote.borderWidth}.0;\npub const LIST_INDENT:f32=${markdownStyles.list.marginLeft}.0;\npub const LIST_ITEM_GAP:f32=${markdownStyles.list.itemSpacing}.0;\n`,
+);
+const parserHashes = Object.fromEntries(
+  await Promise.all(
+    ["md4c.c", "md4c.h"].map(async (file) => [
+      file,
+      createHash("sha256")
+        .update(await fs.readFile(path.join(root, "packages/desktop/native/vendor/md4c", file)))
+        .digest("hex"),
+    ]),
+  ),
+);
+await output(
+  "packages/desktop/native/vendor/md4c/source.json",
+  JSON.stringify(
+    {
+      source: "react-native-enriched-markdown/cpp/md4c",
+      version: JSON.parse(
+        await fs.readFile(
+          path.join(root, "packages/app/node_modules/react-native-enriched-markdown/package.json"),
+          "utf8",
+        ),
+      ).version,
+      sha256: parserHashes,
+    },
+    null,
+    2,
+  ) + "\n",
+);
 const attachmentSource = [
   `const SPACING=${JSON.stringify(theme.spacing)};`,
   await authoredNode("packages/app/src/components/attachment-lightbox.tsx", "LIGHTBOX_FIT"),
@@ -284,6 +368,7 @@ for (const id of [
   "paperclip",
   "image",
   "file-text",
+  "copy",
   "x",
 ]) {
   const exports = {};

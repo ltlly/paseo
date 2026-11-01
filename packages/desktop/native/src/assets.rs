@@ -77,6 +77,7 @@ impl AssetSource for Assets {
             "icons/paperclip.svg" => include_bytes!("../assets/icons/paperclip.svg"),
             "icons/image.svg" => include_bytes!("../assets/icons/image.svg"),
             "icons/file-text.svg" => include_bytes!("../assets/icons/file-text.svg"),
+            "icons/copy.svg" => include_bytes!("../assets/icons/copy.svg"),
             "icons/x.svg" => include_bytes!("../assets/icons/x.svg"),
             _ => return Ok(None),
         };
@@ -135,6 +136,7 @@ impl AssetSource for Assets {
             "icons/paperclip.svg",
             "icons/image.svg",
             "icons/file-text.svg",
+            "icons/copy.svg",
             "icons/x.svg",
         ]
         .into_iter()

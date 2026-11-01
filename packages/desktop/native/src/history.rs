@@ -15,6 +15,8 @@ pub struct Entry {
     pub seq_start: u64,
     pub seq_end: u64,
     pub item: Value,
+    pub timestamp: Option<String>,
+    pub turn_id: Option<String>,
     pub source_seq_ranges: Vec<SeqRange>,
 }
 

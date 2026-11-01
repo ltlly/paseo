@@ -1,0 +1,6 @@
+{
+  "crossParagraph": "First paragraph has bold and italic words.\n\nSecond paragraph contai",
+  "selectAll": "Review notes\n\nFirst paragraph has bold and italic words.\n\nSecond paragraph contains literal_code and a link.\n\nfirst item\n\nsecond item\n\nlet message = \"copy this code\";\nprintln!(\"{message}\");",
+  "userButton": "Initialize fixture",
+  "codeButton": "let message = \"copy this code\";\nprintln!(\"{message}\");"
+}

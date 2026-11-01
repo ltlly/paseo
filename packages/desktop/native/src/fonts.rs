@@ -91,3 +91,20 @@ pub fn terminal_faces() -> Vec<Cow<'static, [u8]>> {
         )),
     ]
 }
+
+pub fn code_family() -> &'static str {
+    static FAMILY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    FAMILY.get_or_init(|| {
+        #[cfg(target_os = "linux")]
+        if let Ok(output) = std::process::Command::new("fc-match")
+            .args(["-f", "%{family[0]}", "monospace"])
+            .output()
+            && output.status.success()
+            && let Ok(name) = String::from_utf8(output.stdout)
+            && !name.is_empty()
+        {
+            return name;
+        }
+        TERMINAL_FAMILY.into()
+    })
+}

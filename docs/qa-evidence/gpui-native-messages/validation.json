@@ -1,0 +1,59 @@
+{
+  "sourceBase": "295785136",
+  "environment": "Linux Xvfb :94/Openbox scale 1; WGPU/lavapipe native rendering. Real Electron renderer from a fresh Electron-targeted Expo export against the same isolated daemon and fake provider adapter. No live agents, terminal sessions or real model calls.",
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "scale": 1
+  },
+  "appearance": {
+    "theme": "dark",
+    "uiBaseFontSize": 14,
+    "contentFontSize": 15,
+    "codeFontSize": 12,
+    "contentMaxWidth": 820,
+    "uiFamily": "SF Pro Text",
+    "codeFamily": "Noto Sans Mono"
+  },
+  "visualAcceptance": "NOT_PASSED",
+  "pixelComparison": {
+    "differentPixels": 23899,
+    "totalPixels": 1024000,
+    "maskedRegions": [],
+    "thresholdUsed": null,
+    "note": "Raw diagnostic difference. Missing timestamps, navigation controls, inline-code sizing/padding, syntax colors, list markers, footer/actions and rasterization remain visible. No visual similarity pass or comparison to other scenes as a performance benchmark."
+  },
+  "verified": [
+    "Shared pinned MD4C files match the installed enriched-markdown engine byte for byte; source hashes and entity/license data are checked by native UI generation",
+    "Native user bubble and assistant heading, paragraph, emphasis, list, link and fenced-code text render against real daemon canonical history",
+    "Final build OS mouse drag crosses paragraphs; Ctrl+C clipboard readback exactly matches the selected visible text",
+    "Final build Ctrl+A/C returns complete visible message text including fenced code; user copy button returns the original user message",
+    "Final build code-copy button returns code without trailing CR/LF and visibly switches to Check, then returns after the original 1.5 second interval",
+    "Earlier same-turn fixture: 22-line user message clips at 240px, expands through its last line, and scrolls with fixed composer geometry; Show less remains reachable",
+    "Stable message entities skip unchanged source; epoch/reset discards sequence-keyed views, and kind changes rebuild the correct user/assistant presentation",
+    "Closing the final native client retains both fake Agents and the canonical assistant history; SDK readback succeeds before fixture teardown"
+  ],
+  "focusedRustTests": {
+    "markdown": 3,
+    "message_document": 3,
+    "history": 3
+  },
+  "notVerified": [
+    "Pixel parity; inline code still uses paragraph font size and lacks the original pill padding; syntax highlighting and exact list/table geometry remain incomplete",
+    "Full source adaptation (HTML/details, recognized workspace paths, image-line grouping), images/Mermaid, task/admonition styling and workspace file/link opening",
+    "Rich clipboard output, select across separate messages, keyboard selection/accessibility, mixed direction scripts and selection autoscroll",
+    "User timestamps/rewind, assistant turn footer/copy/fork actions, tool and permission rows, direct incremental stream reduction and paced reveal",
+    "Sent attachment history: canonical user_message wire has no attachment metadata; Expo retains submitted metadata only in optimistic client state",
+    "Durable drafts/history caches, full themes/locales, macOS/Windows builds and interaction, hardware performance, packaging and deployment"
+  ],
+  "captureNote": "Final matched/selection/copy captures use the final Rust build. Long-message captures use an earlier isolated fixture before code-fence newline and copy-feedback refinements; they do not establish final long-message pixel parity. Partial reference settings were replaced by explicit defaults to avoid the old content-size migration.",
+  "androidSourcesChanged": false,
+  "checks": {
+    "typecheck": "passed",
+    "lint": "passed",
+    "nativeCheck": "passed",
+    "nativeBuild": "passed",
+    "format": "passed",
+    "fullLocalSuiteRun": false
+  }
+}

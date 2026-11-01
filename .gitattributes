@@ -1,0 +1,4 @@
+# Native parser drift checks compare the unchanged npm source bytes on every desktop OS.
+packages/desktop/native/vendor/md4c/md4c.[ch] text eol=lf
+# The pinned upstream header contains one trailing space; preserve its source hash.
+packages/desktop/native/vendor/md4c/md4c.h whitespace=-blank-at-eol
