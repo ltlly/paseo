@@ -7,6 +7,30 @@ pub struct Assets;
 impl AssetSource for Assets {
     fn load(&self, path: &str) -> anyhow::Result<Option<Cow<'static, [u8]>>> {
         let bytes: &'static [u8] = match path {
+            "icons/window-custom-windows-minimize.svg" => {
+                include_bytes!("../assets/icons/window-custom-windows-minimize.svg")
+            }
+            "icons/window-custom-windows-maximize.svg" => {
+                include_bytes!("../assets/icons/window-custom-windows-maximize.svg")
+            }
+            "icons/window-custom-windows-restore.svg" => {
+                include_bytes!("../assets/icons/window-custom-windows-restore.svg")
+            }
+            "icons/window-custom-windows-close.svg" => {
+                include_bytes!("../assets/icons/window-custom-windows-close.svg")
+            }
+            "icons/window-custom-linux-minimize.svg" => {
+                include_bytes!("../assets/icons/window-custom-linux-minimize.svg")
+            }
+            "icons/window-custom-linux-maximize.svg" => {
+                include_bytes!("../assets/icons/window-custom-linux-maximize.svg")
+            }
+            "icons/window-custom-linux-restore.svg" => {
+                include_bytes!("../assets/icons/window-custom-linux-restore.svg")
+            }
+            "icons/window-custom-linux-close.svg" => {
+                include_bytes!("../assets/icons/window-custom-linux-close.svg")
+            }
             "icons/status-ring-arc.svg" => include_bytes!("../assets/icons/status-ring-arc.svg"),
             "icons/antigravity.svg" => include_bytes!("../assets/icons/antigravity.svg"),
             "icons/claude.svg" => include_bytes!("../assets/icons/claude.svg"),
@@ -46,6 +70,14 @@ impl AssetSource for Assets {
 
     fn list(&self, path: &str) -> anyhow::Result<Vec<SharedString>> {
         Ok([
+            "icons/window-custom-windows-minimize.svg",
+            "icons/window-custom-windows-maximize.svg",
+            "icons/window-custom-windows-restore.svg",
+            "icons/window-custom-windows-close.svg",
+            "icons/window-custom-linux-minimize.svg",
+            "icons/window-custom-linux-maximize.svg",
+            "icons/window-custom-linux-restore.svg",
+            "icons/window-custom-linux-close.svg",
             "icons/status-ring-arc.svg",
             "icons/antigravity.svg",
             "icons/claude.svg",

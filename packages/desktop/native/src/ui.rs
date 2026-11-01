@@ -21,6 +21,7 @@ pub struct Paseo {
     selected_agent: Option<String>,
     conversation: Option<Entity<crate::conversation::Conversation>>,
     composers: BTreeMap<String, Entity<crate::composer_view::Composer>>,
+    sidebar_open: bool,
 }
 
 impl Paseo {
@@ -36,6 +37,7 @@ impl Paseo {
             selected_agent: None,
             conversation: None,
             composers: BTreeMap::new(),
+            sidebar_open: true,
         };
         match target.and_then(Connection::start) {
             Ok(connection) => {
@@ -306,7 +308,7 @@ impl Paseo {
 }
 
 impl Render for Paseo {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         use crate::{
             chrome::{Tooltip, icon, provider_icon},
             theme::{colors as c, font_size, radius},
@@ -320,7 +322,7 @@ impl Render for Paseo {
         projects.sort_by(|a, b| a.project_display_name.cmp(&b.project_display_name));
         let sidebar = div()
             .id("workspace-sidebar")
-            .w(px(320.))
+            .w(px(crate::window_geometry::DEFAULT_SIDEBAR_WIDTH))
             .h_full()
             .flex_shrink_0()
             .flex()
@@ -328,18 +330,21 @@ impl Render for Paseo {
             .border_r_1()
             .border_color(rgb(c::BORDER))
             .bg(rgb(c::SURFACE_SIDEBAR))
-            .child(
-                div()
-                    .h(px(36.))
-                    .flex_shrink_0()
-                    .flex()
-                    .items_center()
-                    .px_3()
-                    .child(icon("panel-left", 16.)),
-            )
+            .when(cfg!(target_os = "macos"), |sidebar| {
+                sidebar.child(
+                    div()
+                        .h(px(36.))
+                        .flex_shrink_0()
+                        .flex()
+                        .items_center()
+                        .px_3()
+                        .child(icon("panel-left", 16.)),
+                )
+            })
             .child(
                 div()
                     .px_2()
+                    .pt(px(if cfg!(target_os = "macos") { 0. } else { 8. }))
                     .pb(px(6.))
                     .flex()
                     .flex_col()
@@ -361,7 +366,7 @@ impl Render for Paseo {
                                 .items_center()
                                 .gap_2()
                                 .text_color(rgb(c::FOREGROUND_MUTED))
-                                .child(icon(glyph, 16.))
+                                .child(icon(glyph, 14.))
                                 .child(label)
                         }),
                     ),
@@ -634,17 +639,51 @@ impl Render for Paseo {
                 div()
                     .h(px(36.))
                     .flex_shrink_0()
-                    .px_3()
+                    .pl(px(4.))
+                    .pr(px(if cfg!(target_os = "macos") { 12. } else { 0. }))
                     .flex()
                     .items_center()
                     .gap_2()
                     .border_b_1()
                     .border_color(rgb(c::BORDER))
+                    .when(!cfg!(target_os = "macos"), |header| {
+                        header.child(
+                            div()
+                                .id("toggle-sidebar")
+                                .size(px(26.))
+                                .rounded(px(radius::MD))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .cursor_pointer()
+                                .hover(|button| button.bg(gpui::rgba(0xffffff14)))
+                                .child(icon("panel-left", 16.))
+                                .on_mouse_down(
+                                    MouseButton::Left,
+                                    cx.listener(|this, _, _, cx| {
+                                        cx.stop_propagation();
+                                        this.sidebar_open = !this.sidebar_open;
+                                        cx.notify();
+                                    }),
+                                ),
+                        )
+                    })
                     .child(div().font_weight(gpui::FontWeight::LIGHT).child(title))
                     .child(div().text_color(rgb(c::FOREGROUND_MUTED)).child(subtitle))
                     .child(icon("ellipsis", 16.))
-                    .child(div().flex_1())
-                    .child(icon("panel-right", 16.)),
+                    .child(crate::window_chrome::drag_region())
+                    .child(
+                        div()
+                            .size(px(26.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(icon("panel-right", 16.)),
+                    )
+                    .when(
+                        !cfg!(target_os = "macos") && !window.is_fullscreen(),
+                        |header| header.child(crate::window_chrome::controls(window)),
+                    ),
             )
             .when_some(self.error.clone(), |view, error| {
                 view.child(
@@ -756,13 +795,15 @@ impl Render for Paseo {
             );
         div()
             .size_full()
+            .relative()
             .flex()
             .font_family(crate::fonts::ui_family())
             .bg(rgb(c::SURFACE0))
             .text_color(rgb(c::FOREGROUND))
             .text_size(px(font_size::BASE))
             .line_height(px(20.))
-            .child(sidebar)
+            .when(self.sidebar_open, |root| root.child(sidebar))
             .child(content)
+            .children(crate::window_chrome::resize_handles(window))
     }
 }

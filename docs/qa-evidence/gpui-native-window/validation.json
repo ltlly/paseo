@@ -1,0 +1,47 @@
+{
+  "sourceBase": "2dd0e25b2",
+  "environment": "Linux, Xvfb 1600x1000 at scale 1, WGPU/lavapipe; isolated fake-provider daemon. Actual Electron renderer with repository app bundle and injected isolated Linux desktop bridge. Openbox used for real window-management actions; final frameless probes ran without a compositor. No packaged desktop or other OS acceptance claimed.",
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "scale": 1
+  },
+  "referenceFont": {
+    "familyName": "SF Pro Text",
+    "postScriptName": "SFProText-Regular",
+    "source": "Electron CDP CSS.getPlatformFontsForNode"
+  },
+  "fontconfigSystemUiAlias": "Noto Sans",
+  "visualAcceptance": "NOT_PASSED",
+  "pixelComparison": {
+    "beforeDifferentPixels": 37633,
+    "afterDifferentPixels": 16506,
+    "totalPixels": 1024000,
+    "maskedRegions": [],
+    "thresholdUsed": null,
+    "note": "Mouse cursor excluded from final native capture; the older before capture includes it. Pixel totals are diagnostic, not a similarity pass or performance result."
+  },
+  "verified": [
+    "GTK interface family selected instead of the unrelated fontconfig system-ui alias; Linux grayscale coverage removes RGB fringes",
+    "Linux sidebar no longer reserves the Mac chrome row; compact navigation icon geometry matches its source",
+    "32px history-start slot restores empty conversation placement",
+    "Window controls generated from the original TSX glyph function and original platform presentation",
+    "OS clicks maximize to 1600x1000, restore to 1280x800, minimize to IconicState, and reactivate with the draft intact",
+    "Bottom-right OS drag resizes from 1280x800 to 1360x860 and back; titlebar drag moves exactly 100x60",
+    "Opaque X11 window remains frameless on a real WM without _GTK_FRAME_EXTENTS or a compositor",
+    "Sidebar collapse/expand preserves the focused agent and in-progress draft",
+    "20 fake-provider turns remain scrollable to the final reply; composer pixels remain fixed while scrolling",
+    "Native close button exits the window; daemon and both fake agents, including all 20 user prompts, remain present"
+  ],
+  "focusedTests": {
+    "font_selection": 3
+  },
+  "remaining": [
+    "Exact text rasterization and fractional positioning",
+    "Missing provider/model/mode/voice/attachment controls, sidebar timestamps and menus",
+    "Complete tab/directory lifecycle, settings/themes/custom fonts/localization",
+    "Mac and Windows builds/interaction, hardware rendering, all DPI and first-paint behavior",
+    "Whole desktop feature and deployment acceptance"
+  ],
+  "androidSourcesChanged": false
+}

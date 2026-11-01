@@ -1,0 +1,90 @@
+{
+  "max": {
+    "windowId": 2097153,
+    "x": 0,
+    "y": 0,
+    "width": 1600,
+    "height": 1000,
+    "maximizedVertical": true,
+    "maximizedHorizontal": true,
+    "hidden": false,
+    "wmState": [1, 0]
+  },
+  "restored": {
+    "windowId": 2097153,
+    "x": 159,
+    "y": 86,
+    "width": 1280,
+    "height": 800,
+    "maximizedVertical": false,
+    "maximizedHorizontal": false,
+    "hidden": false,
+    "wmState": [1, 0]
+  },
+  "resized": {
+    "windowId": 2097153,
+    "x": 159,
+    "y": 86,
+    "width": 1360,
+    "height": 860,
+    "maximizedVertical": false,
+    "maximizedHorizontal": false,
+    "hidden": false,
+    "wmState": [1, 0]
+  },
+  "resize-restored": {
+    "windowId": 2097153,
+    "x": 159,
+    "y": 86,
+    "width": 1280,
+    "height": 800,
+    "maximizedVertical": false,
+    "maximizedHorizontal": false,
+    "hidden": false,
+    "wmState": [1, 0]
+  },
+  "min": {
+    "windowId": 2097153,
+    "x": 159,
+    "y": 86,
+    "width": 1280,
+    "height": 800,
+    "maximizedVertical": false,
+    "maximizedHorizontal": false,
+    "hidden": true,
+    "wmState": [3, 0]
+  },
+  "reactivated": {
+    "windowId": 2097153,
+    "x": 159,
+    "y": 86,
+    "width": 1280,
+    "height": 800,
+    "maximizedVertical": false,
+    "maximizedHorizontal": false,
+    "hidden": false,
+    "wmState": [1, 0]
+  },
+  "drag-before": {
+    "windowId": 2097153,
+    "x": 159,
+    "y": 86,
+    "width": 1280,
+    "height": 800,
+    "maximizedVertical": false,
+    "maximizedHorizontal": false,
+    "hidden": false,
+    "wmState": [1, 0]
+  },
+  "drag-after": {
+    "windowId": 2097153,
+    "x": 259,
+    "y": 146,
+    "width": 1280,
+    "height": 800,
+    "maximizedVertical": false,
+    "maximizedHorizontal": false,
+    "hidden": false,
+    "wmState": [1, 0]
+  }
+}

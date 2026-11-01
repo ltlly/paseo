@@ -9,7 +9,7 @@ default-run = "paseo-desktop"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:gpui", "dep:gpui_platform"]
+desktop = ["dep:gpui", "dep:gpui_platform", "dep:raw-window-handle", "dep:x11rb"]
 runtime-shaders = ["gpui_platform/runtime_shaders"]
 
 [dependencies]
@@ -29,6 +29,10 @@ tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 futures-util = "0.3"
 uuid = { version = "1.18", features = ["v4"] }
 unicode-segmentation = "1.13"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+raw-window-handle = { version = "0.6.2", optional = true }
+x11rb = { version = "0.13.2", optional = true }
 
 [[bin]]
 name = "paseo-desktop"

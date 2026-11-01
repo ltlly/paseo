@@ -3637,12 +3637,14 @@ dependencies = [
  "futures-util",
  "gpui",
  "gpui_platform",
+ "raw-window-handle",
  "serde",
  "serde_json",
  "tokio",
  "tokio-tungstenite",
  "unicode-segmentation",
  "uuid",
+ "x11rb",
 ]
 
 [[package]]

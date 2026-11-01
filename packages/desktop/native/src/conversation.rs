@@ -149,27 +149,38 @@ impl Render for Conversation {
                     .flex_1()
                     .min_h_0()
                     .overflow_y_scroll()
+                    .flex()
+                    .flex_col()
                     .p_4()
+                    // The shared desktop viewport reserves a history-start slot even when
+                    // history is empty. Omitting it puts the empty state 16px too high.
+                    .child(
+                        div()
+                            .h(px(32.))
+                            .flex_shrink_0()
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .when(self.history.has_older, |slot| {
+                                slot.child(
+                                    div()
+                                        .id("older-messages")
+                                        .cursor_pointer()
+                                        .child("Load earlier messages")
+                                        .on_mouse_down(
+                                            MouseButton::Left,
+                                            cx.listener(|this, _, _, cx| {
+                                                if let Err(error) = this.fetch("before") {
+                                                    this.error = Some(error.to_string());
+                                                }
+                                                cx.notify();
+                                            }),
+                                        ),
+                                )
+                            }),
+                    )
                     .when_some(self.error.clone(), |view, error| {
                         view.child(div().text_color(rgb(c::STATUS_DANGER)).child(error))
-                    })
-                    .when(self.history.has_older, |view| {
-                        view.child(
-                            div()
-                                .id("older-messages")
-                                .py_2()
-                                .cursor_pointer()
-                                .child("Load earlier messages")
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        if let Err(error) = this.fetch("before") {
-                                            this.error = Some(error.to_string());
-                                        }
-                                        cx.notify();
-                                    }),
-                                ),
-                        )
                     })
                     .when(self.pending.is_some(), |view| {
                         view.child(
@@ -184,7 +195,10 @@ impl Render for Conversation {
                         |view| {
                             view.child(
                                 div()
-                                    .size_full()
+                                    .w_full()
+                                    .flex_1()
+                                    .py_12()
+                                    .line_height(px(16.))
                                     .flex()
                                     .items_center()
                                     .justify_center()
@@ -204,6 +218,7 @@ impl Render for Conversation {
                             });
                         div()
                             .id(("timeline-row", entry.seq_start))
+                            .flex_shrink_0()
                             .mb_4()
                             .w_full()
                             .child(

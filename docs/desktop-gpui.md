@@ -19,7 +19,7 @@ Run `npm run dev:desktop:native` against the local daemon, or set `PASEO_HOME` t
 
 `cargo run -p paseo-desktop --no-default-features --bin paseo-native-inspect` exercises native discovery, authentication and paginated directory reads without opening a window. It prints counts and host identity, not credentials or transcripts.
 
-Run `npm run sync:desktop:native-ui` after changing authored theme tokens or provider icons. The generated native assets reuse the app's default dark tokens, identity palette, built-in provider vectors and installed Lucide RN geometry. `npm run check:desktop:native` rejects stale output. Native theme selection and custom appearance settings still require migration.
+Run `npm run sync:desktop:native-ui` after changing authored theme tokens, provider icons or window controls. The generated native assets reuse the app's default dark tokens, identity palette, built-in provider vectors, installed Lucide RN geometry and authored window-control component. `npm run check:desktop:native` rejects stale output. Native theme selection and custom appearance settings still require migration.
 
 On macOS with only Command Line Tools, pass `--features runtime-shaders` to Cargo. That uses GPUI's native Metal source compilation at application startup. Default distribution builds precompile Metal shaders and require Xcode's Metal tools.
 
@@ -35,7 +35,7 @@ The crates.io `gpui` 0.2.2 artifact predates the platform split in the current u
 | Terminal            | Incremental replay, bounded history, resize ownership, Unicode/IME, selection/copy/paste, links, mouse/keyboard modes, images, splits and reconnect | Pending  |
 | Conversations       | Complete paged history, streaming, Markdown/code/images, tools, permissions, composer drafts, attachments, provider controls and cancellation       | Pending  |
 | Workspace tools     | Explorer, editor, search, git/diff/forge, scripts, browser and port/service integrations                                                            | Pending  |
-| Product integration | Themes/settings, plugins, schedules/heartbeats, notifications, links, multi-window, updates and packaging                                           | Pending  |
+| Product integration | Themes/settings/localization, plugins, schedules/heartbeats, notifications, links, multi-window, updates and packaging                              | Pending  |
 | Visual parity       | Matched reference/native captures per desktop OS, viewport, scale, theme, font setting and state; pixel differences reviewed and resolved           | Pending  |
 | Platforms           | Native build and interaction on macOS, Linux and Windows; Android source/build behavior unchanged                                                   | Pending  |
 | Performance         | Same-workload input/scroll latency, idle and busy CPU, memory by process, repeated navigation and lifecycle checks                                  | Pending  |
@@ -43,6 +43,8 @@ The crates.io `gpui` 0.2.2 artifact predates the platform split in the current u
 Linux interaction evidence is in [the native terminal capture](qa-evidence/gpui-native-linux/validation.json) and its adjacent screenshot. The fixture received keyboard input and SGR wheel reports; closing and reopening the client retained the same daemon-owned terminal and its input. This uses software rendering and does not establish hardware performance or full terminal parity.
 
 Agent navigation evidence is in [the native Agent capture](qa-evidence/gpui-native-agents/validation.json). An isolated fake-provider fixture exercises built-in history and live catch-up alongside a Pi hook registered terminal. The later [composer and visual comparison](qa-evidence/gpui-native-composer/validation.json) exercises OS text entry, submission, cancellation and independent drafts across Agent navigation. Provider vectors now replace the prototype text chips. Its pixel comparison is explicitly **not passed**: font rendering, controls and states remain incomplete. Rich content, permissions, durable drafts and full Agent-tab lifecycle acceptance remain pending.
+
+[The Linux font and window comparison](qa-evidence/gpui-native-window/validation.json) uses an actual Electron renderer as the reference. It verifies default font selection, the history-start slot, sidebar collapse, frameless window controls, movement, resizing and retained drafts with a real window manager. Closing the client retains the isolated daemon's agents and history. Pixel acceptance remains **not passed**; the other desktop platforms, appearance settings, controls and first-paint behavior still need evidence.
 
 Use isolated test projects and homes. Do not type into live user agents. Compare the same retained workspace and workload before claiming a performance improvement.
 
