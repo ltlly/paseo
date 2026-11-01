@@ -3641,6 +3641,7 @@ dependencies = [
  "gpui",
  "gpui_platform",
  "image",
+ "memchr",
  "raw-window-handle",
  "serde",
  "serde_json",

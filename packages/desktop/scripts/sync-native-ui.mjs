@@ -77,6 +77,20 @@ if (createHash("sha256").update(clipboardSource).digest("hex") !== clipboardOrac
     "Xterm clipboard implementation changed. Recapture the native terminal clipboard oracle with the installed browser terminal.",
   );
 }
+const mouseOracle = JSON.parse(
+  await fs.readFile(
+    path.join(root, "packages/desktop/native/src/testdata/terminal-mouse.json"),
+    "utf8",
+  ),
+);
+for (const [source, expected] of Object.entries(mouseOracle.sources)) {
+  const bytes = await fs.readFile(path.join(path.dirname(clipboardXtermPackage), "src", source));
+  if (createHash("sha256").update(bytes).digest("hex") !== expected) {
+    throw new Error(
+      `Xterm mouse implementation changed: ${source}. Recapture the native pointer oracle with the installed browser terminal.`,
+    );
+  }
+}
 const name = (key) =>
   key
     .replace(/([a-z])([A-Z])/g, "$1_$2")

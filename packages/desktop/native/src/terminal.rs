@@ -109,6 +109,7 @@ pub struct TerminalBuffer {
     history: usize,
     pub size: GridSize,
     pub replaying: bool,
+    mouse: crate::mouse::ModeTracker,
 }
 
 impl TerminalBuffer {
@@ -124,6 +125,7 @@ impl TerminalBuffer {
             history,
             size,
             replaying: false,
+            mouse: crate::mouse::ModeTracker::default(),
         }
     }
 
@@ -163,7 +165,18 @@ impl TerminalBuffer {
     }
 
     pub fn feed(&mut self, bytes: &[u8]) {
+        self.mouse.feed(bytes);
         self.parser.advance(&mut self.term, bytes);
+    }
+
+    pub fn mouse_modes(&self) -> crate::mouse::Modes {
+        self.mouse.modes()
+    }
+    pub fn mouse_protocol_revision(&self) -> u64 {
+        self.mouse.protocol_revision()
+    }
+    pub fn mouse_reset_revision(&self) -> u64 {
+        self.mouse.reset_revision()
     }
 
     fn reset(&mut self, size: GridSize) {

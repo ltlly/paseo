@@ -1,0 +1,37 @@
+Verified source archive 5866456080d9b31e4e993689c8e7e7a644ec0776ee2aa4daa9030fc3598c70d4
+    Checking paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-check-terminal-mouse/packages/desktop/native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.26s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+   Compiling memchr v2.8.3
+   Compiling aho-corasick v1.1.5
+   Compiling vte v0.15.0
+   Compiling serde_json v1.0.154
+   Compiling regex-automata v0.4.18
+   Compiling alacritty_terminal v0.26.0
+   Compiling paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-check-terminal-mouse/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.83s
+     Running unittests src/lib.rs (/Users/nmsl/.cache/paseo-gpui-target/debug/deps/paseo_desktop-76caaca1480fea5a)
+
+running 6 tests
+test terminal::tests::block_selection_preserves_columns_and_does_not_copy_wide_spacers ... ok
+test terminal::tests::query_replies_are_not_sent_by_the_display_parser ... ok
+test terminal::tests::replay_keeps_utf8_and_escape_parser_state_across_chunks ... ok
+test terminal::tests::scrolling_and_resize_preserve_bounded_history ... ok
+test terminal::tests::selection_copy_tracks_wrapping_reverse_drag_scrollback_and_input_clear ... ok
+test terminal::tests::visible_cells_keep_wide_columns_colored_spaces_and_unbounded_combining_text ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.01s
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+
+running 5 tests
+test mouse::tests::mode_sequences_survive_every_chunk_split_and_do_not_collect_string_payloads ... ok
+test mouse::tests::private_mode_observation_matches_xterm_even_with_fragmented_and_extreme_params ... ok
+test mouse::tests::reports_match_real_xterm_protocol_filtering_encodings_and_motion_deduplication ... ok
+test mouse::tests::sgr_release_retains_the_button_and_press_modifiers ... ok
+test mouse::tests::wheel_preserves_fractional_distance_and_resets_on_direction_route_and_idle ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 69 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/Users/nmsl/.cache/paseo-gpui-target/debug/deps/paseo_desktop-76caaca1480fea5a)

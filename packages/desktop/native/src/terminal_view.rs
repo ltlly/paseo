@@ -1,4 +1,4 @@
-use std::{ops::Range, sync::Arc};
+use std::{ops::Range, sync::Arc, time::Instant};
 
 use alacritty_terminal::term::TermMode;
 use anyhow::{Result, ensure};
@@ -11,6 +11,10 @@ use serde_json::{Value, json};
 
 use paseo_desktop::{
     client::Connection,
+    mouse::{
+        Action as MouseAction, Button as PointerButton, Event as PointerEvent,
+        Reporter as MouseReporter,
+    },
     terminal::{GridSize, TerminalBuffer},
     wire::{TerminalFrame, TerminalOpcode},
 };
@@ -30,13 +34,16 @@ pub struct TerminalView {
     desired_size: GridSize,
     bounds: Bounds<Pixels>,
     cell_width: Pixels,
-    wheel_remainder: f32,
+    wheel: paseo_desktop::mouse::Wheel,
     marked: String,
     error: Option<String>,
     visible: bool,
     opening: bool,
     needs_claim: bool,
     selecting: bool,
+    mouse_buttons: u8,
+    mouse_reporter: MouseReporter,
+    mouse_error: bool,
 }
 
 impl TerminalView {
@@ -61,13 +68,16 @@ impl TerminalView {
             desired_size: initial,
             bounds: Bounds::default(),
             cell_width: px(8.),
-            wheel_remainder: 0.,
+            wheel: paseo_desktop::mouse::Wheel::default(),
             marked: String::new(),
             error: None,
             visible: true,
             opening: false,
             needs_claim: true,
             selecting: false,
+            mouse_buttons: 0,
+            mouse_reporter: MouseReporter::default(),
+            mouse_error: false,
         }
     }
 
@@ -99,6 +109,7 @@ impl TerminalView {
             self.visible = visible;
             if !visible {
                 self.selecting = false;
+                self.mouse_buttons = 0;
             }
             if visible {
                 cx.notify();
@@ -151,7 +162,27 @@ impl TerminalView {
             frame.opcode,
             TerminalOpcode::ReplayEnd | TerminalOpcode::Restore
         );
+        let pointer_revision = self.buffer.mouse_protocol_revision();
+        let reset_revision = self.buffer.mouse_reset_revision();
+        let replaces_buffer = matches!(
+            frame.opcode,
+            TerminalOpcode::ReplayBegin | TerminalOpcode::Restore
+        );
         let result = self.buffer.apply(frame).and_then(|()| {
+            if replaces_buffer || self.buffer.mouse_reset_revision() != reset_revision {
+                self.mouse_reporter.reset();
+            }
+            if replaces_buffer || self.buffer.mouse_protocol_revision() != pointer_revision {
+                self.mouse_buttons = 0;
+                self.selecting = false;
+            }
+            if self.mouse_error
+                && (!self.buffer.mouse_modes().active() || self.buffer.mouse_modes().encoding != 0)
+            {
+                self.error = None;
+                self.mouse_error = false;
+            }
+
             if completes_replay {
                 self.replay_ready = true;
             }
@@ -267,6 +298,7 @@ impl TerminalView {
     fn finish(&mut self, result: Result<()>, cx: &mut Context<Self>) {
         if let Err(error) = result {
             self.error = Some(error.to_string());
+            self.mouse_error = false;
             self.notify_visible(cx);
         }
     }
@@ -336,7 +368,72 @@ impl TerminalView {
         (row, column)
     }
 
-    fn begin_selection(
+    fn pointer_button(button: MouseButton) -> Option<(PointerButton, u8)> {
+        match button {
+            MouseButton::Left => Some((PointerButton::Left, 1)),
+            MouseButton::Middle => Some((PointerButton::Middle, 2)),
+            MouseButton::Right => Some((PointerButton::Right, 4)),
+            _ => None,
+        }
+    }
+
+    fn send_pointer(
+        &mut self,
+        position: Point<Pixels>,
+        button: PointerButton,
+        action: MouseAction,
+        modifiers: gpui::Modifiers,
+        repeat: usize,
+        cx: &mut Context<Self>,
+    ) {
+        if !self.visible || !self.replay_ready || self.buffer.replaying {
+            return;
+        }
+        let size = self.buffer.size;
+        let x = f32::from(position.x - self.bounds.left()).clamp(
+            0.,
+            (f32::from(self.cell_width) * f32::from(size.cols) - 1.).max(0.),
+        );
+        let y = f32::from(position.y - self.bounds.top())
+            .clamp(0., (ROW_HEIGHT * f32::from(size.rows) - 1.).max(0.));
+        let event = PointerEvent {
+            col: (x / f32::from(self.cell_width)).floor() as u32,
+            row: (y / ROW_HEIGHT).floor() as u32,
+            x: x.floor() as u32,
+            y: y.floor() as u32,
+            button,
+            action,
+            shift: modifiers.shift,
+            alt: modifiers.alt,
+            control: modifiers.control,
+        };
+        if let Some(bytes) = self
+            .mouse_reporter
+            .report(self.buffer.mouse_modes(), event, size)
+        {
+            // The established host input lane is UTF-8. Never corrupt a legacy
+            // high-bit mouse byte by converting it to a Unicode replacement.
+            match std::str::from_utf8(&bytes) {
+                Ok(text) => {
+                    if self.mouse_error {
+                        self.mouse_error = false;
+                        self.error = None;
+                        self.notify_visible(cx);
+                    }
+                    if !text.is_empty() {
+                        self.send_input(&text.repeat(repeat.min(1000)), cx);
+                    }
+                }
+                Err(_) => {
+                    self.error = Some("Legacy mouse reports at this position require raw-byte terminal input. Use SGR mouse mode in the terminal application.".into());
+                    self.mouse_error = true;
+                    self.notify_visible(cx);
+                }
+            }
+        }
+    }
+
+    fn mouse_down(
         &mut self,
         event: &gpui::MouseDownEvent,
         window: &mut Window,
@@ -348,7 +445,25 @@ impl TerminalView {
         self.focus.focus(window, cx);
         self.claim(cx);
         let force_selection = !cfg!(target_os = "macos") && event.modifiers.shift;
-        if self.buffer.modes().intersects(TermMode::MOUSE_MODE) && !force_selection {
+        if self.buffer.mouse_modes().active() && !force_selection {
+            if self.replay_ready
+                && !self.buffer.replaying
+                && let Some((button, bit)) = Self::pointer_button(event.button)
+            {
+                self.mouse_buttons |= bit;
+                self.send_pointer(
+                    event.position,
+                    button,
+                    MouseAction::Press,
+                    event.modifiers,
+                    1,
+                    cx,
+                );
+            }
+            cx.stop_propagation();
+            return;
+        }
+        if event.button != MouseButton::Left {
             return;
         }
         let (row, column) = self.selection_position(event.position);
@@ -363,41 +478,115 @@ impl TerminalView {
         cx.stop_propagation();
     }
 
+    fn mouse_move(&mut self, event: &gpui::MouseMoveEvent, cx: &mut Context<Self>) {
+        if self.selecting && event.dragging() {
+            let (row, column) = self.selection_position(event.position);
+            self.buffer.extend_selection(row, column);
+            cx.notify();
+            cx.stop_propagation();
+            return;
+        }
+        if !self.buffer.mouse_modes().active() {
+            return;
+        }
+        let button = if self.mouse_buttons != 0 {
+            if event.pressed_button.is_none() {
+                self.mouse_buttons = 0;
+                return;
+            }
+            if self.mouse_buttons & 1 != 0 {
+                PointerButton::Left
+            } else if self.mouse_buttons & 2 != 0 {
+                PointerButton::Middle
+            } else {
+                PointerButton::Right
+            }
+        } else {
+            if event.pressed_button.is_some() || !self.bounds.contains(&event.position) {
+                return;
+            }
+            PointerButton::None
+        };
+        self.send_pointer(
+            event.position,
+            button,
+            MouseAction::Move,
+            event.modifiers,
+            1,
+            cx,
+        );
+    }
+
+    fn mouse_up(&mut self, event: &gpui::MouseUpEvent, cx: &mut Context<Self>) {
+        if event.button == MouseButton::Left && self.selecting {
+            let (row, column) = self.selection_position(event.position);
+            self.buffer.extend_selection(row, column);
+            self.selecting = false;
+            cx.notify();
+            return;
+        }
+        if let Some((button, bit)) = Self::pointer_button(event.button)
+            && self.mouse_buttons & bit != 0
+        {
+            self.mouse_buttons &= !bit;
+            self.send_pointer(
+                event.position,
+                button,
+                MouseAction::Release,
+                event.modifiers,
+                1,
+                cx,
+            );
+        }
+    }
+
     fn scroll(&mut self, event: &ScrollEvent, _window: &mut Window, cx: &mut Context<Self>) {
         let delta = f32::from(event.delta.pixel_delta(px(ROW_HEIGHT)).y) / ROW_HEIGHT;
-        if delta.signum() != self.wheel_remainder.signum() {
-            self.wheel_remainder = 0.;
-        }
-        self.wheel_remainder += delta;
-        let lines = self.wheel_remainder.trunc().clamp(-1000., 1000.) as i32;
-        self.wheel_remainder -= lines as f32;
-        if lines == 0 {
+        if delta == 0. {
             return;
         }
         let modes = self.buffer.modes();
-        if modes.intersects(TermMode::MOUSE_MODE) && modes.contains(TermMode::SGR_MOUSE) {
-            let row = ((event.position.y - self.bounds.top()) / px(ROW_HEIGHT))
-                .floor()
-                .clamp(0., f32::from(self.desired_size.rows - 1)) as u16
-                + 1;
-            let col = ((event.position.x - self.bounds.left()) / self.cell_width)
-                .floor()
-                .clamp(0., f32::from(self.desired_size.cols - 1)) as u16
-                + 1;
-            let button = if lines > 0 { 64 } else { 65 }
-                + u8::from(event.modifiers.shift) * 4
-                + u8::from(event.modifiers.alt) * 8
-                + u8::from(event.modifiers.control) * 16;
-            self.send_input(
-                &format!("\x1b[<{button};{col};{row}M").repeat(lines.unsigned_abs() as usize),
+        let pointer = self.buffer.mouse_modes();
+        let application =
+            pointer.active() && pointer.protocol != 9 || modes.contains(TermMode::ALT_SCREEN);
+        let route = (pointer.protocol, modes.contains(TermMode::ALT_SCREEN));
+        let sensitivity = if application
+            && !event.modifiers.shift
+            && (event.modifiers.alt || event.modifiers.control)
+        {
+            5.
+        } else {
+            1.
+        };
+        let lines = self.wheel.rows(delta, sensitivity, Instant::now(), route);
+        if lines == 0 {
+            return;
+        }
+        if pointer.active() && pointer.protocol != 9 {
+            self.claim(cx);
+            let button = if lines > 0 {
+                PointerButton::WheelUp
+            } else {
+                PointerButton::WheelDown
+            };
+            self.send_pointer(
+                event.position,
+                button,
+                MouseAction::Press,
+                event.modifiers,
+                lines.unsigned_abs() as usize,
                 cx,
             );
-        } else if modes.contains(TermMode::ALT_SCREEN) && !event.modifiers.shift {
-            self.send_input(
-                &(if lines > 0 { "\x1b[A" } else { "\x1b[B" })
-                    .repeat(lines.unsigned_abs() as usize),
-                cx,
-            );
+        } else if modes.contains(TermMode::ALT_SCREEN) {
+            self.claim(cx);
+            let key = if lines > 0 { "up" } else { "down" };
+            if let Some(text) = paseo_desktop::keyboard::encode(
+                key,
+                paseo_desktop::keyboard::Modifiers::default(),
+                modes.contains(TermMode::APP_CURSOR),
+            ) {
+                self.send_input(&text.repeat(lines.unsigned_abs() as usize), cx);
+            }
         } else {
             self.buffer.scroll(lines);
             cx.notify();
@@ -432,7 +621,9 @@ impl Render for TerminalView {
             .track_focus(&self.focus)
             .on_key_down(cx.listener(Self::key_down))
             .on_scroll(cx.listener(Self::scroll))
-            .on_mouse_down(MouseButton::Left, cx.listener(Self::begin_selection))
+            .on_mouse_down(MouseButton::Left, cx.listener(Self::mouse_down))
+            .on_mouse_down(MouseButton::Middle, cx.listener(Self::mouse_down))
+            .on_mouse_down(MouseButton::Right, cx.listener(Self::mouse_down))
             .when_some(self.error.clone(), |view, error| {
                 view.child(div().px_3().py_1().text_color(rgb(0xf07178)).child(error))
             })
@@ -456,31 +647,22 @@ impl Render for TerminalView {
                             cx,
                         );
                         window.on_mouse_event({
-                            let view = paint_view.clone();
+                            let view = paint_view.downgrade();
                             move |event: &gpui::MouseMoveEvent, phase, _, cx| {
-                                if phase.bubble() && event.dragging() && view.read(cx).selecting {
-                                    view.update(cx, |this, cx| {
-                                        let (row, column) = this.selection_position(event.position);
-                                        this.buffer.extend_selection(row, column);
-                                        cx.notify();
-                                    });
-                                    cx.stop_propagation();
+                                if phase.bubble()
+                                    && let Some(view) = view.upgrade()
+                                {
+                                    view.update(cx, |this, cx| this.mouse_move(event, cx));
                                 }
                             }
                         });
                         window.on_mouse_event({
-                            let view = paint_view.clone();
+                            let view = paint_view.downgrade();
                             move |event: &gpui::MouseUpEvent, phase, _, cx| {
                                 if phase.bubble()
-                                    && event.button == MouseButton::Left
-                                    && view.read(cx).selecting
+                                    && let Some(view) = view.upgrade()
                                 {
-                                    view.update(cx, |this, cx| {
-                                        let (row, column) = this.selection_position(event.position);
-                                        this.buffer.extend_selection(row, column);
-                                        this.selecting = false;
-                                        cx.notify();
-                                    });
+                                    view.update(cx, |this, cx| this.mouse_up(event, cx));
                                 }
                             }
                         });

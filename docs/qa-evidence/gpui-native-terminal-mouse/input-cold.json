@@ -1,0 +1,12 @@
+{
+  "coldReplayRetainsSgr": true,
+  "pressReleaseHex": "1b5b3c303b343b314d1b5b3c303b343b316d",
+  "liveTerminalCount": 5,
+  "terminalIds": {
+    "A": "5dd4a66f-0865-42fa-bda3-0bc77c63e2b4",
+    "B": "158a5a3a-efce-4dcd-9273-fb4e89d01961",
+    "C": "afc1ba8e-6a05-4d6a-b037-27e9035a5cc9",
+    "D": "b8f86eb1-2623-4c92-9a7b-c485a649b6e9",
+    "E": "1db3ed12-a66b-45cf-9fd1-99257047eb37"
+  }
+}

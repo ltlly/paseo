@@ -11,6 +11,7 @@ pub mod keyboard;
 pub mod markdown;
 pub mod message_document;
 pub mod model;
+pub mod mouse;
 mod subscriptions;
 pub mod terminal;
 pub mod wire;

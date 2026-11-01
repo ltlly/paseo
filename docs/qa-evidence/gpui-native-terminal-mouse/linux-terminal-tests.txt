@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.29s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-168b0e05f710707f)
+
+running 6 tests
+test terminal::tests::block_selection_preserves_columns_and_does_not_copy_wide_spacers ... ok
+test terminal::tests::query_replies_are_not_sent_by_the_display_parser ... ok
+test terminal::tests::replay_keeps_utf8_and_escape_parser_state_across_chunks ... ok
+test terminal::tests::scrolling_and_resize_preserve_bounded_history ... ok
+test terminal::tests::selection_copy_tracks_wrapping_reverse_drag_scrollback_and_input_clear ... ok
+test terminal::tests::visible_cells_keep_wide_columns_colored_spaces_and_unbounded_combining_text ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 68 filtered out; finished in 0.00s

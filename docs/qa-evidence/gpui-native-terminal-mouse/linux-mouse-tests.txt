@@ -1,0 +1,12 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.02s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-168b0e05f710707f)
+
+running 5 tests
+test mouse::tests::mode_sequences_survive_every_chunk_split_and_do_not_collect_string_payloads ... ok
+test mouse::tests::private_mode_observation_matches_xterm_even_with_fragmented_and_extreme_params ... ok
+test mouse::tests::reports_match_real_xterm_protocol_filtering_encodings_and_motion_deduplication ... ok
+test mouse::tests::sgr_release_retains_the_button_and_press_modifiers ... ok
+test mouse::tests::wheel_preserves_fractional_distance_and_resets_on_direction_route_and_idle ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 69 filtered out; finished in 0.02s

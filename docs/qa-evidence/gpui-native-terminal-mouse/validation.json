@@ -1,0 +1,53 @@
+{
+  "date": "2026-11-01",
+  "baseCommit": "5c39d93ea4d5f58fce855425ef800d8e8059b52a",
+  "sourceArchiveSha256": "5866456080d9b31e4e993689c8e7e7a644ec0776ee2aa4daa9030fc3598c70d4",
+  "scope": "GPUI terminal pointer input only. No app/Android, daemon, worker or wire changes. Installed clients and production port 6767 untouched.",
+  "checks": {
+    "format": "passed",
+    "lint": "passed, 0 warnings/errors",
+    "typecheck": "passed",
+    "nativeAssetFreshness": "passed",
+    "platforms": {
+      "Linux": "native build, 5 mouse tests + 6 terminal tests, actual X11/GPUI window and real PTYs",
+      "macOS": "runtime-shaders cargo check + 5 mouse and 6 terminal tests; no native GUI test",
+      "Windows": "MSVC cargo check + 5 mouse and 6 terminal tests; no native GUI test"
+    },
+    "oracle": {
+      "producer": "Installed xterm in an actual Electron renderer, normal onData and binary onBinary lanes",
+      "reportEvents": 300,
+      "modeTraces": 11,
+      "sourceHashes": "packages/desktop/native/src/testdata/terminal-mouse.json",
+      "freshness": "sync-native-ui checks installed source SHA256 values"
+    },
+    "realWindow": "See input-basic.json, input-edges.json and input-cold.json. Input bytes were captured by fixture PTYs, not inferred from screenshots.",
+    "coldReopen": "All five fixture PTYs survived closing the client, same terminal IDs, SGR press/release after cold replay passed."
+  },
+  "visualEvidence": {
+    "viewport": [1280, 800],
+    "beforeAfterSameStaticSceneDifferentPixels": 0,
+    "wholeElectronParity": "NOT_PASSED; this is a regression comparison within the native implementation only."
+  },
+  "observerAllocationDiagnostic": {
+    "method": "Global allocation counter enabled only around 100 ModeTracker.feed traversals, preallocated input; optimized build. See observer-benchmark.rs and observer-benchmark.txt.",
+    "stateBytes": 104,
+    "workloads": "8 MiB plain, OSC and DCS, plus 2.7 MB repeated ANSI/mode switches",
+    "allocationCalls": 0,
+    "scope": "Only the new mode observer, not the display parser, rendering, transport, process RSS, CPU or input latency."
+  },
+  "qaNotes": [
+    "Openbox Alt-wheel changed virtual desktops before the event reached GPUI. Removed Alt-wheel bindings only from the private Xvfb WM config and repeated the check. Production desktop settings untouched.",
+    "The history-wheel check first remained in the alternate screen, which correctly sent app-cursor arrows. The fixture was corrected to leave alternate screen before the scrollback check.",
+    "Initial and recovered static frames are identical. Error screenshots deliberately show an inline error and shifted terminal grid.",
+    "No actual Pi/Grok/model run was performed; these are deterministic terminal protocol fixtures."
+  ],
+  "limitations": [
+    "Full terminal fidelity and original Electron UI pixel parity remain NOT_PASSED.",
+    "The existing host Input path converts bytes to UTF-8. Classic high-bit mouse reports cannot be delivered exactly; GPUI shows an explicit error and sends no corrupt replacement bytes. SGR and SGR-pixel modes and ASCII classic reports work through the existing path. A future raw-byte capability needs end-to-end host/worker support.",
+    "The shared worker replay-mode tracker drops ESC split before [, conditionally resets mouse modes differently from xterm, and does not observe RIS. Native live observation handles these traces; cold replay of those shared-host edge cases remains unresolved. The cold GUI fixture uses complete mode sequences.",
+    "Horizontal wheel, Mac/Windows GUI pointer behavior, word/line selection gestures, drag autoscroll, primary clipboard/context menus, complete IME/keyboard, reconnect and real provider workloads still require validation.",
+    "Hard-line trailing-space copy mismatch from the selection checkpoint remains.",
+    "No complete performance, memory or multi-platform deployment acceptance."
+  ],
+  "cleanup": "Confirmed fixture, its PTYs and client stopped; stopped only matching private Xvfb/Openbox PIDs and removed the private fixture home. Production daemon and user sessions untouched."
+}
