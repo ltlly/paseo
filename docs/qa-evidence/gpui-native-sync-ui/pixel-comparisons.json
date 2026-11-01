@@ -1,0 +1,51 @@
+[
+  {
+    "state": "initial",
+    "differentPixels": 9911,
+    "totalPixels": 1024000,
+    "maskedRegions": [],
+    "thresholdUsed": null
+  },
+  {
+    "state": "updating",
+    "differentPixels": 22110,
+    "totalPixels": 1024000,
+    "maskedRegions": [],
+    "thresholdUsed": null
+  },
+  {
+    "state": "error",
+    "differentPixels": 20290,
+    "totalPixels": 1024000,
+    "maskedRegions": [],
+    "thresholdUsed": null,
+    "calloutDifferentPixels": 1666,
+    "calloutRect": {
+      "x": 390,
+      "y": 618,
+      "width": 820,
+      "height": 50
+    }
+  },
+  {
+    "state": "retrying",
+    "differentPixels": 20523,
+    "totalPixels": 1024000,
+    "maskedRegions": [],
+    "thresholdUsed": null,
+    "calloutDifferentPixels": 1899,
+    "calloutRect": {
+      "x": 390,
+      "y": 618,
+      "width": 820,
+      "height": 50
+    }
+  },
+  {
+    "state": "recovered",
+    "differentPixels": 18624,
+    "totalPixels": 1024000,
+    "maskedRegions": [],
+    "thresholdUsed": null
+  }
+]

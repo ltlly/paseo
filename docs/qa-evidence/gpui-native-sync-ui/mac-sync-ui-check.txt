@@ -1,0 +1,5 @@
+Verified source archive 44b1d66dd3def53ad959ed9e4aafb8c0e92b002e12e67526ec85347a762308bb
+    Checking paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-check-sync-ui/packages/desktop/native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.47s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`

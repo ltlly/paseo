@@ -1,0 +1,56 @@
+{
+  "sourceBase": "af6c068f3",
+  "visualAcceptance": "NOT_PASSED",
+  "environment": "Linux Xvfb/Openbox, 1280x800 scale 1, WGPU/lavapipe. Actual Electron renderer with the existing Electron-targeted app export and explicit dark 14/15/12px appearance; app runtime source was not changed in the native checkpoints. Both clients read the same isolated real daemon/fake provider. No real model calls, installed client changes or production restart.",
+  "authoredSourceHashes": {
+    "packages/app/src/panels/agent-panel.tsx": "48ac84cfa82db4d2606f45d892588585b1bb1236e5ca4889830d34ace451d99b",
+    "packages/app/src/components/ui/button.tsx": "ef5dedbe102bbb24c3878e0fdf945066b4d61f4312b587b0dda3603e36288bf8",
+    "packages/app/src/components/ui/control-geometry.ts": "286d22044b4e5a13e3017463b461e409eb9263426d5332434f49db0ee4c1576d",
+    "packages/app/src/components/toast-host.tsx": "485d6e2e1e11e5dec39b73d6581b9c5b8fdf54653be030cb8004cc86cd8b42cf",
+    "packages/app/src/timeline/sync-status.tsx": "0dd2b2bc29126ec3a0e05520dcc38c061605b44e71e4a9972df156b2e9dac85c",
+    "packages/app/src/i18n/resources/en.ts": "bdfa3a1c563e63f57c76153bb913b47e70388ee2b3040ded304ec36d5b390081",
+    "node_modules/react-native-web/dist/exports/ActivityIndicator/index.js": "fecaabdc1860578bd790a54cac0c0b7e10f55215d177470d1d5c998f010c9b5e"
+  },
+  "verified": [
+    "The native sync error is in the fixed rail above the composer rather than inserted at the top of scrollable messages. Exact danger-color pixels bound the same x390/y618/820x50 rectangle as Electron in error and pending captures.",
+    "Original component styles generate native rail/button/toast geometry, colors and English labels. The installed ActivityIndicator supplies the two-circle SVG, sizes and 750ms rotation; original license retained.",
+    "OS minimize and restore reports native X11 IconicState/hidden and starts authoritative forward catch-up. Its held response shows the updating toast while cached history and the composer remain readable.",
+    "A refused foreground catch-up shows the contextual error; OS click reports Retrying, and a second click does not submit another request. Recovery removes the callout. Native OS clipboard and actual Electron textbox readback both retain keep this draft.",
+    "Normal native stream gaps remain silent while authoritative after-queries catch up; the native-only gap capture has no status toast. The attempted paired gap scene is excluded because the reference still had an earlier sync error.",
+    "Disabled flat-button compositing now matches the captured Chromium fill (48,51,50), avoiding GPUI per-primitive opacity rounding. The same pending-callout crop changes from 4304 to 1899 raw differing pixels; text, rounding and other differences remain.",
+    "Final native close retains the fake provider canonical history with two user and two assistant messages, including all chunks after the normal gap."
+  ],
+  "captureLimits": [
+    "Initial capture precedes visibility-resume and opacity refinements; its unchanged SVG/36px geometry is evidence only for initial loading. Updating/error/retry/recovered captures include the final styles; error/retry/recovered were recaptured after flat-opacity refinement. Reference runtime app source is unchanged.",
+    "Reference updating/error states are driven by a real WebSocket close and automatic reconnect; native states are driven by real window minimize/restore. This comparison does not establish native transport reconnection, which remains pending.",
+    "Spinner angles, timestamps and caret are unmasked; all raw differences are retained. No similarity threshold, broad masks or pixel acceptance pass."
+  ],
+  "crossPlatform": {
+    "archiveSha256": "44b1d66dd3def53ad959ed9e4aafb8c0e92b002e12e67526ec85347a762308bb",
+    "macOS": "cargo check --locked -p paseo-desktop --features runtime-shaders passed",
+    "Windows": "cargo check --locked -p paseo-desktop passed, actual stable MSVC toolchain",
+    "interaction": "Linux only; native macOS/Windows interaction, hardware rendering and packaging pending"
+  },
+  "checks": {
+    "nativeBuild": "passed",
+    "nativeCheck": "passed",
+    "npmTypecheck": "passed",
+    "npmLint": "passed",
+    "format": "passed",
+    "fullLocalSuiteRun": false,
+    "focusedSuitesRerun": false,
+    "note": "History reducer is unchanged; prior 10-test results were not rerun for visual-only changes. Real native window/daemon/clipboard and Electron state checks provide the behavioral coverage."
+  },
+  "remaining": [
+    "Full pixel parity: text rasterization/fractional placement, rounded-edge coverage and shadow rendering still differ. Whole-window controls, timestamps/turn actions and layout states remain incomplete.",
+    "First-load failure must use the original centered load-error view; the current native initial failure is still provisional. Native transport reconnect, host identity/version drift, superseded RPC errors, background retries and complete visibility lifecycle need further coverage.",
+    "Native sync keyboard/accessibility semantics, older-history anchoring and loading, all responsive widths/themes/locales/fonts (including line-gap fonts), all OS/DPI and first paint",
+    "Every remaining full desktop surface/platform/performance/packaging/deployment acceptance row in docs/desktop-gpui.md; no overall CPU/RSS/input/scroll improvement claimed"
+  ],
+  "androidSourcesChanged": false,
+  "cleanup": {
+    "nativeWindowClosed": true,
+    "isolatedReferenceDaemonHomeWMDisplay": "stopped; isolated daemon home removed",
+    "production6767Untouched": true
+  }
+}

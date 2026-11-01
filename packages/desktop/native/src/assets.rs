@@ -7,6 +7,7 @@ pub struct Assets;
 impl AssetSource for Assets {
     fn load(&self, path: &str) -> anyhow::Result<Option<Cow<'static, [u8]>>> {
         let bytes: &'static [u8] = match path {
+            "icons/loading-spinner.svg" => include_bytes!("../assets/icons/loading-spinner.svg"),
             "icons/window-custom-windows-minimize.svg" => {
                 include_bytes!("../assets/icons/window-custom-windows-minimize.svg")
             }
@@ -86,6 +87,7 @@ impl AssetSource for Assets {
 
     fn list(&self, path: &str) -> anyhow::Result<Vec<SharedString>> {
         Ok([
+            "icons/loading-spinner.svg",
             "icons/window-custom-windows-minimize.svg",
             "icons/window-custom-windows-maximize.svg",
             "icons/window-custom-windows-restore.svg",

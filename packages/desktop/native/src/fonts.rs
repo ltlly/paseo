@@ -73,6 +73,15 @@ pub fn ui_family() -> &'static str {
     }
 }
 
+// Match the integer ascent/descent strut used by Chromium's Linux UI font. GPUI's
+// inherited 20px chrome line box otherwise makes a spinner toast two pixels taller.
+// Fonts with extra line gap and the other platform backends still need matched QA.
+pub fn ui_strut(window: &gpui::Window, size: f32) -> gpui::Pixels {
+    let system = window.text_system();
+    let id = system.resolve_font(&gpui::font(ui_family()));
+    system.ascent(id, gpui::px(size)).round() + system.descent(id, gpui::px(size)).abs().round()
+}
+
 // Reuse the licensed font assets shipped by the mobile terminal. A CSS generic
 // family such as "monospace" is not a font family name in native text backends.
 pub fn terminal_faces() -> Vec<Cow<'static, [u8]>> {

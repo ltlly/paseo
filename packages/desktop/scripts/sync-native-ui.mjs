@@ -115,6 +115,200 @@ async function authoredNode(file, symbolName) {
   }
   throw new Error(`Native UI source is missing: ${file}:${symbolName}`);
 }
+// Select authored style properties without importing the app or its native modules.
+async function authoredStyles(file, keys) {
+  const text = await authoredNode(file, "styles");
+  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const selected = new Map();
+  function visit(node) {
+    if (ts.isPropertyAssignment(node) && keys.includes(node.name.getText(source)))
+      selected.set(node.name.getText(source), node.getText(source));
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  if (selected.size !== keys.length) throw new Error(`Missing native UI styles in ${file}`);
+  return [...selected.values()].join(",\n");
+}
+const syncStyles = await authoredStyles("packages/app/src/panels/agent-panel.tsx", [
+  "timelineSyncCalloutRail",
+  "timelineSyncCalloutContent",
+  "timelineSyncCallout",
+  "timelineSyncCalloutText",
+]);
+const buttonStyles = await authoredStyles("packages/app/src/components/ui/button.tsx", [
+  "base",
+  "secondary",
+  "pressed",
+  "disabled",
+  "text",
+]);
+const toastStyles = await authoredStyles("packages/app/src/components/toast-host.tsx", [
+  "container",
+  "widthBoundary",
+  "toast",
+  "message",
+]);
+const geometrySource = await fs.readFile(
+  path.join(root, "packages/app/src/components/ui/control-geometry.ts"),
+  "utf8",
+);
+const geometryBody = geometrySource.replace(/^import[^;]+;\s*/gm, "");
+const script = ts.transpileModule(
+  `
+${await authoredNode("packages/app/src/styles/theme.ts", "ICON_SIZE")}
+${geometryBody}
+${await authoredNode("packages/app/src/components/toast-host.tsx", "TOAST_MAX_WIDTH")}
+const geometry=createControlGeometry(theme);
+const sync=({${syncStyles}}),button=({${buttonStyles}}),toast=({${toastStyles}});
+globalThis.presentation={sync,button,toast,geometry};
+`,
+  { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
+).outputText;
+const context = { theme, OVERLAY_Z: { toast: 0 }, exports: {} };
+runInNewContext(script, context, { timeout: 1000 });
+const { sync, button, toast, geometry: controls } = context.presentation;
+const syncCallout = sync.timelineSyncCallout,
+  r = sync.timelineSyncCalloutRail,
+  t = toast.toast;
+const values = {
+  RAIL_PADDING_X: r.paddingHorizontal,
+  RAIL_PADDING_TOP: r.paddingTop,
+  MAX_WIDTH: sync.timelineSyncCalloutContent.maxWidth,
+  CALLOUT_GAP: syncCallout.gap,
+  CALLOUT_BORDER: syncCallout.borderWidth,
+  CALLOUT_RADIUS: syncCallout.borderRadius,
+  CALLOUT_PADDING_X: syncCallout.paddingHorizontal,
+  CALLOUT_PADDING_Y: syncCallout.paddingVertical,
+  BUTTON_HEIGHT: controls.buttonSm.minHeight,
+  BUTTON_PADDING_X: controls.buttonSm.paddingHorizontal,
+  BUTTON_RADIUS: controls.buttonSm.borderRadius,
+  BUTTON_BORDER: button.base.borderWidth,
+  BUTTON_PRESSED_OPACITY: button.pressed.opacity,
+  BUTTON_DISABLED_OPACITY: button.disabled.opacity,
+  TOAST_TOP: toast.container("panel", 0).top,
+  TOAST_INSET_X: toast.container("panel", 0).left,
+  TOAST_MAX_WIDTH: toast.widthBoundary.maxWidth,
+  TOAST_WIDTH_RATIO: parseFloat(toast.widthBoundary.width) / 100,
+  TOAST_GAP: t.gap,
+  TOAST_RADIUS: t.borderRadius,
+  TOAST_BORDER: t.borderWidth,
+  TOAST_PADDING_X: t.paddingHorizontal,
+  TOAST_PADDING_Y: t.paddingVertical,
+  TOAST_SHADOW_X: t.shadowOffset.width,
+  TOAST_SHADOW_Y: t.shadowOffset.height,
+  TOAST_SHADOW_BLUR: t.shadowRadius,
+};
+const syncStatusFile = "packages/app/src/timeline/sync-status.tsx";
+const syncStatus = ts.createSourceFile(
+  syncStatusFile,
+  await authoredNode(syncStatusFile, "TimelineSyncStatus"),
+  ts.ScriptTarget.Latest,
+  true,
+  ts.ScriptKind.TSX,
+);
+function findStatusSpinner(node) {
+  if (
+    ts.isJsxSelfClosingElement(node) &&
+    node.tagName.getText(syncStatus) === "ThemedLoadingSpinner"
+  ) {
+    const size = node.attributes.properties.find(
+      (p) => ts.isJsxAttribute(p) && p.name.text === "size",
+    );
+    values.SPINNER_TOAST = Number(size.initializer.expression.getText(syncStatus));
+  }
+  ts.forEachChild(node, findStatusSpinner);
+}
+findStatusSpinner(syncStatus);
+if (!Number.isFinite(values.SPINNER_TOAST)) throw new Error("Timeline status spinner has no size");
+values.CALLOUT_TEXT_SIZE = sync.timelineSyncCalloutText.fontSize;
+values.BUTTON_TEXT_SIZE = button.text.fontSize;
+values.TOAST_TEXT_SIZE = toast.message.fontSize;
+const componentColors = {
+  CALLOUT_FILL: syncCallout.backgroundColor,
+  CALLOUT_BORDER_COLOR: syncCallout.borderColor,
+  CALLOUT_TEXT_COLOR: sync.timelineSyncCalloutText.color,
+  BUTTON_FILL: button.secondary.backgroundColor,
+  BUTTON_BORDER_COLOR: button.secondary.borderColor,
+  BUTTON_TEXT_COLOR: button.text.color,
+  TOAST_FILL: t.backgroundColor,
+  TOAST_BORDER_COLOR: t.borderColor,
+  TOAST_TEXT_COLOR: toast.message.color,
+};
+const shadowColor = t.shadowColor.match(/[\d.]+/g).map(Number);
+const shadowRgba = shadowColor
+  .slice(0, 3)
+  .concat(Math.round(shadowColor[3] * 255))
+  .map((n) => n.toString(16).padStart(2, "0"))
+  .join("");
+const enSource = await authoredNode("packages/app/src/i18n/resources/en.ts", "en");
+const labelsContext = {};
+runInNewContext(
+  ts.transpileModule(enSource + ";globalThis.labels=en;", {
+    compilerOptions: { target: ts.ScriptTarget.ES2022 },
+  }).outputText,
+  labelsContext,
+  { timeout: 1000 },
+);
+const labels = {
+  ERROR: labelsContext.labels.agentPanel.states.timelineSyncFailed,
+  RETRY: labelsContext.labels.common.actions.retry,
+  RETRYING: labelsContext.labels.agentPanel.states.timelineSyncRetrying,
+  UPDATING: labelsContext.labels.agentPanel.states.updating,
+};
+const spinnerFile = "node_modules/react-native-web/dist/exports/ActivityIndicator/index.js";
+const spinnerContext = { React: { createElement }, StyleSheet: { create: (v) => v } };
+runInNewContext(
+  `${await authoredNode(spinnerFile, "createSvgCircle")}\n${await authoredNode(spinnerFile, "indicatorSizes")}\nglobalThis.circle=createSvgCircle;globalThis.sizes=indicatorSizes;`,
+  spinnerContext,
+  { timeout: 1000 },
+);
+values.SPINNER_LARGE = spinnerContext.sizes.large.width;
+values.SPINNER_SMALL = spinnerContext.sizes.small.width;
+// Read the installed renderer's rotation duration instead of using the agent-ring timing.
+const activityStyle = await authoredStyles(spinnerFile, ["animation"]);
+const animationContext = {};
+runInNewContext(`globalThis.styles=({${activityStyle}})`, animationContext, { timeout: 1000 });
+values.SPINNER_DURATION_MS = parseFloat(animationContext.styles.animation.animationDuration) * 1000;
+await output(
+  "packages/desktop/native/src/sync_presentation.rs",
+  `// Generated from agent-panel, Button, ToastViewport and ActivityIndicator. Do not edit.\n${Object.entries(
+    values,
+  )
+    .map(([key, value]) => `pub const ${key}:f32=${Number(value).toFixed(3)};`)
+    .join("\n")}\npub const TOAST_SHADOW_RGBA:u32=0x${shadowRgba};\n${Object.entries(
+    componentColors,
+  )
+    .map(([key, value]) => `pub const ${key}:u32=0x${value.slice(1)};`)
+    .join("\n")}\n${Object.entries(labels)
+    .map(([key, value]) => `pub const ${key}:&str=${JSON.stringify(value)};`)
+    .join("\n")}\n`,
+);
+const spinnerComponent = ts.createSourceFile(
+  spinnerFile,
+  await authoredNode(spinnerFile, "ActivityIndicator"),
+  ts.ScriptTarget.Latest,
+  true,
+);
+let spinnerElement;
+function findSpinnerSvg(node) {
+  if (ts.isVariableDeclaration(node) && node.name.getText(spinnerComponent) === "svg")
+    spinnerElement = node.initializer.getText(spinnerComponent);
+  ts.forEachChild(node, findSpinnerSvg);
+}
+findSpinnerSvg(spinnerComponent);
+if (!spinnerElement) throw new Error("Installed ActivityIndicator has no SVG");
+spinnerContext.color = "#000000";
+runInNewContext(`globalThis.svg=${spinnerElement}`, spinnerContext, { timeout: 1000 });
+const loadingSpinnerSvg = renderToStaticMarkup(spinnerContext.svg).replace(
+  "<svg ",
+  '<svg xmlns="http://www.w3.org/2000/svg" ',
+);
+
+await output(
+  "packages/desktop/native/assets/icons/ACTIVITY-INDICATOR-LICENSE",
+  await fs.readFile(path.join(root, "node_modules/react-native-web/LICENSE"), "utf8"),
+);
+
 // Vendor the pinned app parser so Cargo builds do not need Node or node_modules.
 for (const file of ["md4c.c", "md4c.h"]) {
   const source = await fs.readFile(
@@ -323,7 +517,7 @@ const { outputFiles: vectors } = await bundle({
 const { icons, WindowControlGlyph, windowPresentation, defaultSidebarWidth } = await import(
   `data:text/javascript;base64,${Buffer.from(vectors[0].text).toString("base64")}`
 );
-const assets = new Map();
+const assets = new Map([["loading-spinner", loadingSpinnerSvg]]);
 for (const [mode, presentation] of Object.entries(windowPresentation)) {
   for (const kind of ["minimize", "maximize", "restore", "close"]) {
     assets.set(

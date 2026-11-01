@@ -1,5 +1,7 @@
 use anyhow::{Result, ensure};
-use gpui::{Context, Entity, MouseButton, Render, Window, div, prelude::*, px, rgb};
+use gpui::{
+    BoxShadow, Context, Entity, MouseButton, Render, Window, div, prelude::*, px, rgb, rgba,
+};
 use paseo_desktop::{
     client::Connection,
     history::{Cursor, History, LiveBuffer, LiveChange, Page, SyncNeed},
@@ -43,6 +45,7 @@ pub struct Conversation {
     retry_ms: u64,
     retry_query: Query,
     whole_turns: bool,
+    foreground_sync: bool,
     composer: Entity<crate::composer_view::Composer>,
     messages: BTreeMap<u64, Entity<crate::message_view::MessageView>>,
 }
@@ -73,6 +76,7 @@ impl Conversation {
             retry_ms: 1000,
             retry_query: Query::After,
             whole_turns,
+            foreground_sync: true,
             composer,
             messages: BTreeMap::new(),
         };
@@ -80,6 +84,18 @@ impl Conversation {
             view.failed(error.to_string(), Some(Query::Tail), cx);
         }
         view
+    }
+    pub fn resume(&mut self, cx: &mut Context<Self>) {
+        self.pending = None;
+        self.error = None;
+        self.foreground_sync = true;
+        self.schedule_generation = self.schedule_generation.saturating_add(1);
+        self.refresh_scheduled = false;
+        self.retry_ms = 1000;
+        if let Err(error) = self.fetch(Query::After, cx) {
+            self.failed(error.to_string(), None, cx);
+        }
+        cx.notify();
     }
     fn fetch(&mut self, query: Query, cx: &mut Context<Self>) -> Result<()> {
         if self.pending.is_some() {
@@ -193,6 +209,9 @@ impl Conversation {
                         self.error = None;
                         self.retry_ms = 1000;
                         self.dirty = need != SyncNeed::Current || self.want_tail;
+                        if !self.dirty {
+                            self.foreground_sync = false;
+                        }
                         self.want_tail |= need == SyncNeed::Tail;
                         if self.dirty {
                             self.schedule_refresh(cx);
@@ -344,11 +363,20 @@ impl Conversation {
 }
 
 impl Render for Conversation {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        use crate::theme::{colors as c, font_size};
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        use crate::{
+            chrome::loading_spinner,
+            sync_presentation as p,
+            theme::{colors as c, font_size},
+        };
         let entries = self.history.entries.values().collect::<Vec<_>>();
+        let initial_loading = self.history.epoch.is_none() && self.error.is_none();
+        // Gap repair remains silent; the original status toast belongs to foreground recovery.
+        let updating = !initial_loading && self.error.is_none() && self.foreground_sync;
+        let show_error = self.error.is_some() && self.foreground_sync;
         div()
             .id("agent-conversation")
+            .relative()
             .size_full()
             .flex()
             .flex_col()
@@ -371,7 +399,17 @@ impl Render for Conversation {
                             .items_center()
                             .justify_center()
                             .when(self.pending.is_some(), |slot| {
-                                slot.child("Loading messages…")
+                                slot.when(
+                                    self.pending
+                                        .as_ref()
+                                        .is_some_and(|p| p.query == Query::Before),
+                                    |slot| {
+                                        slot.child(loading_spinner(
+                                            p::SPINNER_SMALL,
+                                            c::FOREGROUND_MUTED,
+                                        ))
+                                    },
+                                )
                             })
                             .when(self.pending.is_none() && self.history.has_older, |slot| {
                                 slot.child(
@@ -395,36 +433,6 @@ impl Render for Conversation {
                                 )
                             }),
                     )
-                    .when_some(self.error.clone(), |view, error| {
-                        view.child(
-                            div()
-                                .flex()
-                                .flex_col()
-                                .items_start()
-                                .gap_2()
-                                .child(div().text_color(rgb(c::STATUS_DANGER)).child(error))
-                                .child(
-                                    div()
-                                        .id("retry-timeline")
-                                        .px_2()
-                                        .py_1()
-                                        .rounded_md()
-                                        .bg(rgb(c::SURFACE2))
-                                        .child(if self.pending.is_some() {
-                                            "Retrying…"
-                                        } else {
-                                            "Retry"
-                                        })
-                                        .when(self.pending.is_some(), |button| button.opacity(0.5))
-                                        .when(self.pending.is_none(), |button| {
-                                            button.cursor_pointer().on_mouse_down(
-                                                MouseButton::Left,
-                                                cx.listener(|this, _, _, cx| this.retry(cx)),
-                                            )
-                                        }),
-                                ),
-                        )
-                    })
                     .when(
                         self.history.entries.is_empty() && self.pending.is_none(),
                         |view| {
@@ -494,6 +502,144 @@ impl Render for Conversation {
                         .into_any_element()
                     })),
             )
+            .when(show_error, |root| {
+                root.child(
+                    div()
+                        .w_full()
+                        .flex_shrink_0()
+                        .flex()
+                        .justify_center()
+                        .px(px(p::RAIL_PADDING_X))
+                        .pt(px(p::RAIL_PADDING_TOP))
+                        .child(
+                            div()
+                                .w_full()
+                                .max_w(px(p::MAX_WIDTH))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .gap(px(p::CALLOUT_GAP))
+                                .bg(rgb(p::CALLOUT_FILL))
+                                .border(px(p::CALLOUT_BORDER))
+                                .border_color(rgb(p::CALLOUT_BORDER_COLOR))
+                                .rounded(px(p::CALLOUT_RADIUS))
+                                .px(px(p::CALLOUT_PADDING_X))
+                                .py(px(p::CALLOUT_PADDING_Y))
+                                .child(
+                                    div()
+                                        .text_size(px(p::CALLOUT_TEXT_SIZE))
+                                        .text_color(rgb(p::CALLOUT_TEXT_COLOR))
+                                        .child(p::ERROR),
+                                )
+                                .child(
+                                    div()
+                                        .id("retry-timeline")
+                                        .flex_shrink_0()
+                                        .min_h(px(p::BUTTON_HEIGHT))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .px(px(p::BUTTON_PADDING_X))
+                                        .border(px(p::BUTTON_BORDER))
+                                        .border_color(rgb(p::BUTTON_BORDER_COLOR))
+                                        .bg(rgb(p::BUTTON_FILL))
+                                        .text_size(px(p::BUTTON_TEXT_SIZE))
+                                        .text_color(rgb(p::BUTTON_TEXT_COLOR))
+                                        .rounded(px(p::BUTTON_RADIUS))
+                                        .child(if self.pending.is_some() {
+                                            p::RETRYING
+                                        } else {
+                                            p::RETRY
+                                        })
+                                        .when(self.pending.is_some(), |button| {
+                                            let blend = |color| {
+                                                rgb(crate::chrome::control_color(
+                                                    color,
+                                                    p::CALLOUT_FILL,
+                                                    p::BUTTON_DISABLED_OPACITY,
+                                                ))
+                                            };
+                                            button
+                                                .bg(blend(p::BUTTON_FILL))
+                                                .border_color(blend(p::BUTTON_BORDER_COLOR))
+                                                .text_color(blend(p::BUTTON_TEXT_COLOR))
+                                        })
+                                        .when(self.pending.is_none(), |button| {
+                                            button
+                                                .cursor_pointer()
+                                                .active(|style| {
+                                                    style.opacity(p::BUTTON_PRESSED_OPACITY)
+                                                })
+                                                .on_click(
+                                                    cx.listener(|this, _, _, cx| this.retry(cx)),
+                                                )
+                                        }),
+                                ),
+                        ),
+                )
+            })
             .child(self.composer.clone())
+            .when(initial_loading, |root| {
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .occlude()
+                        .bg(rgb(c::SURFACE0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(loading_spinner(p::SPINNER_LARGE, c::FOREGROUND_MUTED)),
+                )
+            })
+            .when(updating, |root| {
+                root.child(
+                    div()
+                        .absolute()
+                        .top(px(p::TOAST_TOP))
+                        .left(px(p::TOAST_INSET_X))
+                        .right(px(p::TOAST_INSET_X))
+                        .flex()
+                        .justify_center()
+                        .child(
+                            div()
+                                .w(gpui::relative(p::TOAST_WIDTH_RATIO))
+                                .max_w(px(p::TOAST_MAX_WIDTH))
+                                .flex()
+                                .justify_center()
+                                .child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap(px(p::TOAST_GAP))
+                                        .bg(rgb(p::TOAST_FILL))
+                                        .border(px(p::TOAST_BORDER))
+                                        .border_color(rgb(p::TOAST_BORDER_COLOR))
+                                        .text_size(px(p::TOAST_TEXT_SIZE))
+                                        .line_height(crate::fonts::ui_strut(
+                                            window,
+                                            p::TOAST_TEXT_SIZE,
+                                        ))
+                                        .text_color(rgb(p::TOAST_TEXT_COLOR))
+                                        .rounded(px(p::TOAST_RADIUS))
+                                        .px(px(p::TOAST_PADDING_X))
+                                        .py(px(p::TOAST_PADDING_Y))
+                                        .shadow(vec![
+                                            BoxShadow::new(
+                                                px(p::TOAST_SHADOW_X),
+                                                px(p::TOAST_SHADOW_Y),
+                                                rgba(p::TOAST_SHADOW_RGBA).into(),
+                                            )
+                                            .blur_radius(px(p::TOAST_SHADOW_BLUR)),
+                                        ])
+                                        .child(loading_spinner(
+                                            p::SPINNER_TOAST,
+                                            p::TOAST_TEXT_COLOR,
+                                        ))
+                                        .child(p::UPDATING),
+                                ),
+                        ),
+                )
+            })
     }
 }

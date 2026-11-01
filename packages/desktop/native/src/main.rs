@@ -8,6 +8,7 @@ mod identity_colors;
 mod message_geometry;
 mod message_view;
 mod rich_text;
+mod sync_presentation;
 mod terminal_view;
 mod theme;
 mod ui;
@@ -44,7 +45,7 @@ fn main() {
                 },
                 |window, cx| {
                     let target = window_chrome::configure(window).and(target);
-                    cx.new(|cx| ui::Paseo::new(target, cx))
+                    cx.new(|cx| ui::Paseo::new(target, window, cx))
                 },
             )
             .expect("open Paseo window");

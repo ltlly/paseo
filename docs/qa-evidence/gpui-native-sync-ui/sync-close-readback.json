@@ -1,0 +1,9 @@
+{
+  "exactCanonicalEntriesRetained": true,
+  "userMessages": 2,
+  "assistantMessages": 2,
+  "nativeStatusToastAbsentForOrdinaryGap": true,
+  "normalGapReferenceComparisonAccepted": false,
+  "note": "Reference retained an earlier sync error, so the attempted paired normal-gap scene is excluded. Native-only capture and native gap recovery remain recorded.",
+  "zeroRealModelCalls": true
+}

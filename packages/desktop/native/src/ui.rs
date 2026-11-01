@@ -22,6 +22,8 @@ pub struct Paseo {
     conversation: Option<Entity<crate::conversation::Conversation>>,
     composers: BTreeMap<String, Entity<crate::composer_view::Composer>>,
     sidebar_open: bool,
+    window_visible: bool,
+    _visibility: gpui::Subscription,
 }
 
 impl Drop for Paseo {
@@ -33,7 +35,17 @@ impl Drop for Paseo {
 }
 
 impl Paseo {
-    pub fn new(target: Result<Target>, cx: &mut Context<Self>) -> Self {
+    pub fn new(target: Result<Target>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        let visibility = cx.observe_window_visibility(window, |this, visibility, _, cx| {
+            let visible = visibility.is_visible();
+            if visible
+                && !this.window_visible
+                && let Some(conversation) = &this.conversation
+            {
+                conversation.update(cx, |view, cx| view.resume(cx));
+            }
+            this.window_visible = visible;
+        });
         let mut app = Self {
             connection: None,
             info: None,
@@ -46,6 +58,8 @@ impl Paseo {
             conversation: None,
             composers: BTreeMap::new(),
             sidebar_open: true,
+            window_visible: window.is_visible(),
+            _visibility: visibility,
         };
         match target.and_then(Connection::start) {
             Ok(connection) => {

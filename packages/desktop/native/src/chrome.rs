@@ -18,6 +18,31 @@ pub fn provider_icon(provider: &str, size: f32) -> Svg {
     icon(name, size)
 }
 
+// For a control over a solid rail, flatten its CSS group opacity before drawing.
+// GPUI's separate premultiplied-alpha rounding shifts the disabled fill by a channel.
+pub fn control_color(foreground: u32, background: u32, opacity: f32) -> u32 {
+    let alpha = (opacity * 255.).floor() as u32;
+    [16, 8, 0].into_iter().fold(0, |color, shift| {
+        let foreground = (foreground >> shift) & 255;
+        let background = (background >> shift) & 255;
+        color | (((foreground * alpha + background * (255 - alpha) + 127) / 255) << shift)
+    })
+}
+
+pub fn loading_spinner(size: f32, color: u32) -> impl IntoElement {
+    use crate::sync_presentation as p;
+    icon("loading-spinner", size)
+        .text_color(rgb(color))
+        .with_animation(
+            "timeline-spinner",
+            Animation::new(std::time::Duration::from_millis(
+                p::SPINNER_DURATION_MS as u64,
+            ))
+            .repeat(),
+            |icon, phase| icon.with_transformation(Transformation::rotate(percentage(phase))),
+        )
+}
+
 pub fn project_color(key: &str) -> u32 {
     let hash = key.chars().fold(0u32, |hash, ch| {
         let mut utf16 = [0; 2];

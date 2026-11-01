@@ -1,0 +1,45 @@
+{
+  "id": 1,
+  "ok": true,
+  "metrics": [
+    {
+      "id": "progressbar",
+      "text": "",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "font": "16px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "border": "0px solid rgb(0, 0, 0)",
+      "borderRadius": "0px",
+      "background": "rgba(0, 0, 0, 0)",
+      "gap": "normal",
+      "opacity": "1",
+      "shadow": "none"
+    },
+    {
+      "id": "progressbar",
+      "text": "",
+      "box": {
+        "x": 782,
+        "y": 418,
+        "w": 36,
+        "h": 36
+      },
+      "font": "16px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+      "lineHeight": "normal",
+      "padding": "0px",
+      "border": "0px solid rgb(0, 0, 0)",
+      "borderRadius": "0px",
+      "background": "rgba(0, 0, 0, 0)",
+      "gap": "normal",
+      "opacity": "1",
+      "shadow": "none"
+    }
+  ],
+  "body": "New workspace\nHistory\nSearch\nSchedules\nWorkspaces\nN\nnative-project\nNative conversation B\n2m\nStream QA\nnative-project\nNative conversation A\nNative conversation B\nNative conversation A\nNative conversation B"
+}
