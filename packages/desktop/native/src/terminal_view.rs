@@ -307,6 +307,60 @@ impl TerminalView {
         Ok(())
     }
 
+    pub fn disconnected(&mut self, cx: &mut Context<Self>) {
+        self.slot = None;
+        self.request_id = None;
+        self.replay_ready = false;
+        self.buffer.replaying = false;
+        self.opening = false;
+        self.pending_input.clear();
+        self.raw_input = false;
+        self.raw_requests = paseo_desktop::terminal_retention::PendingInput::default();
+        self.selecting = false;
+        self.selection_scroll_task = None;
+        self.blink.enable(false, Instant::now());
+        self.blink_task = None;
+        self.error = Some("Host disconnected. Submitted input may have reached the program; it will not be retried.".into());
+        self.notify_visible(cx);
+    }
+
+    pub fn reconnect(&mut self, cx: &mut Context<Self>) {
+        let had_selection = self.buffer.has_selection();
+        let had_scroll = self.buffer.screen().cursor.is_none();
+        self.slot = None;
+        self.request_id = None;
+        self.replay_ready = false;
+        self.opening = false;
+        self.error = (had_selection || had_scroll).then(|| "Reconnecting terminal; screen replay replaces the old selection and scroll position.".into());
+        self.needs_claim = false;
+        let rows = self.desired_size.rows;
+        let cols = self.desired_size.cols;
+        match self.connection.subscribe(&format!("terminal:{}", self.terminal_id), "subscribe_terminal_request", json!({"terminalId":self.terminal_id,"restore":{"mode":"full-snapshot","scrollbackLines":10_000,"size":{"rows":rows,"cols":cols}}})) {
+            Ok(id) => { self.request_id = Some(id); self.opening = true; }
+            Err(error) => self.error = Some(error.to_string()),
+        }
+        self.notify_visible(cx);
+        let id = self.request_id.clone();
+        if let Some(id) = id {
+            let timer = cx
+                .background_executor()
+                .timer(std::time::Duration::from_secs(30));
+            cx.spawn(async move |this, cx| {
+                timer.await;
+                let _ = this.update(cx, |this, cx| {
+                    if this.opening && this.request_id.as_ref() == Some(&id) {
+                        this.opening = false;
+                        this.error = Some(
+                            "Timed out reconnecting terminal. Select this tab to retry.".into(),
+                        );
+                        this.notify_visible(cx);
+                    }
+                });
+            })
+            .detach();
+        }
+    }
+
     pub fn receive(&mut self, frame: TerminalFrame, cx: &mut Context<Self>) {
         if self.slot != Some(frame.slot) {
             return;

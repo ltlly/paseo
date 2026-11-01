@@ -12,6 +12,12 @@ pub(crate) struct Subscriptions {
 }
 
 impl Subscriptions {
+    pub fn reset(&mut self) {
+        self.current.clear();
+        self.pending.clear();
+        self.bound.clear();
+        self.releases.clear();
+    }
     pub fn can_open(&self) -> Result<()> {
         // Abandoned requests must remain identifiable until their first response:
         // a late host-assigned ID still needs releasing. Bound this debt explicitly.
@@ -68,6 +74,20 @@ impl Subscriptions {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn disconnect_resets_physical_owners_without_releasing_them_on_a_new_socket() {
+        let mut subscriptions = Subscriptions::default();
+        subscriptions.open("terminal", "old".into());
+        subscriptions.receive(&json!({"requestId":"old","subscriptionId":"old-owner"}));
+        subscriptions.close("terminal");
+        subscriptions.defer_release("old-owner".into());
+        subscriptions.reset();
+        assert_eq!(subscriptions.next_release(), None);
+        assert!(!subscriptions.receive(&json!({"subscriptionId":"old-owner"})));
+        subscriptions.open("terminal", "new".into());
+        assert!(subscriptions.receive(&json!({"requestId":"new","subscriptionId":"new-owner"})));
+    }
 
     #[test]
     fn switching_before_binding_releases_late_owners_and_rejects_their_updates() {

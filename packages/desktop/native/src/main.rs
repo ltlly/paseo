@@ -1,3 +1,4 @@
+mod agent_history;
 mod assets;
 mod choice_menu;
 mod chrome;
@@ -14,6 +15,7 @@ mod theme;
 mod ui;
 mod window_chrome;
 mod window_geometry;
+mod workspace_form;
 
 use gpui::{App, AppContext, Bounds, TitlebarOptions, WindowBounds, WindowOptions, px, size};
 use paseo_desktop::client::{Target, default_home};

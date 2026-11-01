@@ -26,6 +26,17 @@
     "artifacts": "Local ~/.cache/paseo-native-qa/navigation-*, gesture-reference-evidence.json, autoscroll-copy.json and /tmp/paseo-gpui-navigation-gestures-*.txt; lane logs/tmp/paseo-native-navigation-logs. Not a portable full visual evidence bundle.",
     "limits": "Full Electron pixel parity, all hover/menu states and hardware performance remain NOT_PASSED. Dynamic custom icon actual rendering and Mac/Windows GUI not exercised. Right-click rename/regenerate, catalog-only icons, complete subagent tab/close lifecycle, splits and persisted cross-process focus still missing."
   },
+  "reconnectAndWorkspaceFollowUp": {
+    "date": "2026-11-02",
+    "baseCommit": "c46ee6e7363a9adde4667f69a416d732acbf15d5",
+    "nativeSourceArchiveSha256": "90dc77cc1312e11213f3a567937cf2f3503bcdacfd2cca3fea2b55dcec539e25",
+    "reconnect": "Stable Connection reconnects with generation-specific command/upload admission; old mutations are not replayed, uploads wake on generation change, physical subscription IDs reset, local discovery refreshes, server identity pinned. Retained terminal IDs/views and composer drafts survive; observation and authoritative history/configuration reads reopen. Terminal replay replaces selection/viewport; no promise to preserve those through a missed-output snapshot.",
+    "workspace": "Native forms issue existing project/directory/workspace creation, archive and recovery RPCs with pending/failure/retry/unknown outcome. Remembered workspace is host-scoped and waits for final directory hydration. Real Agent History uses fetch_agent_history_request, not a local archive list. Form occlusion and pointer propagation fixes prevent background terminal clicks.",
+    "validation": "Three real Rust WebSocket/serialization/close tests, physical-subscription reset, directory tombstone refresh and seven lifecycle tests pass; final archive passes Mac/runtime-shaders and Windows/MSVC checks and focused tests. Linux actual native socket reconnect reopens the same terminal subscription and receives OS input; all five PTY IDs preserved. Linux GUI create/archive/history exercised, archive of new empty workspace retains original five PTYs. Separate isolated daemon RPC evidence covers local/worktree restore and sibling PTY safety.",
+    "cleanup": "Verified reconnect private fixture ng8igz,worker/PTYS/home and Xvfb971897/Openbox971905 cleaned. Earlier inspector-assisted fixture crashed from diagnostic dynamic import; abandoned private five PTYs explicitly adopted/closed, home PWQ4ja removed, private display stopped; not counted as reconnect success. Final lifecycle fixture v9VMPb removed after original five PTYs survived window close; verified Xvfb1033075/Openbox1033083 stopped. Production6767/user sessions untouched.",
+    "artifacts": "Local ~/.cache/paseo-native-qa/reconnect-verified-*, lifecycle-*.png and /tmp/paseo-gpui-lifecycle-reconnect-*.txt; /tmp/paseo-workspace-lifecycle-logs. Checkpoint is not a portable full-platform GUI evidence bundle.",
+    "limitations": "Full original UI pixel parity NOT_PASSED: form layout/pickers/initial agent launch still incomplete. Reconnect timeline draft/attachment integration has source/test support but no full native conversation outage GUI test. Mac/Windows GUI and hardware performance pending. Hosts transport expansion, complete tools/product/conversation and installation rollout still required."
+  },
   "notVerified": [
     "real provider authentication and prompts",
     "composer and message submission from native UI",

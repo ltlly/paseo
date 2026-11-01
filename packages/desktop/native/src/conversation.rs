@@ -37,6 +37,7 @@ pub struct Conversation {
     history: History,
     buffer: LiveBuffer,
     pending: Option<Pending>,
+    connected: bool,
     dirty: bool,
     want_tail: bool,
     error: Option<String>,
@@ -68,6 +69,7 @@ impl Conversation {
             history: History::default(),
             buffer: LiveBuffer::default(),
             pending: None,
+            connected: true,
             dirty: false,
             want_tail: false,
             error: None,
@@ -85,7 +87,19 @@ impl Conversation {
         }
         view
     }
+    pub fn disconnected(&mut self, cx: &mut Context<Self>) {
+        self.connected = false;
+        self.pending = None;
+        self.schedule_generation = self.schedule_generation.saturating_add(1);
+        self.refresh_scheduled = false;
+        self.dirty = true;
+        self.foreground_sync = true;
+        self.error = Some("Host disconnected. Messages will catch up after reconnect.".into());
+        cx.notify();
+    }
+
     pub fn resume(&mut self, cx: &mut Context<Self>) {
+        self.connected = true;
         self.pending = None;
         self.error = None;
         self.foreground_sync = true;
@@ -98,6 +112,7 @@ impl Conversation {
         cx.notify();
     }
     fn fetch(&mut self, query: Query, cx: &mut Context<Self>) -> Result<()> {
+        ensure!(self.connected, "Host disconnected");
         if self.pending.is_some() {
             return Ok(());
         }
@@ -327,7 +342,7 @@ impl Conversation {
         cx.notify();
     }
     fn schedule_refresh(&mut self, cx: &mut Context<Self>) {
-        if self.refresh_scheduled {
+        if self.refresh_scheduled || !self.connected {
             return;
         }
         self.refresh_scheduled = true;
@@ -341,7 +356,7 @@ impl Conversation {
         cx.spawn(async move |this, cx| {
             timer.await;
             let _ = this.update(cx, |this, cx| {
-                if this.schedule_generation != generation {
+                if this.schedule_generation != generation || !this.connected {
                     return;
                 }
                 this.refresh_scheduled = false;

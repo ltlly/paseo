@@ -15,7 +15,14 @@ pub struct Paseo {
     connection: Option<Arc<Connection>>,
     info: Option<ServerInfo>,
     provider_icons_request: Option<String>,
+    directory_refresh: Option<paseo_desktop::model::DirectoryRefresh>,
     provider_images: BTreeMap<String, Arc<gpui::RenderImage>>,
+    workspace_form: Option<Entity<crate::workspace_form::WorkspaceForm>>,
+    history: Option<Entity<crate::agent_history::HistoryPanel>>,
+    lifecycle_subscriptions: Vec<gpui::Subscription>,
+    remembered: paseo_desktop::workspace_lifecycle::RememberedWorkspaces,
+    remembered_path: std::path::PathBuf,
+    startup_workspace: Option<String>,
     directory: Directory,
     selected_workspace: Option<String>,
     selected_terminal: Option<String>,
@@ -45,6 +52,10 @@ impl Paseo {
             let visible = visibility.is_visible();
             if visible
                 && !this.window_visible
+                && this
+                    .connection
+                    .as_ref()
+                    .is_some_and(|connection| connection.connected())
                 && let Some(conversation) = &this.conversation
             {
                 conversation.update(cx, |view, cx| view.resume(cx));
@@ -63,18 +74,43 @@ impl Paseo {
                 }
             }
         });
+        let remembered_path = std::env::var_os("PASEO_NATIVE_STATE_DIR")
+            .map(std::path::PathBuf::from)
+            .or_else(|| {
+                std::env::var_os("XDG_CONFIG_HOME")
+                    .map(|p| std::path::PathBuf::from(p).join("paseo"))
+            })
+            .unwrap_or_else(|| {
+                std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
+                    .map(|p| std::path::PathBuf::from(p).join(".config/paseo"))
+                    .unwrap_or_else(std::env::temp_dir)
+            })
+            .join("native-last-workspace.json");
+        let remembered =
+            paseo_desktop::workspace_lifecycle::RememberedWorkspaces::load(&remembered_path);
+        let remembered_error = remembered
+            .as_ref()
+            .err()
+            .map(|error| format!("Cannot restore workspace selection: {error}"));
         let mut app = Self {
             connection: None,
             info: None,
             provider_icons_request: None,
+            directory_refresh: None,
             provider_images: BTreeMap::new(),
+            workspace_form: None,
+            history: None,
+            lifecycle_subscriptions: Vec::new(),
+            remembered: remembered.unwrap_or_default(),
+            remembered_path,
+            startup_workspace: None,
             directory: Directory::default(),
             selected_workspace: None,
             selected_terminal: None,
             terminal: None,
             // Matches the existing workspace pane retention cap.
             terminals: TerminalCache::new(3),
-            error: None,
+            error: remembered_error,
             selected_agent: None,
             conversation: None,
             composers: BTreeMap::new(),
@@ -104,6 +140,15 @@ impl Paseo {
     fn receive(&mut self, event: Event, cx: &mut Context<Self>) {
         let result = match event {
             Event::Ready(info) => {
+                // Initial restore only. Reconnect restores the active view without navigating again.
+                if self
+                    .info
+                    .as_ref()
+                    .is_none_or(|previous| previous.server_id != info.server_id)
+                {
+                    self.startup_workspace =
+                        self.remembered.get(&info.server_id).map(str::to_owned);
+                }
                 self.directory.set_host(&info.server_id);
                 self.provider_images.clear();
                 self.info = Some(info);
@@ -133,7 +178,7 @@ impl Paseo {
                     })
                     .detach();
                 }
-                self.load_directory()
+                self.restore_observations(cx)
             }
             Event::Session { kind, payload } => {
                 let timeline_owned = matches!(
@@ -158,11 +203,21 @@ impl Paseo {
                 return;
             }
             Event::Disconnected(error) => {
+                if let Some(form) = &self.workspace_form {
+                    form.update(cx, |form, cx| form.disconnected(cx));
+                }
+                if let Some(history) = &self.history {
+                    history.update(cx, |panel, cx| panel.disconnected(cx));
+                }
                 self.directory.clear_provider_icons();
                 self.provider_images.clear();
                 self.provider_icons_request = None;
-                self.terminal = None;
-                self.terminals.clear();
+                for terminal in self.terminals.values() {
+                    terminal.update(cx, |view, cx| view.disconnected(cx));
+                }
+                if let Some(conversation) = &self.conversation {
+                    conversation.update(cx, |view, cx| view.disconnected(cx));
+                }
                 for composer in self.composers.values() {
                     composer.update(cx, |view, cx| view.disconnected(cx));
                 }
@@ -174,6 +229,45 @@ impl Paseo {
             self.error = Some(format!("{error:#}"));
         }
         cx.notify();
+    }
+
+    fn restore_observations(&mut self, cx: &mut Context<Self>) -> Result<()> {
+        self.error = None;
+        self.directory_refresh = Some(paseo_desktop::model::DirectoryRefresh::default());
+        self.load_directory()?;
+        let connection = self.connection.as_ref().context("host disconnected")?;
+        if let Some(workspace) = self
+            .selected_workspace
+            .as_ref()
+            .and_then(|id| self.directory.workspaces.get(id))
+        {
+            let cwd = workspace
+                .workspace_directory
+                .as_deref()
+                .unwrap_or(&workspace.project_root_path);
+            connection.subscribe(
+                "terminals",
+                "subscribe_terminals_request",
+                json!({"cwd":cwd,"workspaceId":workspace.id}),
+            )?;
+        }
+        for terminal in self.terminals.values() {
+            terminal.update(cx, |view, cx| view.reconnect(cx));
+        }
+        for composer in self.composers.values() {
+            composer.update(cx, |view, cx| view.reconnected(cx));
+        }
+        if let Some(agent) = &self.selected_agent {
+            connection.subscribe(
+                "timeline",
+                "agent.timeline.set_subscription.request",
+                json!({"agentIds":[agent]}),
+            )?;
+            if let Some(conversation) = &self.conversation {
+                conversation.update(cx, |view, cx| view.resume(cx));
+            }
+        }
+        Ok(())
     }
 
     fn load_directory(&self) -> Result<()> {
@@ -198,7 +292,44 @@ impl Paseo {
         Ok(())
     }
 
-    fn apply_session(&mut self, kind: &str, payload: Value, cx: &mut Context<Self>) -> Result<()> {
+    fn apply_session(
+        &mut self,
+        kind: &str,
+        mut payload: Value,
+        cx: &mut Context<Self>,
+    ) -> Result<()> {
+        if kind == "fetch_agents_response" {
+            let _: AgentPage = serde_json::from_value(payload.clone())?;
+        } else if kind == "fetch_workspaces_response" {
+            let _: WorkspacePage = serde_json::from_value(payload.clone())?;
+        }
+        if let Some(refresh) = &mut self.directory_refresh {
+            refresh.apply(kind, &mut payload, &mut self.directory);
+            if refresh.complete() {
+                self.directory_refresh = None;
+            }
+        }
+        if let Some(form) = &self.workspace_form
+            && form.read(cx).owns(&payload)
+        {
+            form.update(cx, |form, cx| form.receive(kind, &payload, cx));
+            return Ok(());
+        }
+        if kind == "rpc_error"
+            && let Some(form) = &self.workspace_form
+            && form.read(cx).state.dismisses_error(&payload)
+        {
+            return Ok(());
+        }
+        if let Some(history) = &self.history {
+            if history.read(cx).owns(&payload) {
+                history.update(cx, |panel, cx| panel.receive(kind, &payload, cx));
+                return Ok(());
+            }
+            if kind == "rpc_error" && history.read(cx).dismisses_error(&payload) {
+                return Ok(());
+            }
+        }
         if self
             .provider_icons_request
             .as_deref()
@@ -353,7 +484,33 @@ impl Paseo {
         let terminal_inventory = kind == "list_terminals_response"
             || (kind == "terminals_changed"
                 && payload["workspaceId"].as_str() == self.selected_workspace.as_deref());
+        let directory_ready =
+            kind == "fetch_workspaces_response" && payload["pageInfo"]["hasMore"] == false;
         self.directory.apply(kind, payload)?;
+        let available = self.startup_workspace.as_ref().is_some_and(|id| {
+            self.directory
+                .workspaces
+                .get(id)
+                .is_some_and(|workspace| workspace.available())
+        });
+        match paseo_desktop::workspace_lifecycle::restore_selection(
+            self.startup_workspace.as_deref(),
+            directory_ready,
+            available,
+        ) {
+            paseo_desktop::workspace_lifecycle::SelectionRestore::Select(id) => {
+                self.startup_workspace = None;
+                self.select_workspace(id, cx);
+            }
+            paseo_desktop::workspace_lifecycle::SelectionRestore::Unavailable(_) => {
+                self.startup_workspace = None;
+                self.error = Some(
+                    "The remembered workspace is unavailable. Use Recover workspace to inspect it."
+                        .into(),
+                );
+            }
+            _ => {}
+        }
         if terminal_inventory {
             self.terminals
                 .retain(|id| self.directory.terminals.contains_key(id));
@@ -372,6 +529,225 @@ impl Paseo {
             }
         }
         Ok(())
+    }
+
+    fn remember_workspace(&mut self) -> Result<()> {
+        if let (Some(host), Some(id)) = (&self.info, &self.selected_workspace) {
+            self.remembered.select(&host.server_id, id);
+            self.remembered.save(&self.remembered_path)?;
+        }
+        Ok(())
+    }
+    fn open_workspace_form(
+        &mut self,
+        mode: crate::workspace_form::FormMode,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(connection) = self.connection.clone() else {
+            self.error = Some("Host is disconnected.".into());
+            cx.notify();
+            return;
+        };
+        let feature = match mode {
+            crate::workspace_form::FormMode::NewWorkspace => Some("workspaceMultiplicity"),
+            crate::workspace_form::FormMode::Recover { .. } => Some("workspaceRecovery"),
+            _ => None,
+        };
+        if feature.is_some_and(|feature| {
+            self.info
+                .as_ref()
+                .and_then(|info| info.features.get(feature))
+                != Some(&Value::Bool(true))
+        }) {
+            self.error = Some("Update this host to use this workspace action.".into());
+            cx.notify();
+            return;
+        }
+        if self.workspace_form.as_ref().is_some_and(|form| {
+            matches!(
+                form.read(cx).state.phase,
+                paseo_desktop::workspace_lifecycle::Phase::Pending { .. }
+            )
+        }) {
+            return;
+        }
+        let projects = self.directory.projects.values().cloned().collect();
+        let path = self
+            .selected_workspace
+            .as_ref()
+            .and_then(|id| self.directory.workspaces.get(id))
+            .map(|w| w.project_root_path.clone())
+            .unwrap_or_default();
+        let form = cx.new(|cx| {
+            crate::workspace_form::WorkspaceForm::new(mode, connection, projects, &path, cx)
+        });
+        self.lifecycle_subscriptions.clear();
+        self.lifecycle_subscriptions.push(
+            cx.subscribe_in(
+                &form,
+                window,
+                |this, _, event: &crate::workspace_form::Completed, _, cx| {
+                    use paseo_desktop::workspace_lifecycle::Operation;
+                    match &event.operation {
+                        Operation::CreateWorkspace => {
+                            match serde_json::from_value::<paseo_desktop::model::Workspace>(
+                                event.payload["workspace"].clone(),
+                            ) {
+                                Ok(workspace) => {
+                                    let id = workspace.id.clone();
+                                    this.directory.workspaces.insert(id.clone(), workspace);
+                                    this.select_workspace(id, cx);
+                                }
+                                Err(_) => {
+                                    this.error = Some(
+                                        "The host created a workspace this client could not read."
+                                            .into(),
+                                    );
+                                }
+                            }
+                        }
+                        Operation::Restore(id) => {
+                            this.startup_workspace = Some(id.clone());
+                            if let Some(connection) = &this.connection {
+                                if let Err(error) =
+                                    connection.request("fetch_workspaces_request", json!({}))
+                                {
+                                    this.error = Some(error.to_string());
+                                }
+                            }
+                        }
+                        Operation::Archive(id) => {
+                            this.directory.workspaces.remove(id);
+                            if let Some(host) = &this.info {
+                                this.remembered.forget(&host.server_id, id);
+                                if let Err(error) = this.remembered.save(&this.remembered_path) {
+                                    this.error = Some(error.to_string());
+                                }
+                            }
+                            if this.selected_workspace.as_ref() == Some(id) {
+                                this.clear_conversation(cx);
+                                this.hide_terminal(cx);
+                                this.terminals.clear();
+                                this.selected_workspace = None;
+                            }
+                        }
+                        Operation::AddProject | Operation::CreateDirectory => {
+                            if let Ok(project) =
+                                serde_json::from_value::<paseo_desktop::model::Project>(
+                                    event.payload["project"].clone(),
+                                )
+                            {
+                                this.directory
+                                    .projects
+                                    .insert(project.project_id.clone(), project);
+                            }
+                        }
+                        Operation::Inspect(_) => {}
+                    }
+                    // The app navigates away as soon as a create or restore is
+                    // confirmed; keeping the form open left a dead Complete page.
+                    if matches!(
+                        event.operation,
+                        Operation::CreateWorkspace | Operation::Restore(_)
+                    ) {
+                        this.workspace_form = None;
+                        this.lifecycle_subscriptions.clear();
+                    }
+                    cx.notify();
+                },
+            ),
+        );
+        self.lifecycle_subscriptions.push(cx.subscribe_in(
+            &form,
+            window,
+            |this, _, _: &crate::workspace_form::Dismiss, _, cx| {
+                this.workspace_form = None;
+                this.lifecycle_subscriptions.clear();
+                cx.notify();
+            },
+        ));
+        form.update(cx, |form, cx| {
+            form.focus(window, cx);
+            form.begin(cx);
+        });
+        self.workspace_form = Some(form);
+        cx.notify();
+    }
+
+    fn open_history(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.history.is_some() {
+            return;
+        }
+        let Some(connection) = self.connection.clone() else {
+            self.error = Some("Host is disconnected.".into());
+            cx.notify();
+            return;
+        };
+        self.workspace_form = None;
+        self.lifecycle_subscriptions.clear();
+        let panel = cx.new(|cx| crate::agent_history::HistoryPanel::new(connection, cx));
+        self.lifecycle_subscriptions.push(cx.subscribe_in(
+            &panel,
+            window,
+            |this, _, event: &crate::agent_history::OpenAgent, window, cx| {
+                this.open_agent_from_history(event.0.clone(), window, cx);
+            },
+        ));
+        self.lifecycle_subscriptions.push(cx.subscribe_in(
+            &panel,
+            window,
+            |this, _, _: &crate::agent_history::Dismiss, _, cx| {
+                this.history = None;
+                this.lifecycle_subscriptions.clear();
+                cx.notify();
+            },
+        ));
+        self.history = Some(panel);
+        cx.notify();
+    }
+
+    /// History navigation follows the agent's workspaceId: an available
+    /// workspace opens the agent (or its workspace), anything else goes
+    /// through workspace recovery instead of inventing a workspace.
+    fn open_agent_from_history(
+        &mut self,
+        agent: paseo_desktop::model::Agent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.history = None;
+        self.lifecycle_subscriptions.clear();
+        let workspace_id = agent.workspace_id.clone();
+        let archived = agent.archived_at.is_some();
+        let id = agent.id.clone();
+        match workspace_id {
+            Some(workspace_id)
+                if self
+                    .directory
+                    .workspaces
+                    .get(&workspace_id)
+                    .is_some_and(|workspace| workspace.available()) =>
+            {
+                if !archived && self.directory.agent_target(&id).is_some() {
+                    self.directory.agents.insert(id.clone(), agent);
+                    self.select_agent(id, window, cx);
+                } else {
+                    self.select_workspace(workspace_id, cx);
+                }
+            }
+            Some(workspace_id) => {
+                self.open_workspace_form(
+                    crate::workspace_form::FormMode::Recover { workspace_id },
+                    window,
+                    cx,
+                );
+            }
+            None => {
+                self.error = Some("This history entry has no workspace.".into());
+                cx.notify();
+            }
+        }
     }
 
     fn hide_terminal(&mut self, cx: &mut Context<Self>) {
@@ -417,6 +793,9 @@ impl Paseo {
             if let Err(error) = result {
                 self.error = Some(error.to_string());
             }
+        }
+        if let Err(error) = self.remember_workspace() {
+            self.error = Some(error.to_string());
         }
         cx.notify();
     }
@@ -627,6 +1006,8 @@ impl Render for Paseo {
                                 .text_color(rgb(c::FOREGROUND_MUTED))
                                 .child(icon(glyph, 14.))
                                 .child(label)
+                                .when(glyph=="plus",|row|row.cursor_pointer().on_mouse_down(MouseButton::Left,cx.listener(|this,_,window,cx|this.open_workspace_form(crate::workspace_form::FormMode::NewWorkspace,window,cx))))
+                                .when(glyph=="history",|row|row.cursor_pointer().on_mouse_down(MouseButton::Left,cx.listener(|this,_,window,cx|this.open_history(window,cx))))
                         }),
                     ),
             )
@@ -653,7 +1034,7 @@ impl Render for Paseo {
                             .directory
                             .workspaces
                             .values()
-                            .filter(|w| w.project_id == project.project_id)
+                            .filter(|w| w.project_id == project.project_id && w.available())
                             .cloned()
                             .collect::<Vec<_>>();
                         workspaces.sort_by(|a, b| a.name.cmp(&b.name));
@@ -826,6 +1207,7 @@ impl Render for Paseo {
                             .items_center()
                             .justify_center()
                             .child(icon(glyph, 16.))
+                            .when(glyph=="folder-plus",|row|row.cursor_pointer().on_mouse_down(MouseButton::Left,cx.listener(|this,_,window,cx|this.open_workspace_form(crate::workspace_form::FormMode::AddProject,window,cx))))
                     }))
                     .child(div().flex_1())
                     .children(["circle-help", "settings"].map(|glyph| {
@@ -835,6 +1217,7 @@ impl Render for Paseo {
                             .items_center()
                             .justify_center()
                             .child(icon(glyph, 16.))
+
                     })),
             );
         let workspace = self
@@ -871,6 +1254,75 @@ impl Render for Paseo {
             .cloned()
             .collect::<Vec<_>>();
         agents.sort_by(|a, b| a.created_at.cmp(&b.created_at).then(a.id.cmp(&b.id)));
+        let lifecycle_actions = div()
+            .flex()
+            .gap_2()
+            .child(
+                div()
+                    .id("new-directory")
+                    .h(px(28.))
+                    .px_2()
+                    .cursor_pointer()
+                    .child("New directory")
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(|this, _, window, cx| {
+                            this.open_workspace_form(
+                                crate::workspace_form::FormMode::CreateDirectory,
+                                window,
+                                cx,
+                            )
+                        }),
+                    ),
+            )
+            .child(
+                div()
+                    .id("recover-workspace")
+                    .h(px(28.))
+                    .px_2()
+                    .cursor_pointer()
+                    .child("Recover workspace")
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(|this, _, window, cx| {
+                            this.open_workspace_form(
+                                crate::workspace_form::FormMode::Recover {
+                                    workspace_id: String::new(),
+                                },
+                                window,
+                                cx,
+                            )
+                        }),
+                    ),
+            )
+            .when(self.selected_workspace.is_some(), |row| {
+                row.child(
+                    div()
+                        .id("archive-workspace")
+                        .h(px(28.))
+                        .px_2()
+                        .cursor_pointer()
+                        .child("Archive workspace")
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(|this, _, window, cx| {
+                                if let Some(id) = this.selected_workspace.clone() {
+                                    let name = this
+                                        .directory
+                                        .workspaces
+                                        .get(&id)
+                                        .map(|w| w.name.clone())
+                                        .unwrap_or_else(|| id.clone());
+                                    this.open_workspace_form(
+                                        crate::workspace_form::FormMode::Archive { id, name },
+                                        window,
+                                        cx,
+                                    );
+                                }
+                            }),
+                        ),
+                )
+            });
         let content = div()
             .flex_1()
             .h_full()
@@ -932,6 +1384,7 @@ impl Render for Paseo {
                                     .child(subtitle),
                             ),
                     )
+                    .child(lifecycle_actions)
                     .child(icon("ellipsis", 16.))
                     .child(crate::window_chrome::drag_region())
                     .child(
@@ -1070,6 +1523,16 @@ impl Render for Paseo {
             .line_height(px(20.))
             .when(self.sidebar_open, |root| root.child(sidebar))
             .child(content)
+            .when_some(self.workspace_form.clone(), |root, form| {
+                root.child(
+                    // Occlude the whole surface: hit-testing stops here so the
+                    // covered sidebar, tabs, and titlebar never see a click.
+                    div().absolute().inset_0().occlude().child(form),
+                )
+            })
+            .when_some(self.history.clone(), |root, history| {
+                root.child(div().absolute().inset_0().occlude().child(history))
+            })
             .children(crate::window_chrome::resize_handles(window))
     }
 }

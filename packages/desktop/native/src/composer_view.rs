@@ -353,6 +353,12 @@ impl Composer {
         }
     }
 
+    pub fn reconnected(&mut self, cx: &mut Context<Self>) {
+        self.connected = true;
+        self.refresh_config(cx);
+        cx.notify();
+    }
+
     pub fn disconnected(&mut self, cx: &mut Context<Self>) {
         self.connected = false;
         self.attachment_disconnected();

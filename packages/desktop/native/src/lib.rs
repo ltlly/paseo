@@ -20,3 +20,5 @@ pub mod wire;
 #[path = "terminal_view/geometry.rs"]
 pub mod terminal_geometry;
 pub mod terminal_retention;
+
+pub mod workspace_lifecycle;

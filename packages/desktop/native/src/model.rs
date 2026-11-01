@@ -20,6 +20,7 @@ pub struct Project {
     pub project_id: String,
     pub project_display_name: String,
     pub project_root_path: String,
+    pub project_kind: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -32,6 +33,16 @@ pub struct Workspace {
     pub workspace_directory: Option<String>,
     pub name: String,
     pub status: String,
+    #[serde(default)]
+    pub internal: bool,
+    #[serde(default)]
+    pub background: bool,
+    pub archiving_at: Option<String>,
+}
+impl Workspace {
+    pub fn available(&self) -> bool {
+        !self.internal && !self.background && self.archiving_at.is_none()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -91,6 +102,8 @@ pub struct Agent {
     pub status: String,
     pub execution: Option<AgentExecution>,
     pub created_at: Option<String>,
+    #[serde(default)]
+    pub updated_at: Option<String>,
     pub archived_at: Option<String>,
     #[serde(default)]
     pub internal: bool,
@@ -181,10 +194,101 @@ pub struct AgentPage {
     pub page_info: PageInfo,
 }
 
+/// fetch_agent_history_response: chronological agent history with cursor
+/// pagination, the source for the native History panel.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryPage {
+    pub entries: Vec<AgentEntry>,
+    pub page_info: PageInfo,
+    pub search_truncated: Option<bool>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub enum FocusedSession {
     Agent(String),
     Terminal(String),
+}
+
+#[derive(Default)]
+pub struct DirectoryRefresh {
+    agents: std::collections::BTreeSet<String>,
+    workspaces: std::collections::BTreeSet<String>,
+    removed_agents: std::collections::BTreeSet<String>,
+    removed_workspaces: std::collections::BTreeSet<String>,
+    agents_done: bool,
+    workspaces_done: bool,
+}
+
+impl DirectoryRefresh {
+    pub fn apply(&mut self, kind: &str, payload: &mut Value, directory: &mut Directory) {
+        match kind {
+            "agent_update" if !self.agents_done => {
+                if payload["kind"] == "remove" {
+                    if let Some(id) = payload["agentId"].as_str() {
+                        self.removed_agents.insert(id.into());
+                        self.agents.remove(id);
+                    }
+                } else if let Some(id) = payload["agent"]["id"].as_str() {
+                    self.agents.insert(id.into());
+                    self.removed_agents.remove(id);
+                }
+            }
+            "workspace_update" if !self.workspaces_done => {
+                if payload["kind"] == "remove" {
+                    if let Some(id) = payload["workspaceId"].as_str() {
+                        self.removed_workspaces.insert(id.into());
+                        self.workspaces.remove(id);
+                    }
+                } else if let Some(id) = payload["workspace"]["id"].as_str() {
+                    self.workspaces.insert(id.into());
+                    self.removed_workspaces.remove(id);
+                }
+            }
+            "fetch_agents_response" if !self.agents_done => {
+                if let Some(entries) = payload["entries"].as_array_mut() {
+                    entries.retain(|entry| {
+                        entry["agent"]["id"]
+                            .as_str()
+                            .is_none_or(|id| !self.removed_agents.contains(id))
+                    });
+                    self.agents.extend(
+                        entries
+                            .iter()
+                            .filter_map(|entry| entry["agent"]["id"].as_str().map(str::to_owned)),
+                    );
+                }
+                if payload["pageInfo"]["hasMore"] == false {
+                    self.agents_done = true;
+                    directory.agents.retain(|id, _| self.agents.contains(id));
+                }
+            }
+            "fetch_workspaces_response" if !self.workspaces_done => {
+                if let Some(entries) = payload["entries"].as_array_mut() {
+                    entries.retain(|entry| {
+                        entry["id"]
+                            .as_str()
+                            .is_none_or(|id| !self.removed_workspaces.contains(id))
+                    });
+                    self.workspaces.extend(
+                        entries
+                            .iter()
+                            .filter_map(|entry| entry["id"].as_str().map(str::to_owned)),
+                    );
+                }
+                if payload["pageInfo"]["hasMore"] == false {
+                    self.workspaces_done = true;
+                    directory
+                        .workspaces
+                        .retain(|id, _| self.workspaces.contains(id));
+                }
+            }
+            _ => {}
+        }
+    }
+    pub fn complete(&self) -> bool {
+        self.agents_done && self.workspaces_done
+    }
 }
 
 #[derive(Default, Debug, Serialize)]
@@ -893,6 +997,35 @@ mod tests {
     }
 
     #[test]
+    fn reconnect_directory_refresh_keeps_live_changes_and_prunes_only_after_complete_pages() {
+        let mut directory = Directory::default();
+        directory
+            .apply(
+                "agent_update",
+                json!({"kind":"upsert","agent":{"id":"stale","provider":"pi","status":"idle"}}),
+            )
+            .unwrap();
+        let mut refresh = DirectoryRefresh::default();
+        let mut live =
+            json!({"kind":"upsert","agent":{"id":"live","provider":"pi","status":"idle"}});
+        refresh.apply("agent_update", &mut live, &mut directory);
+        directory.apply("agent_update", live).unwrap();
+        let mut remove = json!({"kind":"remove","agentId":"gone"});
+        refresh.apply("agent_update", &mut remove, &mut directory);
+        let mut page = json!({"entries":[{"agent":{"id":"gone","provider":"pi","status":"idle"}},{"agent":{"id":"fresh","provider":"pi","status":"idle"}}],"pageInfo":{"hasMore":false,"nextCursor":null}});
+        refresh.apply("fetch_agents_response", &mut page, &mut directory);
+        directory.apply("fetch_agents_response", page).unwrap();
+        assert_eq!(
+            directory.agents.keys().cloned().collect::<Vec<_>>(),
+            ["fresh", "live"]
+        );
+        assert!(!refresh.complete());
+        let mut page = json!({"entries":[],"pageInfo":{"hasMore":false,"nextCursor":null}});
+        refresh.apply("fetch_workspaces_response", &mut page, &mut directory);
+        assert!(refresh.complete());
+    }
+
+    #[test]
     fn custom_svg_default_color_does_not_replace_explicit_paints_or_authored_style() {
         let svg = br##"<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="color:red"><path fill="currentColor"/><path fill="#00ff00"/></svg>"##;
         let transformed = provider_svg_color(svg, 0xa1a5a4).unwrap();
@@ -1095,5 +1228,50 @@ mod tests {
         assert_eq!(directory.workspace_title("w", "Fallback"), "Remote work");
         directory.set_host("other");
         assert_eq!(directory.workspace_title("w", "Fallback"), "pi");
+    }
+    #[test]
+    fn history_pages_carry_entries_cursors_and_sort_recency() {
+        let page: HistoryPage = serde_json::from_value(json!({
+            "entries":[
+                {"agent":{"id":"new","provider":"pi","workspaceId":"w","status":"idle","createdAt":"2026-01-02","updatedAt":"2026-01-03"}},
+                {"agent":{"id":"old","provider":"claude","status":"idle","archivedAt":"2026-01-01","createdAt":"2025-12-30","updatedAt":"2026-01-01"}}
+            ],
+            "pageInfo":{"nextCursor":"c2","hasMore":true}
+        }))
+        .unwrap();
+        assert_eq!(page.entries.len(), 2);
+        assert_eq!(
+            page.entries[0].agent.updated_at.as_deref(),
+            Some("2026-01-03")
+        );
+        assert!(page.entries[1].agent.archived_at.is_some());
+        assert_eq!(page.page_info.next_cursor.as_deref(), Some("c2"));
+        assert!(page.page_info.has_more);
+        // Older daemons omit searchTruncated entirely.
+        let minimal: HistoryPage = serde_json::from_value(json!({
+            "entries":[],
+            "pageInfo":{"nextCursor":null,"hasMore":false}
+        }))
+        .unwrap();
+        assert!(minimal.search_truncated.is_none());
+    }
+
+    #[test]
+    fn workspace_lifecycle_visibility_excludes_private_background_and_archiving() {
+        for extra in [
+            json!({"internal":true}),
+            json!({"background":true}),
+            json!({"archivingAt":"now"}),
+        ] {
+            let mut value = workspace("w");
+            value
+                .as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            let workspace: Workspace = serde_json::from_value(value).unwrap();
+            assert!(!workspace.available());
+        }
+        let workspace: Workspace = serde_json::from_value(workspace("w")).unwrap();
+        assert!(workspace.available());
     }
 }
