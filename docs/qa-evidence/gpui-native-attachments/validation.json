@@ -1,0 +1,44 @@
+{
+  "sourceBase": "35a55491e",
+  "environment": "Linux Xvfb/Openbox scale 1 and native WGPU/lavapipe. Real Electron renderer with isolated Linux desktop runtime and a filesystem bridge restricted to QA inputs/storage. Fresh isolated daemon and fake provider; no live agents or real model calls. Native success path uses real X11 XDND file transfer.",
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "scale": 1
+  },
+  "visualAcceptance": "NOT_PASSED",
+  "pixelComparison": {
+    "differentPixels": 15261,
+    "totalPixels": 1024000,
+    "maskedRegions": [],
+    "thresholdUsed": null,
+    "note": "Raw diagnostic diff. Timestamp/caret and missing feature/voice/tab controls remain visible; not a visual similarity pass."
+  },
+  "verified": [
+    "Native OS XDND drops a file and PNG; file is sent using bounded 128 KiB binary chunks and matches all 393238 original bytes at the daemon",
+    "Image thumbnail and fitted preview render; Escape closes preview; draft and attachments survive Agent navigation",
+    "Attachment-only Enter sends exactly one message to the fake provider; both original PNG and uploaded file bytes match by SHA-256",
+    "A second Agent sends text plus the same attachments; provider readback confirms the independent second message",
+    "A 50MB+1 sparse file is rejected with a visible error and Send disabled; rewriting it to 16 bytes and clicking Retry uploads the corrected bytes",
+    "Remove action clears the attachment tray; it does not send another prompt",
+    "Attachment menu Escape and Down/Enter operate without submitting the underlying draft; selecting Upload file with a deliberately unavailable private D-Bus displays a dismissible error and preserves the draft",
+    "Toolbar attachment slot and 48px pill body geometry reuse their authored sources; provider-catalog mode glyph matches the existing default instead of the earlier generic Bot"
+  ],
+  "focusedRustTests": {
+    "attachments": 3,
+    "composer": 6,
+    "client": 2,
+    "agent_controls": 5
+  },
+  "notVerified": [
+    "Successful native operating-system file picker or its cancel path (private test D-Bus intentionally unavailable); real XDND success does not prove picker success",
+    "macOS/Windows compilation and interaction, Android runtime acceptance, hardware performance",
+    "Socket disconnect and slow-network upload behavior through the rendered UI; backpressured client close covered by a focused real-WebSocket test",
+    "Clipboard images, touch/pinch, image zoom/pan/reset and full-resolution preview (native preview decode and render size are bounded)",
+    "Read-only uploaded-file preview/download and sent timeline attachment rendering",
+    "Forge/plugin attachment menus, durable attachments/drafts across restart, all themes/locales and responsive density",
+    "Full desktop parity, packaging and rollout"
+  ],
+  "androidSourcesChanged": false,
+  "captureNote": "Rendered checks precede the final bounded JSON writer. A focused transport test confirms accepted JSON byte equivalence and over-limit rejection; no post-writer UI run is claimed."
+}

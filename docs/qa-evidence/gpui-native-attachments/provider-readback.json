@@ -1,0 +1,22 @@
+{
+  "provider": "isolated fake codex",
+  "prompts": [
+    {
+      "promptNumber": 1,
+      "imageBytes": 1889,
+      "imageSha256": "11e3e240d3352d7621eb4bd27afaf25e216aefe333f4fd1e6f788983fdc63e2d",
+      "uploadedFileBytes": 393238,
+      "fileSha256": "1c8a3a3ff73329d1366c90f38ba8e37aa74d38650cb2ce7e1266f54b26209ad6",
+      "originalBytesMatch": true
+    },
+    {
+      "promptNumber": 2,
+      "imageBytes": 1889,
+      "imageSha256": "11e3e240d3352d7621eb4bd27afaf25e216aefe333f4fd1e6f788983fdc63e2d",
+      "uploadedFileBytes": 393238,
+      "fileSha256": "1c8a3a3ff73329d1366c90f38ba8e37aa74d38650cb2ce7e1266f54b26209ad6",
+      "originalBytesMatch": true
+    }
+  ],
+  "correctedRetryBytesMatch": true
+}

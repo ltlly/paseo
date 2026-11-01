@@ -113,6 +113,46 @@ async function authoredNode(file, symbolName) {
   }
   throw new Error(`Native UI source is missing: ${file}:${symbolName}`);
 }
+const attachmentSource = [
+  `const SPACING=${JSON.stringify(theme.spacing)};`,
+  await authoredNode("packages/app/src/components/attachment-lightbox.tsx", "LIGHTBOX_FIT"),
+  await authoredNode(
+    "packages/app/src/components/ui/icon-button-chrome.ts",
+    "SMALL_ICON_BUTTON_SIZE",
+  ),
+  await authoredNode(
+    "packages/app/src/components/attachment-pill.tsx",
+    "ATTACHMENT_CONTENT_HEIGHT",
+  ),
+  await authoredNode("packages/app/src/attachments/upload-limit.ts", "FILE_UPLOAD_MAX_BYTES"),
+  await authoredNode(
+    "packages/app/src/attachments/file-types.ts",
+    "RASTER_IMAGE_MIME_TYPE_BY_EXTENSION",
+  ),
+].join("\n");
+const { outputFiles: attachmentOutput } = await bundle({
+  stdin: {
+    contents:
+      attachmentSource +
+      "\nexport {ATTACHMENT_CONTENT_HEIGHT,FILE_UPLOAD_MAX_BYTES,RASTER_IMAGE_MIME_TYPE_BY_EXTENSION,LIGHTBOX_FIT,SMALL_ICON_BUTTON_SIZE};",
+    loader: "ts",
+    resolveDir: root,
+  },
+  write: false,
+  format: "esm",
+  platform: "node",
+});
+const attachmentGeometry = await import(
+  `data:text/javascript;base64,${Buffer.from(attachmentOutput[0].text).toString("base64")}`
+);
+await output(
+  "packages/desktop/native/src/attachment_geometry.rs",
+  `// Generated from the authored attachment pill, upload limit and file-type table. Do not edit.\npub const CONTENT_HEIGHT:f32=${attachmentGeometry.ATTACHMENT_CONTENT_HEIGHT}.0;\npub const PREVIEW_MAX_WIDTH:f32=${attachmentGeometry.LIGHTBOX_FIT.maxWidth}.0;\npub const PREVIEW_MAX_HEIGHT:f32=${attachmentGeometry.LIGHTBOX_FIT.maxHeight}.0;\npub const PREVIEW_PADDING:f32=${attachmentGeometry.LIGHTBOX_FIT.padding}.0;\npub const PREVIEW_CONTROL_SIZE:f32=${attachmentGeometry.SMALL_ICON_BUTTON_SIZE}.0;\npub const MAX_UPLOAD_BYTES:u64=${attachmentGeometry.FILE_UPLOAD_MAX_BYTES};\npub const IMAGE_TYPES:&[(&str,&str)]=&[${Object.entries(
+    attachmentGeometry.RASTER_IMAGE_MIME_TYPE_BY_EXTENSION,
+  )
+    .map(([extension, mime]) => `(${JSON.stringify(extension.slice(1))},${JSON.stringify(mime)})`)
+    .join(",")}];\n`,
+);
 // Render the original glyph component at build time; its React/Unistyles container never
 // enters the native binary. AST selection preserves the authored SVG and platform geometry.
 const windowGlyph = await authoredNode(
@@ -241,6 +281,10 @@ for (const id of [
   "mic",
   "audio-lines",
   "square-terminal",
+  "paperclip",
+  "image",
+  "file-text",
+  "x",
 ]) {
   const exports = {};
   const sourceId = { history: "rotate-ccw-clock", "circle-help": "circle-question-mark" }[id] ?? id;

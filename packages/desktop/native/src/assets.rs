@@ -74,6 +74,10 @@ impl AssetSource for Assets {
             "icons/mic.svg" => include_bytes!("../assets/icons/mic.svg"),
             "icons/audio-lines.svg" => include_bytes!("../assets/icons/audio-lines.svg"),
             "icons/square-terminal.svg" => include_bytes!("../assets/icons/square-terminal.svg"),
+            "icons/paperclip.svg" => include_bytes!("../assets/icons/paperclip.svg"),
+            "icons/image.svg" => include_bytes!("../assets/icons/image.svg"),
+            "icons/file-text.svg" => include_bytes!("../assets/icons/file-text.svg"),
+            "icons/x.svg" => include_bytes!("../assets/icons/x.svg"),
             _ => return Ok(None),
         };
         Ok(Some(Cow::Borrowed(bytes)))
@@ -128,6 +132,10 @@ impl AssetSource for Assets {
             "icons/mic.svg",
             "icons/audio-lines.svg",
             "icons/square-terminal.svg",
+            "icons/paperclip.svg",
+            "icons/image.svg",
+            "icons/file-text.svg",
+            "icons/x.svg",
         ]
         .into_iter()
         .filter(|name| name.starts_with(path))

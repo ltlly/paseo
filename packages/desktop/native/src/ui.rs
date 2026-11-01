@@ -24,6 +24,14 @@ pub struct Paseo {
     sidebar_open: bool,
 }
 
+impl Drop for Paseo {
+    fn drop(&mut self) {
+        if let Some(connection) = &self.connection {
+            connection.close();
+        }
+    }
+}
+
 impl Paseo {
     pub fn new(target: Result<Target>, cx: &mut Context<Self>) -> Self {
         let mut app = Self {
@@ -111,9 +119,11 @@ impl Paseo {
         if matches!(
             kind,
             "send_agent_message_response"
+                | "file.upload.response"
                 | "cancel_agent_response"
                 | "fetch_agent_response"
                 | "list_provider_models_response"
+                | "list_provider_modes_response"
                 | "set_agent_model_response"
                 | "set_agent_thinking_response"
                 | "set_agent_mode_response"

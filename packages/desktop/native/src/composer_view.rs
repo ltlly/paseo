@@ -1,3 +1,4 @@
+mod attachments;
 use std::{collections::BTreeMap, ops::Range, sync::Arc};
 
 use gpui::{
@@ -37,12 +38,14 @@ pub struct Composer {
     controls: Controls,
     config_request: Option<String>,
     catalog_request: Option<String>,
+    modes_request: Option<String>,
     picker: Option<(
         Control,
         gpui::Entity<crate::choice_menu::ChoiceMenu>,
         gpui::Subscription,
     )>,
     control_bounds: BTreeMap<Control, Bounds<Pixels>>,
+    attachments: attachments::Attachments,
 }
 
 impl Composer {
@@ -67,8 +70,10 @@ impl Composer {
             controls: Controls::default(),
             config_request: None,
             catalog_request: None,
+            modes_request: None,
             picker: None,
             control_bounds: BTreeMap::new(),
+            attachments: attachments::Attachments::default(),
         };
         view.refresh_config(cx);
         view
@@ -97,6 +102,10 @@ impl Composer {
                 let mut expired = false;
                 if this.config_request.as_deref() == Some(&request_id) {
                     this.config_request = None;
+                    expired = true;
+                }
+                if this.modes_request.as_deref() == Some(&request_id) {
+                    this.modes_request = None;
                     expired = true;
                 }
                 if this.catalog_request.as_deref() == Some(&request_id) {
@@ -150,6 +159,19 @@ impl Composer {
                 {
                     Ok(true) => {
                         self.controls.error = None;
+                        if self.controls.mode_visuals.is_none() && self.modes_request.is_none() {
+                            let snapshot = self.controls.snapshot.as_ref().unwrap();
+                            match self.connection.request(
+                                "list_provider_modes_request",
+                                json!({"provider":snapshot.provider,"cwd":snapshot.cwd}),
+                            ) {
+                                Ok(id) => {
+                                    self.modes_request = Some(id.clone());
+                                    self.config_timeout(id, cx);
+                                }
+                                Err(error) => self.controls.error = Some(error.to_string()),
+                            }
+                        }
                         if self.controls.models.is_none() && self.catalog_request.is_none() {
                             let snapshot = self.controls.snapshot.as_ref().unwrap();
                             match self.connection.request(
@@ -168,6 +190,18 @@ impl Composer {
                         self.controls.error = Some("Agent configuration was not returned".into())
                     }
                     Err(error) => self.controls.error = Some(error.to_string()),
+                }
+            }
+        } else if self.modes_request.as_deref() == Some(id)
+            && matches!(kind, "list_provider_modes_response" | "rpc_error")
+        {
+            self.modes_request = None;
+            if let Some(error) = error {
+                self.controls.error = Some(error.into());
+            } else {
+                match serde_json::from_value(payload["modes"].clone()) {
+                    Ok(modes) => self.controls.mode_visuals = Some(modes),
+                    Err(error) => self.controls.error = Some(format!("Cannot load modes: {error}")),
                 }
             }
         } else if self.catalog_request.as_deref() == Some(id)
@@ -321,11 +355,13 @@ impl Composer {
 
     pub fn disconnected(&mut self, cx: &mut Context<Self>) {
         self.connected = false;
+        self.attachment_disconnected();
         self.state.disconnected();
         self.cancel_request = None;
         self.picker = None;
         self.config_request = None;
         self.catalog_request = None;
+        self.modes_request = None;
         self.controls.pending = None;
         cx.notify();
     }
@@ -340,11 +376,16 @@ impl Composer {
         // Navigation retains text and delivery state, not the hidden editor's glyph layouts.
         self.lines = Vec::new();
         self.picker = None;
+        self.release_attachment_layout();
         self.control_bounds.clear();
         self.selecting = false;
     }
 
     pub fn receive(&mut self, kind: &str, payload: &Value, cx: &mut Context<Self>) -> bool {
+        self.prune_attachment_previews();
+        if self.receive_attachment(kind, payload, cx) {
+            return true;
+        }
         if self.receive_config(kind, payload, cx) {
             return true;
         }
@@ -365,6 +406,7 @@ impl Composer {
                     payload["deliveryStatus"] == "queued",
                     payload["error"].as_str().map(str::to_owned),
                 );
+                self.prune_attachment_previews();
                 cx.notify();
                 return true;
             }
@@ -390,17 +432,23 @@ impl Composer {
             return;
         }
         let request_id = Uuid::new_v4().to_string();
-        let attempt = self.state.begin(request_id.clone()).unwrap();
-        let result = self.connection.send_session(
-            json!({"type":"send_agent_message_request", "requestId":request_id,
-            "agentId":self.agent_id,"messageId":attempt.message_id,"text":attempt.text}),
-        );
-        if let Err(error) = result {
-            self.state
-                .acknowledge(&request_id, false, false, Some(error.to_string()));
-        } else {
-            self.timeout(request_id, false, cx);
-        }
+        let attempt = self.state.begin(request_id.clone()).unwrap().clone();
+        let connection = self.connection.clone();
+        let agent_id = self.agent_id.clone();
+        let task = cx.background_spawn(async move {
+            connection.send_session_data(&attempt.message(&agent_id))
+        });
+        self.timeout(request_id.clone(), false, cx);
+        cx.spawn(async move |this, cx| {
+            if let Err(error) = task.await {
+                let _ = this.update(cx, |this, cx| {
+                    this.state
+                        .acknowledge(&request_id, false, false, Some(error.to_string()));
+                    cx.notify();
+                });
+            }
+        })
+        .detach();
         cx.notify();
     }
 
@@ -753,7 +801,7 @@ impl EntityInputHandler for Composer {
 }
 
 impl Render for Composer {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         use crate::{
             chrome::icon,
             theme::{CONTENT_MAX_WIDTH, colors as c},
@@ -768,15 +816,22 @@ impl Render for Composer {
             .items_center()
             .justify_between()
             .child(
-                div().min_w_0().flex().items_center().gap_1().children(
-                    [Control::Model, Control::Thinking, Control::Mode]
-                        .into_iter()
-                        .filter(|control| {
-                            *control == Control::Model && self.controls.models.is_some()
-                                || !self.controls.options(*control).is_empty()
-                        })
-                        .map(|control| self.control_trigger(control, cx)),
-                ),
+                div()
+                    .min_w_0()
+                    .flex()
+                    .items_center()
+                    .child(self.attachment_button(cx))
+                    .child(
+                        div().min_w_0().flex().items_center().gap_1().children(
+                            [Control::Model, Control::Thinking, Control::Mode]
+                                .into_iter()
+                                .filter(|control| {
+                                    *control == Control::Model && self.controls.models.is_some()
+                                        || !self.controls.options(*control).is_empty()
+                                })
+                                .map(|control| self.control_trigger(control, cx)),
+                        ),
+                    ),
             )
             .child(
                 div()
@@ -839,6 +894,9 @@ impl Render for Composer {
             .px_4()
             .pt_4()
             .pb_3()
+            .on_drop(cx.listener(|this, paths: &gpui::ExternalPaths, _, cx| {
+                this.add_attachment_paths(paths.0.iter().cloned().collect(), None, cx);
+            }))
             .on_key_down(cx.listener(Self::key_down))
             .on_mouse_down(
                 MouseButton::Left,
@@ -868,6 +926,9 @@ impl Render for Composer {
                     }
                 }),
             )
+            .when(!self.state.attachments.is_empty(), |input| {
+                input.child(self.attachment_tray(cx))
+            })
             .child(
                 canvas(
                     move |bounds, window, cx| {
@@ -943,13 +1004,35 @@ impl Render for Composer {
                     .max_w(px(CONTENT_MAX_WIDTH))
                     .child(input)
                     .when_some(
-                        self.state.error.clone().or(self.controls.error.clone()),
+                        self.state
+                            .error
+                            .clone()
+                            .or(self.controls.error.clone())
+                            .or(self.attachments.error.clone()),
                         |view, error| {
                             view.child(
                                 div()
                                     .text_size(px(crate::theme::font_size::SM))
                                     .text_color(rgb(c::STATUS_DANGER))
                                     .child(error)
+                                    .when(self.attachments.error.is_some(), |line| {
+                                        line.child(
+                                            div()
+                                                .id("dismiss-attachment-error")
+                                                .ml_2()
+                                                .cursor_pointer()
+                                                .text_color(rgb(c::FOREGROUND_MUTED))
+                                                .child("Dismiss")
+                                                .on_mouse_down(
+                                                    MouseButton::Left,
+                                                    cx.listener(|this, _, _, cx| {
+                                                        cx.stop_propagation();
+                                                        this.attachments.error = None;
+                                                        cx.notify();
+                                                    }),
+                                                ),
+                                        )
+                                    })
                                     .when(
                                         self.controls.error.is_some() && self.connected,
                                         |line| {
@@ -976,6 +1059,8 @@ impl Render for Composer {
                         },
                     ),
             )
+            .children(self.attachment_menu(cx))
+            .children(self.attachment_preview(window, cx))
             .when_some(self.picker.as_ref(), |root, (control, menu, _)| {
                 let bounds = self
                     .control_bounds

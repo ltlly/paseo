@@ -1,4 +1,6 @@
 pub mod agent_controls;
+pub mod attachment_geometry;
+pub mod attachments;
 pub mod client;
 pub mod composer;
 pub mod editing;

@@ -78,6 +78,7 @@ impl Control {
 pub struct Controls {
     pub snapshot: Option<Snapshot>,
     pub models: Option<Vec<Model>>,
+    pub mode_visuals: Option<Vec<OptionRow>>,
     pub pending: Option<(String, Control)>,
     pub error: Option<String>,
     pub revision: u64,
@@ -225,11 +226,15 @@ impl Controls {
     }
     pub fn mode_icon(&self) -> &'static str {
         let icon = self
-            .options(Control::Mode)
-            .into_iter()
-            .find(|o| Some(o.id.as_str()) == self.selected(Control::Mode))
-            .and_then(|o| o.icon);
-        match icon.as_deref() {
+            .mode_visuals
+            .as_ref()
+            .and_then(|modes| {
+                modes
+                    .iter()
+                    .find(|mode| Some(mode.id.as_str()) == self.selected(Control::Mode))
+            })
+            .map(|mode| mode.icon.as_deref().unwrap_or("ShieldCheck"));
+        match icon {
             Some("Shield") => "shield",
             Some("ShieldAlert") => "shield-alert",
             Some("ShieldCheck") => "shield-check",
@@ -375,5 +380,20 @@ mod tests {
             "Bypass permissions"
         );
         assert_eq!(control_label("extra_high", true), "Extra high");
+    }
+    #[test]
+    fn mode_glyph_uses_provider_catalog_defaults_and_unknown_modes_keep_the_original_fallback() {
+        let mut state = state();
+        state.mode_visuals =
+            Some(serde_json::from_value(json!([{"id":"ask","label":"Ask"}])).unwrap());
+        assert_eq!(state.mode_icon(), "shield-check");
+        state.snapshot.as_mut().unwrap().current_mode_id = Some("future".into());
+        state
+            .snapshot
+            .as_mut()
+            .unwrap()
+            .available_modes
+            .push(serde_json::from_value(json!({"id":"future","label":"Future"})).unwrap());
+        assert_eq!(state.mode_icon(), "bot");
     }
 }
