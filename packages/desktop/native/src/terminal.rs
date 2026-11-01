@@ -1,10 +1,10 @@
 use alacritty_terminal::{
-    event::VoidListener,
+    event::{Event, EventListener},
     grid::{Dimensions, Scroll},
     index::{Column, Line, Point, Side},
     selection::{Selection, SelectionType},
     term::{Config, RenderableContent, Term, TermMode, cell::Flags},
-    vte::ansi::{Color, NamedColor, Processor, Rgb},
+    vte::ansi::{Color, CursorShape, CursorStyle, NamedColor, Processor, Rgb},
 };
 use anyhow::{Result, ensure};
 
@@ -45,6 +45,8 @@ pub struct Cell<'a> {
 pub struct Screen<'a> {
     pub cells: ScreenCells<'a>,
     pub cursor: Option<(usize, usize)>,
+    pub cursor_style: CursorStyle,
+    pub cursor_columns: usize,
     pub cursor_color: u32,
 }
 
@@ -110,8 +112,26 @@ impl<'a> Iterator for ScreenCells<'a> {
     }
 }
 
+use std::sync::{
+    Arc,
+    atomic::{AtomicU64, Ordering},
+};
+
+#[derive(Clone)]
+struct CursorEvents(Arc<AtomicU64>);
+
+impl EventListener for CursorEvents {
+    fn send_event(&self, event: Event) {
+        // Only observe display lifecycle; query replies remain daemon-owned.
+        if matches!(event, Event::CursorBlinkingChange) {
+            self.0.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+}
+
 pub struct TerminalBuffer {
-    term: Term<VoidListener>,
+    term: Term<CursorEvents>,
+    cursor_events: Arc<AtomicU64>,
     parser: Processor,
     history: usize,
     pub size: GridSize,
@@ -124,10 +144,16 @@ impl TerminalBuffer {
         let config = Config {
             scrolling_history: history,
             kitty_keyboard: true,
+            default_cursor_style: CursorStyle {
+                shape: CursorShape::Beam,
+                blinking: true,
+            },
             ..Default::default()
         };
+        let cursor_events = Arc::new(AtomicU64::new(0));
         Self {
-            term: Term::new(config, &size, VoidListener),
+            term: Term::new(config, &size, CursorEvents(cursor_events.clone())),
+            cursor_events,
             parser: Processor::new(),
             history,
             size,
@@ -174,6 +200,15 @@ impl TerminalBuffer {
     pub fn feed(&mut self, bytes: &[u8]) {
         self.mouse.feed(bytes);
         self.parser.advance(&mut self.term, bytes);
+    }
+
+    pub fn cursor_state(&self) -> (Point, bool, CursorStyle, u64) {
+        (
+            self.term.grid().cursor.point,
+            self.term.mode().contains(TermMode::SHOW_CURSOR),
+            self.term.cursor_style(),
+            self.cursor_events.load(Ordering::Relaxed),
+        )
     }
 
     pub fn mouse_modes(&self) -> crate::mouse::Modes {
@@ -265,10 +300,25 @@ impl TerminalBuffer {
         let content = self.term.renderable_content();
         let offset = content.display_offset as i32;
         let cursor_row = content.cursor.point.line.0 + offset;
-        let cursor = (self.term.mode().contains(TermMode::SHOW_CURSOR)
+        let cursor_col = content
+            .cursor
+            .point
+            .column
+            .0
+            .min(usize::from(self.size.cols) - 1);
+        let cursor = (content.cursor.shape != CursorShape::Hidden
             && cursor_row >= 0
             && cursor_row < i32::from(self.size.rows))
-        .then_some((cursor_row as usize, content.cursor.point.column.0));
+        .then_some((cursor_row as usize, cursor_col));
+        let cursor_columns = if self.term.grid()[content.cursor.point]
+            .flags
+            .contains(Flags::WIDE_CHAR)
+        {
+            2
+        } else {
+            1
+        };
+        let cursor_style = self.term.cursor_style();
         let cursor_color = resolve_color(Color::Named(NamedColor::Cursor), content.colors, false);
         Screen {
             cells: ScreenCells {
@@ -276,6 +326,8 @@ impl TerminalBuffer {
                 rows: self.size.rows,
             },
             cursor,
+            cursor_style,
+            cursor_columns,
             cursor_color,
         }
     }
@@ -350,6 +402,60 @@ mod tests {
                 case["name"]
             );
         }
+    }
+
+    #[test]
+    fn cursor_lifecycle_retains_raw_wide_cell_movement_and_same_point_style_resets() {
+        let mut buffer = TerminalBuffer::new(GridSize { rows: 3, cols: 8 }, 10);
+        buffer.feed("中\x1b[H".as_bytes());
+        let before = buffer.cursor_state();
+        let projected = buffer.screen().cursor;
+        buffer.feed(b"\x1b[1;2H");
+        assert_ne!(buffer.cursor_state(), before);
+        assert_eq!(buffer.screen().cursor, projected);
+        let before = buffer.cursor_state();
+        buffer.feed(b"\x1b[2 q\x1b[5 q");
+        assert_eq!(buffer.cursor_state().0, before.0);
+        assert_ne!(buffer.cursor_state().3, before.3);
+    }
+
+    #[test]
+    fn cursor_uses_app_defaults_and_program_styles_without_losing_wide_cell_geometry() {
+        let mut buffer = TerminalBuffer::new(GridSize { rows: 3, cols: 8 }, 10);
+        assert_eq!(buffer.screen().cursor_style.shape, CursorShape::Beam);
+        assert!(buffer.screen().cursor_style.blinking);
+        for (code, shape, blinking) in [
+            (1, CursorShape::Block, true),
+            (2, CursorShape::Block, false),
+            (3, CursorShape::Underline, true),
+            (4, CursorShape::Underline, false),
+            (5, CursorShape::Beam, true),
+            (6, CursorShape::Beam, false),
+            (0, CursorShape::Beam, true),
+        ] {
+            buffer.feed(format!("\x1b[{code} q").as_bytes());
+            assert_eq!(
+                buffer.screen().cursor_style,
+                CursorStyle { shape, blinking }
+            );
+        }
+        buffer.feed("中\x1b[H".as_bytes());
+        assert_eq!(buffer.screen().cursor, Some((0, 0)));
+        assert_eq!(buffer.screen().cursor_columns, 2);
+        buffer.feed(b"\x1b[1;2H");
+        assert_eq!(buffer.screen().cursor, Some((0, 0)));
+        assert_eq!(buffer.screen().cursor_columns, 2);
+        buffer.feed(b"\x1b[1;8HX");
+        assert_eq!(buffer.screen().cursor, Some((0, 7)));
+        assert_eq!(buffer.screen().cursor_columns, 1);
+        buffer.feed(b"\x1b[?25l");
+        assert_eq!(buffer.screen().cursor, None);
+        buffer.feed(b"\x1b[?25h\x1b]12;#123456\x07");
+        assert_eq!(buffer.screen().cursor_color, 0x123456);
+        buffer.feed(b"\x1b]112\x07\x1bc");
+        assert_eq!(buffer.screen().cursor_color, crate::theme::terminal::CURSOR);
+        assert_eq!(buffer.screen().cursor_style.shape, CursorShape::Beam);
+        assert!(buffer.screen().cursor_style.blinking);
     }
 
     #[test]

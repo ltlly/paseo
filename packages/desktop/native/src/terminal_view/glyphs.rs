@@ -47,20 +47,32 @@ impl Glyphs {
         text_system: &WindowTextSystem,
         selection_foreground: u32,
     ) -> Cow<'a, ShapedLine> {
+        self.line_with_cursor(cell, text_system, selection_foreground, false)
+    }
+
+    pub fn line_with_cursor<'a>(
+        &'a mut self,
+        cell: &Cell<'_>,
+        text_system: &WindowTextSystem,
+        selection_foreground: u32,
+        block_cursor: bool,
+    ) -> Cow<'a, ShapedLine> {
         let key = Key {
             text: if cell.zerowidth.is_empty() {
                 cell.character.into()
             } else {
                 cell.chars().collect::<String>().into()
             },
-            foreground: if cell.selected {
+            foreground: if block_cursor {
+                crate::theme::terminal::CURSOR_ACCENT
+            } else if cell.selected {
                 selection_foreground
             } else {
                 cell.foreground
             },
-            bold: cell.bold,
-            italic: cell.italic,
-            underline: cell.underline,
+            bold: cell.bold && !block_cursor,
+            italic: cell.italic && !block_cursor,
+            underline: cell.underline && !block_cursor,
         };
         let (base_font, size) = self
             .font

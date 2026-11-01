@@ -2,7 +2,7 @@ mod glyphs;
 
 use std::{ops::Range, sync::Arc, time::Instant};
 
-use alacritty_terminal::term::TermMode;
+use alacritty_terminal::{term::TermMode, vte::ansi::CursorShape};
 use anyhow::{Result, ensure};
 use gpui::{
     App, Bounds, Context, ElementInputHandler, EntityInputHandler, FocusHandle, Focusable,
@@ -48,6 +48,10 @@ pub struct TerminalView {
     mouse_reporter: MouseReporter,
     mouse_error: bool,
     glyphs: glyphs::Glyphs,
+    blink: paseo_desktop::terminal_geometry::CursorBlink,
+    blink_task: Option<gpui::Task<()>>,
+    focused: bool,
+    _subscriptions: Vec<gpui::Subscription>,
 }
 
 impl TerminalView {
@@ -60,6 +64,16 @@ impl TerminalView {
         let focus = cx.focus_handle();
         focus.focus(window, cx);
         let initial = GridSize { rows: 24, cols: 80 };
+        let subscriptions = vec![
+            cx.on_focus(&focus, window, |this, window, cx| {
+                this.sync_cursor(window, cx)
+            }),
+            cx.on_blur(&focus, window, |this, window, cx| {
+                this.sync_cursor(window, cx)
+            }),
+            cx.observe_window_activation(window, |this, window, cx| this.sync_cursor(window, cx)),
+        ];
+        let focused = focus.is_focused(window) && window.is_window_active();
         Self {
             terminal_id,
             connection,
@@ -84,7 +98,53 @@ impl TerminalView {
             mouse_reporter: MouseReporter::default(),
             mouse_error: false,
             glyphs: glyphs::Glyphs::default(),
+            blink: paseo_desktop::terminal_geometry::CursorBlink::new(Instant::now()),
+            blink_task: None,
+            focused,
+            _subscriptions: subscriptions,
         }
+    }
+
+    fn sync_cursor(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.focused = self.focus.is_focused(window) && window.is_window_active();
+        let screen = self.buffer.screen();
+        let enabled =
+            self.visible && self.focused && screen.cursor.is_some() && screen.cursor_style.blinking;
+        self.blink.enable(enabled, Instant::now());
+        self.schedule_blink(cx);
+        self.notify_visible(cx);
+    }
+
+    fn schedule_blink(&mut self, cx: &mut Context<Self>) {
+        let Some(delay) = self.blink.next(Instant::now()) else {
+            self.blink_task = None;
+            return;
+        };
+        if self.blink_task.is_some() {
+            return;
+        }
+        self.blink_task = Some(cx.spawn(async move |this, cx| {
+            let mut delay = delay;
+            loop {
+                cx.background_executor().timer(delay).await;
+                let next = this.update(cx, |this, cx| {
+                    let was_visible = this.blink.visible();
+                    this.blink.tick(Instant::now());
+                    if was_visible != this.blink.visible() {
+                        this.notify_visible(cx);
+                    }
+                    let next = this.blink.next(Instant::now());
+                    if next.is_none() {
+                        this.blink_task = None;
+                    }
+                    next
+                });
+                match next {
+                    Ok(Some(next)) => delay = next,
+                    _ => break,
+                }
+            }
+        }));
     }
 
     // Slot binding can still be in flight when a workspace is left. The daemon's
@@ -117,6 +177,8 @@ impl TerminalView {
                 self.selecting = false;
                 self.mouse_buttons = 0;
                 self.glyphs.clear();
+                self.blink.enable(false, Instant::now());
+                self.blink_task = None;
             }
             if visible {
                 cx.notify();
@@ -138,6 +200,8 @@ impl TerminalView {
         self.visible = window.is_visible();
         self.needs_claim = true;
         self.focus.focus(window, cx);
+        self.blink.restart(Instant::now());
+        self.sync_cursor(window, cx);
         cx.notify();
     }
     fn notify_visible(&self, cx: &mut Context<Self>) {
@@ -175,7 +239,11 @@ impl TerminalView {
             frame.opcode,
             TerminalOpcode::ReplayBegin | TerminalOpcode::Restore
         );
+        let cursor_before = self.buffer.cursor_state();
         let result = self.buffer.apply(frame).and_then(|()| {
+            if replaces_buffer || self.buffer.cursor_state() != cursor_before {
+                self.blink.restart(Instant::now());
+            }
             if replaces_buffer || self.buffer.mouse_reset_revision() != reset_revision {
                 self.mouse_reporter.reset();
             }
@@ -469,6 +537,8 @@ impl TerminalView {
             return;
         }
         self.focus.focus(window, cx);
+        self.blink.restart(Instant::now());
+        self.sync_cursor(window, cx);
         self.claim(cx);
         let force_selection = !cfg!(target_os = "macos") && event.modifiers.shift;
         if self.buffer.mouse_modes().active() && !force_selection {
@@ -635,7 +705,14 @@ impl Focusable for TerminalView {
 }
 
 impl Render for TerminalView {
-    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.focused = self.focus.is_focused(window) && window.is_window_active();
+        let screen = self.buffer.screen();
+        self.blink.enable(
+            self.visible && self.focused && screen.cursor.is_some() && screen.cursor_style.blinking,
+            Instant::now(),
+        );
+        self.schedule_blink(cx);
         let measure_view = cx.entity();
         let paint_view = cx.entity();
         div()
@@ -708,16 +785,29 @@ impl Render for TerminalView {
                         paint_view.update(cx, |view, cx| {
                             view.glyphs.prepare(base_font.clone(), px(FONT_SIZE));
                             let screen = view.buffer.screen();
+                            let cursor_shape = if view.focused {
+                                screen.cursor_style.shape
+                            } else {
+                                CursorShape::HollowBlock
+                            };
+                            let painted_cursor = screen.cursor.filter(|_| view.blink.visible());
                             window.with_content_mask(
                                 Some(gpui::ContentMask { bounds }),
                                 |window| {
                                     for cell in screen.cells {
+                                        let block_cursor = cursor_shape == CursorShape::Block
+                                            && painted_cursor == Some((cell.row, cell.col));
+                                        let background = if block_cursor {
+                                            screen.cursor_color
+                                        } else {
+                                            cell.background
+                                        };
                                         let origin = bounds.origin
                                             + point(
                                                 width * cell.col as f32,
                                                 px(view.row_height * cell.row as f32),
                                             );
-                                        if cell.background != crate::theme::terminal::BACKGROUND {
+                                        if background != crate::theme::terminal::BACKGROUND {
                                             window.paint_quad(fill(
                                                 Bounds::new(
                                                     origin,
@@ -726,10 +816,10 @@ impl Render for TerminalView {
                                                         px(view.row_height),
                                                     ),
                                                 ),
-                                                rgb(cell.background),
+                                                rgb(background),
                                             ));
                                         }
-                                        if cell.selected {
+                                        if cell.selected && !block_cursor {
                                             window.paint_quad(fill(
                                                 Bounds::new(
                                                     origin,
@@ -744,11 +834,20 @@ impl Render for TerminalView {
                                         if cell.character == ' ' && cell.zerowidth.is_empty() {
                                             continue;
                                         }
-                                        let line = view.glyphs.line(
-                                            &cell,
-                                            window.text_system(),
-                                            crate::theme::terminal_selection::FOREGROUND,
-                                        );
+                                        let line = if block_cursor {
+                                            view.glyphs.line_with_cursor(
+                                                &cell,
+                                                window.text_system(),
+                                                crate::theme::terminal_selection::FOREGROUND,
+                                                true,
+                                            )
+                                        } else {
+                                            view.glyphs.line(
+                                                &cell,
+                                                window.text_system(),
+                                                crate::theme::terminal_selection::FOREGROUND,
+                                            )
+                                        };
                                         let _ = line.paint(
                                             origin,
                                             px(view.row_height),
@@ -758,18 +857,34 @@ impl Render for TerminalView {
                                             cx,
                                         );
                                     }
-                                    if let Some((row, col)) = screen.cursor {
-                                        window.paint_quad(fill(
-                                            Bounds::new(
-                                                bounds.origin
-                                                    + point(
-                                                        width * col as f32,
-                                                        px(view.row_height * row as f32),
-                                                    ),
-                                                size(px(1.), px(view.row_height)),
-                                            ),
-                                            rgb(screen.cursor_color),
-                                        ));
+                                    if cursor_shape != CursorShape::Block
+                                        && let Some((row, col)) = painted_cursor
+                                    {
+                                        let metrics = paseo_desktop::terminal_geometry::Metrics {
+                                            width: f32::from(width),
+                                            height: view.row_height,
+                                        };
+                                        for rect in paseo_desktop::terminal_geometry::cursor_rects(
+                                            metrics,
+                                            screen.cursor_columns,
+                                            cursor_shape,
+                                        )
+                                        .into_iter()
+                                        .flatten()
+                                        {
+                                            window.paint_quad(fill(
+                                                Bounds::new(
+                                                    bounds.origin
+                                                        + point(
+                                                            width * col as f32 + px(rect.x),
+                                                            px(view.row_height * row as f32
+                                                                + rect.y),
+                                                        ),
+                                                    size(px(rect.width), px(rect.height)),
+                                                ),
+                                                rgb(screen.cursor_color),
+                                            ));
+                                        }
                                     }
                                     let marked = view.marked.clone();
                                     if !marked.is_empty() {
