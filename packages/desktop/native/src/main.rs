@@ -1,4 +1,5 @@
 mod assets;
+mod choice_menu;
 mod chrome;
 mod composer_view;
 mod conversation;

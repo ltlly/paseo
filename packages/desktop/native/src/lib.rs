@@ -1,3 +1,4 @@
+pub mod agent_controls;
 pub mod client;
 pub mod composer;
 pub mod editing;

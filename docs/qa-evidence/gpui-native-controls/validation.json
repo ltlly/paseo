@@ -1,0 +1,43 @@
+{
+  "sourceBase": "3cdb3e5f3",
+  "environment": "Linux Xvfb/Openbox at scale 1; WGPU/lavapipe native build. Actual Electron renderer with repository app bundle and isolated Linux desktop bridge. Fresh isolated daemon and fake provider catalog. No real model calls.",
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "scale": 1
+  },
+  "visualAcceptance": "NOT_PASSED",
+  "pixelComparison": {
+    "differentPixels": 14711,
+    "totalPixels": 1024000,
+    "maskedRegions": [],
+    "thresholdUsed": null,
+    "note": "Diagnostic raw diff. Missing controls, timestamp/caret states and text rasterization remain visible; no similarity pass claimed."
+  },
+  "verified": [
+    "OS clicks and search/Enter changed test-a to test-b; SDK readback confirmed model on Agent A while Agent B remained test-a",
+    "Search/Enter selected thinking high; non-searchable two-option thinking menu also cycled high to low and back with Down/Enter, confirmed by SDK",
+    "Mode search/Enter selected always-ask; SDK readback confirmed the effective mode",
+    "Search can return an empty result without submitting the conversation; Ctrl+A replaces the query; Escape returns to the retained draft",
+    "Two Agent drafts remain independent across navigation; model/mode/thinking configuration stays scoped to Agent A",
+    "Authored provider/Lucide vectors and 28px toolbar control geometry reused; thinking search follows the existing six-option threshold"
+  ],
+  "focusedRustTests": {
+    "agent_controls": 4
+  },
+  "notVerified": [
+    "Real OS IME candidate interaction (search implements UTF16/preedit ownership but no physical IME run)",
+    "Operating-system clipboard interaction for search",
+    "End-to-end configuration rejection/timeout and disconnect/reconnect",
+    "All popup hover/pressed states, model browser grouping/favorites/profiles and narrow-width density",
+    "Hardware performance, macOS/Windows rendering, complete application parity and deployment"
+  ],
+  "remainingVisualDifferences": [
+    "Missing attachment, feature and voice controls shift toolbar positions",
+    "Full model browser content, icons and interactive states",
+    "Exact text rasterization, caret blink, sidebar timestamps and existing tab/menu gaps",
+    "All themes, font settings, localization and desktop platforms"
+  ],
+  "androidSourcesChanged": false,
+  "captureNote": "Captures precede the final timestamp-only update notification gate; that gate has focused state tests and a native compile check. No post-gate rendered capture."
+}

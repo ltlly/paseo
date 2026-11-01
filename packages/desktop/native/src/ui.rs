@@ -110,7 +110,14 @@ impl Paseo {
     fn apply_session(&mut self, kind: &str, payload: Value, cx: &mut Context<Self>) -> Result<()> {
         if matches!(
             kind,
-            "send_agent_message_response" | "cancel_agent_response" | "rpc_error"
+            "send_agent_message_response"
+                | "cancel_agent_response"
+                | "fetch_agent_response"
+                | "list_provider_models_response"
+                | "set_agent_model_response"
+                | "set_agent_thinking_response"
+                | "set_agent_mode_response"
+                | "rpc_error"
         ) {
             let mut handled = false;
             for composer in self.composers.values() {
@@ -121,6 +128,11 @@ impl Paseo {
             });
             if handled {
                 return Ok(());
+            }
+        }
+        if kind == "agent_status" {
+            for composer in self.composers.values() {
+                composer.update(cx, |view, cx| view.status(&payload, cx));
             }
         }
         if let Some(conversation) = &self.conversation {

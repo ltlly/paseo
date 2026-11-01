@@ -46,6 +46,8 @@ Agent navigation evidence is in [the native Agent capture](qa-evidence/gpui-nati
 
 [The Linux font and window comparison](qa-evidence/gpui-native-window/validation.json) uses an actual Electron renderer as the reference. It verifies default font selection, the history-start slot, sidebar collapse, frameless window controls, movement, resizing and retained drafts with a real window manager. Closing the client retains the isolated daemon's agents and history. Pixel acceptance remains **not passed**; the other desktop platforms, appearance settings, controls and first-paint behavior still need evidence.
 
+[The native provider-control check](qa-evidence/gpui-native-controls/validation.json) exercises model, thinking and mode changes through OS input and confirms them by reading the isolated daemon. Independent drafts survive navigation and picker dismissal. Its matched Electron comparison remains **not passed**: attachments, features, voice controls, complete model browsing and responsive control density still need migration.
+
 Use isolated test projects and homes. Do not type into live user agents. Compare the same retained workspace and workload before claiming a performance improvement.
 
 Capture the reference and native client against the same isolated daemon and data. Cover empty, idle, running, attention, selected, hovered, pressed, disabled and open-menu states. Fix the viewport, device scale, theme, fonts, sidebar widths and scroll position. Keep image diffs as evidence. Mask only recorded nondeterministic regions such as a timestamp or spinner angle; do not hide geometry or text differences behind a broad similarity threshold. Framework text rasterization differences remain explicit unresolved evidence until checked on that desktop OS.

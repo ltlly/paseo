@@ -1,0 +1,4 @@
+{
+  "a": { "model": "test-b", "mode": "always-ask", "thinking": "high" },
+  "b": { "model": "test-a", "mode": null, "thinking": null }
+}

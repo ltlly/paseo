@@ -1,4 +1,4 @@
-use std::{ops::Range, sync::Arc};
+use std::{collections::BTreeMap, ops::Range, sync::Arc};
 
 use gpui::{
     App, Bounds, ClipboardItem, Context, ElementInputHandler, EntityInputHandler, FocusHandle,
@@ -6,7 +6,11 @@ use gpui::{
     UTF16Selection, UnderlineStyle, Window, WrappedLine, canvas, div, fill, font, point,
     prelude::*, px, rgb, size,
 };
-use paseo_desktop::{client::Connection, composer::ComposerState};
+use paseo_desktop::{
+    agent_controls::{Control, Controls},
+    client::Connection,
+    composer::ComposerState,
+};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -30,6 +34,15 @@ pub struct Composer {
     bounds: Bounds<Pixels>,
     scroll: Pixels,
     selecting: bool,
+    controls: Controls,
+    config_request: Option<String>,
+    catalog_request: Option<String>,
+    picker: Option<(
+        Control,
+        gpui::Entity<crate::choice_menu::ChoiceMenu>,
+        gpui::Subscription,
+    )>,
+    control_bounds: BTreeMap<Control, Bounds<Pixels>>,
 }
 
 impl Composer {
@@ -39,7 +52,7 @@ impl Composer {
         running: bool,
         cx: &mut Context<Self>,
     ) -> Self {
-        Self {
+        let mut view = Self {
             agent_id,
             connection,
             focus: cx.focus_handle(),
@@ -51,7 +64,252 @@ impl Composer {
             bounds: Bounds::default(),
             scroll: px(0.),
             selecting: false,
+            controls: Controls::default(),
+            config_request: None,
+            catalog_request: None,
+            picker: None,
+            control_bounds: BTreeMap::new(),
+        };
+        view.refresh_config(cx);
+        view
+    }
+
+    fn refresh_config(&mut self, cx: &mut Context<Self>) {
+        match self
+            .connection
+            .request("fetch_agent_request", json!({"agentId":self.agent_id}))
+        {
+            Ok(id) => {
+                self.config_request = Some(id.clone());
+                self.config_timeout(id, cx);
+            }
+            Err(error) => self.controls.error = Some(error.to_string()),
         }
+    }
+
+    fn config_timeout(&self, request_id: String, cx: &mut Context<Self>) {
+        let timer = cx
+            .background_executor()
+            .timer(std::time::Duration::from_secs(30));
+        cx.spawn(async move |this, cx| {
+            timer.await;
+            let _ = this.update(cx, |this, cx| {
+                let mut expired = false;
+                if this.config_request.as_deref() == Some(&request_id) {
+                    this.config_request = None;
+                    expired = true;
+                }
+                if this.catalog_request.as_deref() == Some(&request_id) {
+                    this.catalog_request = None;
+                    expired = true;
+                }
+                expired |= this.controls.acknowledge(
+                    &request_id,
+                    false,
+                    Some("No configuration acknowledgement. Refresh before retrying."),
+                );
+                if expired {
+                    this.controls.error = Some("Agent configuration request timed out".into());
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
+    }
+
+    pub fn status(&mut self, payload: &Value, cx: &mut Context<Self>) {
+        let revision = self.controls.revision;
+        match self
+            .controls
+            .apply_snapshot(&self.agent_id, &payload["info"])
+        {
+            Ok(true) if self.controls.revision != revision => cx.notify(),
+            Err(error) => {
+                self.controls.error = Some(error.to_string());
+                cx.notify();
+            }
+            _ => {}
+        }
+    }
+
+    fn receive_config(&mut self, kind: &str, payload: &Value, cx: &mut Context<Self>) -> bool {
+        let Some(id) = payload["requestId"].as_str() else {
+            return false;
+        };
+        let error = payload["error"].as_str();
+        if self.config_request.as_deref() == Some(id)
+            && matches!(kind, "fetch_agent_response" | "rpc_error")
+        {
+            self.config_request = None;
+            if let Some(error) = error {
+                self.controls.error = Some(error.into());
+            } else {
+                match self
+                    .controls
+                    .apply_snapshot(&self.agent_id, &payload["agent"])
+                {
+                    Ok(true) => {
+                        self.controls.error = None;
+                        if self.controls.models.is_none() && self.catalog_request.is_none() {
+                            let snapshot = self.controls.snapshot.as_ref().unwrap();
+                            match self.connection.request(
+                                "list_provider_models_request",
+                                json!({"provider":snapshot.provider,"cwd":snapshot.cwd}),
+                            ) {
+                                Ok(id) => {
+                                    self.catalog_request = Some(id.clone());
+                                    self.config_timeout(id, cx);
+                                }
+                                Err(error) => self.controls.error = Some(error.to_string()),
+                            }
+                        }
+                    }
+                    Ok(false) => {
+                        self.controls.error = Some("Agent configuration was not returned".into())
+                    }
+                    Err(error) => self.controls.error = Some(error.to_string()),
+                }
+            }
+        } else if self.catalog_request.as_deref() == Some(id)
+            && matches!(kind, "list_provider_models_response" | "rpc_error")
+        {
+            self.catalog_request = None;
+            if let Some(error) = error {
+                self.controls.error = Some(error.into());
+            } else if let Err(error) = self.controls.apply_models(&payload["models"]) {
+                self.controls.error = Some(error.to_string());
+            }
+        } else if matches!(
+            kind,
+            "set_agent_model_response"
+                | "set_agent_thinking_response"
+                | "set_agent_mode_response"
+                | "rpc_error"
+        ) && self.controls.acknowledge(
+            id,
+            payload["accepted"] == true && error.is_none(),
+            error,
+        ) {
+            if payload["accepted"] == true && error.is_none() {
+                self.refresh_config(cx);
+            }
+        } else {
+            return false;
+        }
+        cx.notify();
+        true
+    }
+
+    fn open_picker(&mut self, control: Control, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.connected || self.controls.pending.is_some() {
+            return;
+        }
+        if self
+            .picker
+            .as_ref()
+            .is_some_and(|(open, _, _)| *open == control)
+        {
+            self.picker = None;
+            self.focus.focus(window, cx);
+            cx.notify();
+            return;
+        }
+        let rows = self.controls.options(control);
+        if rows.is_empty() {
+            self.refresh_config(cx);
+            cx.notify();
+            return;
+        }
+        let searchable = control != Control::Thinking || rows.len() > 6;
+        let selected = self.controls.selected(control).map(str::to_owned);
+        let menu = cx.new(|cx| {
+            crate::choice_menu::ChoiceMenu::new(rows, selected, control.title(), searchable, cx)
+        });
+        let subscription = cx.subscribe_in(
+            &menu,
+            window,
+            move |this, _, event: &crate::choice_menu::Pick, window, cx| {
+                this.picker = None;
+                this.focus.focus(window, cx);
+                if let Some(value) = &event.0 {
+                    // The host owns effective configuration. Never optimistically relabel the trigger.
+                    let (kind, payload) = control.request(&this.agent_id, value);
+                    match this.connection.request(kind, payload) {
+                        Ok(id) => {
+                            this.controls.error = None;
+                            this.controls.pending = Some((id.clone(), control));
+                            this.config_timeout(id, cx);
+                        }
+                        Err(error) => this.controls.error = Some(error.to_string()),
+                    }
+                }
+                cx.notify();
+            },
+        );
+        menu.read(cx).focus_handle(cx).focus(window, cx);
+        self.picker = Some((control, menu, subscription));
+        cx.notify();
+    }
+
+    fn control_trigger(&self, control: Control, cx: &mut Context<Self>) -> gpui::AnyElement {
+        let entity = cx.entity();
+        let label = self.controls.label(control);
+        let pending = self.controls.pending.is_some() || !self.connected;
+        let glyph = match control {
+            Control::Model => None,
+            Control::Thinking => Some("brain"),
+            Control::Mode => Some(self.controls.mode_icon()),
+        };
+        let selected = self
+            .picker
+            .as_ref()
+            .is_some_and(|(kind, _, _)| *kind == control);
+        let mut button = div()
+            .id(("agent-control", control as usize))
+            .relative()
+            .h(px(28.))
+            .min_w_0()
+            .px_2()
+            .rounded(px(16.))
+            .flex()
+            .items_center()
+            .gap_1()
+            .text_size(px(crate::theme::font_size::BASE))
+            .text_color(rgb(crate::theme::colors::FOREGROUND_MUTED))
+            .when(pending, |v| v.opacity(0.5))
+            .when(!pending, |v| v.cursor_pointer())
+            .when(selected, |v| v.bg(rgb(crate::theme::colors::SURFACE0)))
+            .hover(|v| v.bg(rgb(crate::theme::colors::SURFACE2)))
+            .child(
+                canvas(
+                    move |bounds, _, cx| {
+                        entity.update(cx, |this, _| {
+                            this.control_bounds.insert(control, bounds);
+                        })
+                    },
+                    |_, (), _, _| {},
+                )
+                .absolute()
+                .size_full(),
+            )
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, _, window, cx| {
+                    cx.stop_propagation();
+                    this.open_picker(control, window, cx);
+                }),
+            );
+        if control == Control::Model {
+            if let Some(snapshot) = &self.controls.snapshot {
+                button = button.child(crate::chrome::provider_icon(&snapshot.provider, 16.));
+            }
+        } else if let Some(glyph) = glyph {
+            button = button.child(crate::chrome::icon(glyph, 16.));
+        }
+        button
+            .child(div().min_w_0().truncate().child(label))
+            .child(crate::chrome::icon("chevron-down", 14.))
+            .into_any_element()
     }
 
     pub fn set_running(&mut self, running: bool, cx: &mut Context<Self>) {
@@ -65,20 +323,31 @@ impl Composer {
         self.connected = false;
         self.state.disconnected();
         self.cancel_request = None;
+        self.picker = None;
+        self.config_request = None;
+        self.catalog_request = None;
+        self.controls.pending = None;
         cx.notify();
     }
 
     pub fn is_disposable(&self) -> bool {
-        self.state.is_disposable() && self.cancel_request.is_none()
+        self.state.is_disposable()
+            && self.cancel_request.is_none()
+            && self.controls.pending.is_none()
     }
 
     pub fn release_layout(&mut self) {
         // Navigation retains text and delivery state, not the hidden editor's glyph layouts.
         self.lines = Vec::new();
+        self.picker = None;
+        self.control_bounds.clear();
         self.selecting = false;
     }
 
     pub fn receive(&mut self, kind: &str, payload: &Value, cx: &mut Context<Self>) -> bool {
+        if self.receive_config(kind, payload, cx) {
+            return true;
+        }
         let Some(request_id) = payload["requestId"].as_str() else {
             return false;
         };
@@ -499,18 +768,15 @@ impl Render for Composer {
             .items_center()
             .justify_between()
             .child(
-                div()
-                    .text_size(px(crate::theme::font_size::SM))
-                    .text_color(rgb(c::FOREGROUND_MUTED))
-                    .child(if !self.connected {
-                        "Host disconnected"
-                    } else if self.state.pending.is_some() {
-                        "Sending…"
-                    } else if self.state.queued {
-                        "Queued"
-                    } else {
-                        ""
-                    }),
+                div().min_w_0().flex().items_center().gap_1().children(
+                    [Control::Model, Control::Thinking, Control::Mode]
+                        .into_iter()
+                        .filter(|control| {
+                            *control == Control::Model && self.controls.models.is_some()
+                                || !self.controls.options(*control).is_empty()
+                        })
+                        .map(|control| self.control_trigger(control, cx)),
+                ),
             )
             .child(
                 div()
@@ -663,6 +929,7 @@ impl Render for Composer {
             .child(controls);
         div()
             .id("agent-composer")
+            .relative()
             .w_full()
             .flex_shrink_0()
             .flex()
@@ -675,14 +942,61 @@ impl Render for Composer {
                     .w_full()
                     .max_w(px(CONTENT_MAX_WIDTH))
                     .child(input)
-                    .when_some(self.state.error.clone(), |view, error| {
-                        view.child(
-                            div()
-                                .text_size(px(crate::theme::font_size::SM))
-                                .text_color(rgb(c::STATUS_DANGER))
-                                .child(error),
-                        )
-                    }),
+                    .when_some(
+                        self.state.error.clone().or(self.controls.error.clone()),
+                        |view, error| {
+                            view.child(
+                                div()
+                                    .text_size(px(crate::theme::font_size::SM))
+                                    .text_color(rgb(c::STATUS_DANGER))
+                                    .child(error)
+                                    .when(
+                                        self.controls.error.is_some() && self.connected,
+                                        |line| {
+                                            line.child(
+                                                div()
+                                                    .id("retry-agent-controls")
+                                                    .ml_2()
+                                                    .cursor_pointer()
+                                                    .text_color(rgb(c::FOREGROUND_MUTED))
+                                                    .child("Retry")
+                                                    .on_mouse_down(
+                                                        MouseButton::Left,
+                                                        cx.listener(|this, _, _, cx| {
+                                                            cx.stop_propagation();
+                                                            this.controls.error = None;
+                                                            this.refresh_config(cx);
+                                                            cx.notify();
+                                                        }),
+                                                    ),
+                                            )
+                                        },
+                                    ),
+                            )
+                        },
+                    ),
             )
+            .when_some(self.picker.as_ref(), |root, (control, menu, _)| {
+                let bounds = self
+                    .control_bounds
+                    .get(control)
+                    .copied()
+                    .unwrap_or_default();
+                root.child(gpui::deferred(
+                    gpui::anchored()
+                        .position(point(bounds.left(), bounds.top() - px(8.)))
+                        .anchor(gpui::Anchor::BottomLeft)
+                        .snap_to_window_with_margin(px(8.))
+                        .child(
+                            div()
+                                .w(px(match control {
+                                    Control::Model => 360.,
+                                    Control::Thinking => 200.,
+                                    Control::Mode => 260.,
+                                }))
+                                .child(menu.clone()),
+                        ),
+                ))
+            })
     }
 }
