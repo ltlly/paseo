@@ -1561,6 +1561,113 @@ it.runIf(isPlatform("linux", "darwin"))(
   },
 );
 
+interface InputModeOracleCase {
+  name: string;
+  chunks: string[];
+  protocol: number;
+  mouseTrackingMode: "none" | "x10" | "vt200" | "drag" | "any";
+  preamble: string;
+}
+
+it.each<InputModeOracleCase>([
+  {
+    name: "ESC split and pixel encoding",
+    chunks: ["\x1b", "[?1003;1016;1004h"],
+    protocol: 1003,
+    mouseTrackingMode: "any",
+    preamble: "\x1b[?1003h\x1b[?1016h\x1b[?1004h",
+  },
+  {
+    name: "cross-category resets",
+    chunks: ["\x1b[?1003;1016h", "\x1b[?1000;1006l"],
+    protocol: 0,
+    mouseTrackingMode: "none",
+    preamble: "",
+  },
+  {
+    name: "ordered duplicate parameters",
+    chunks: ["\x1b[?1003;1000;1003;1006;1016;1006h"],
+    protocol: 1003,
+    mouseTrackingMode: "any",
+    preamble: "\x1b[?1003h\x1b[?1006h",
+  },
+  {
+    name: "subparameters and control bytes",
+    chunks: ["\x1b[?1002:5;10\x0006h"],
+    protocol: 1002,
+    mouseTrackingMode: "drag",
+    preamble: "\x1b[?1002h\x1b[?1006h",
+  },
+  {
+    name: "OSC and DCS aborted by real CSI",
+    chunks: ["\x1b]title [?9h", "\x1b[?1002h", "\x1bPqpayload\x07[?1000h", "\x1b[?1006h"],
+    protocol: 1002,
+    mouseTrackingMode: "drag",
+    preamble: "\x1b[?1002h\x1b[?1006h",
+  },
+  {
+    name: "C1 introducers and terminators",
+    chunks: ["\x9dtitle [?9h\x9c", "\x9b?9;1016h"],
+    protocol: 9,
+    mouseTrackingMode: "x10",
+    preamble: "\x1b[?9h\x1b[?1016h",
+  },
+  {
+    name: "bounded parameters",
+    chunks: [`\x1b[?${Array(40).fill(1000).join(";")};1003h`],
+    protocol: 1000,
+    mouseTrackingMode: "vt200",
+    preamble: "\x1b[?1000h",
+  },
+  {
+    name: "BOM ignored by the xterm decoder across CSI and RIS",
+    chunks: ["\x1b[?1\uFEFFh", "\x1b\uFEFFc", "\x1b[?1003\uFEFF;1006h"],
+    protocol: 1003,
+    mouseTrackingMode: "any",
+    preamble: "\x1b[?1003h\x1b[?1006h",
+  },
+  {
+    name: "RIS clears replay state",
+    chunks: ["\x1b[?1;2004;1003;1016;1004h", "\x1b", "c", "\x1b[?1000h"],
+    protocol: 1000,
+    mouseTrackingMode: "vt200",
+    preamble: "\x1b[?1000h",
+  },
+])("input mode parser matches installed xterm oracle ($name)", async (input) => {
+  const terminal = new xterm.Terminal({ rows: 4, cols: 16, allowProposedApi: true });
+  const receiver = new xterm.Terminal({ rows: 4, cols: 16, allowProposedApi: true });
+  const tracker = new TerminalInputModeTracker();
+  const serialized = createTerminalSerializer(terminal);
+  try {
+    for (const chunk of input.chunks) {
+      await new Promise<void>((resolve) => terminal.write(chunk, resolve));
+      tracker.feed(chunk);
+    }
+    expect(terminal.modes.mouseTrackingMode).toBe(input.mouseTrackingMode);
+    expect(tracker.getMouseState().protocol).toBe(input.protocol);
+    expect(tracker.getPreamble()).toBe(input.preamble);
+    expect(tracker.getState().applicationCursorKeys).toBe(terminal.modes.applicationCursorKeysMode);
+    expect(tracker.getState().bracketedPaste).toBe(terminal.modes.bracketedPasteMode);
+    const replay = serialized();
+    for (let offset = 0; offset < replay.length; offset += 3) {
+      await new Promise<void>((resolve) =>
+        receiver.write(replay.subarray(offset, offset + 3), resolve),
+      );
+    }
+    for (const character of tracker.getPreamble()) {
+      await new Promise<void>((resolve) => receiver.write(character, resolve));
+    }
+    expect(receiver.modes).toEqual(terminal.modes);
+    const restored = new TerminalInputModeTracker();
+    restored.feed(tracker.getPreamble());
+    expect(restored.getState()).toEqual(tracker.getState());
+    expect(restored.getMouseState()).toEqual(tracker.getMouseState());
+  } finally {
+    terminal.dispose();
+    receiver.dispose();
+  }
+});
+
 it.each([false, true])(
   "serializes styled Unicode, cursor presentation and modes directly (alternate=%s)",
   async (alternate) => {
