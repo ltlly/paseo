@@ -133,6 +133,54 @@ function removedAgentIds(peer: SubscriptionPeer): string[] {
   );
 }
 
+test("raw input failure replies stay with the requesting socket beside a legacy sibling", async () => {
+  const daemon = await createTestPaseoDaemon({ mcpEnabled: false });
+  const peers: SubscriptionPeer[] = [];
+  try {
+    const legacy = await SubscriptionPeer.connect(daemon.port, "shared-raw-session", {
+      owned_subscriptions: false,
+    });
+    peers.push(legacy);
+    const requester = await SubscriptionPeer.connect(daemon.port, "shared-raw-session");
+    peers.push(requester);
+    await requester.request({
+      type: "terminal.input.write_raw.request",
+      terminalId: "missing-raw-terminal",
+      dataBase64: "gA==",
+      requestId: "raw-owned-error",
+    });
+    await legacy.request({ type: "ping", requestId: "raw-legacy-barrier", clientSentAt: 1 });
+    expect(
+      legacy.frames.filter(
+        (frame) =>
+          frame.type === "session" && frame.message.type === "terminal.input.write_raw.response",
+      ),
+    ).toEqual([]);
+    expect(
+      requester.frames.filter(
+        (frame) =>
+          frame.type === "session" && frame.message.type === "terminal.input.write_raw.response",
+      ),
+    ).toEqual([
+      {
+        type: "session",
+        message: {
+          type: "terminal.input.write_raw.response",
+          payload: {
+            terminalId: "missing-raw-terminal",
+            requestId: "raw-owned-error",
+            success: false,
+            error: "Terminal not found",
+          },
+        },
+      },
+    ]);
+  } finally {
+    for (const peer of peers) peer.close();
+    await daemon.close();
+  }
+});
+
 test("a pure list reply belongs only to its source socket in a shared logical session", async () => {
   const daemon = await createTestPaseoDaemon({ mcpEnabled: false });
   const peers: SubscriptionPeer[] = [];

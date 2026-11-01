@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { describe, expect, test } from "vitest";
-import { SessionInboundMessageSchema, SessionOutboundMessageSchema } from "./messages.js";
+import {
+  SubscribeTerminalResponseSchema,
+  SessionInboundMessageSchema,
+  SessionOutboundMessageSchema,
+} from "./messages.js";
 
 type SessionMessageOption = z.ZodDiscriminatedUnionOption<"type">;
 
@@ -136,5 +140,64 @@ describe("rename entity message schemas", () => {
         requestId: "request-kill",
       },
     });
+  });
+});
+
+describe("raw input message compatibility", () => {
+  test("adds a bounded ID-addressed raw request without changing UTF8 input", () => {
+    const request = {
+      type: "terminal.input.write_raw.request",
+      terminalId: "terminal-1",
+      dataBase64: "gP8=",
+      requestId: "raw-1",
+    };
+    expect(SessionInboundMessageSchema.parse(request)).toEqual(request);
+    expect(
+      SessionInboundMessageSchema.parse({
+        type: "terminal_input",
+        terminalId: "terminal-1",
+        message: { type: "input", data: "中文🙂" },
+      }),
+    ).toEqual({
+      type: "terminal_input",
+      terminalId: "terminal-1",
+      message: { type: "input", data: "中文🙂" },
+    });
+    const response = {
+      type: "terminal.input.write_raw.response",
+      payload: {
+        terminalId: "terminal-1",
+        requestId: "raw-1",
+        success: false,
+        error: "Terminal does not support raw input",
+      },
+    };
+    expect(SessionOutboundMessageSchema.parse(response)).toEqual(response);
+    const success = SubscribeTerminalResponseSchema.shape.payload.options[0];
+    const legacySuccess = success.omit({ rawByteInput: true });
+    const subscribed = {
+      type: "subscribe_terminal_response",
+      payload: {
+        terminalId: "terminal-1",
+        slot: 1,
+        error: null,
+        requestId: "sub-1",
+        rawByteInput: false,
+      },
+    };
+    expect(legacySuccess.parse(subscribed.payload)).toEqual({
+      terminalId: "terminal-1",
+      slot: 1,
+      error: null,
+      requestId: "sub-1",
+    });
+    const old = {
+      ...subscribed,
+      payload: { terminalId: "terminal-1", slot: 1, error: null, requestId: "sub-1" },
+    };
+    expect(SessionOutboundMessageSchema.parse(old)).toEqual(old);
+    expect(
+      SessionInboundMessageSchema.safeParse({ ...request, dataBase64: "A".repeat(87385) }).success,
+    ).toBe(false);
   });
 });

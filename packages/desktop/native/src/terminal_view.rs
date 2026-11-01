@@ -1,5 +1,6 @@
 mod glyphs;
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use std::{ops::Range, sync::Arc, time::Instant};
 
 use alacritty_terminal::{term::TermMode, vte::ansi::CursorShape};
@@ -47,6 +48,8 @@ pub struct TerminalView {
     mouse_buttons: u8,
     mouse_reporter: MouseReporter,
     mouse_error: bool,
+    raw_input: bool,
+    raw_requests: paseo_desktop::terminal_retention::PendingInput,
     glyphs: glyphs::Glyphs,
     blink: paseo_desktop::terminal_geometry::CursorBlink,
     blink_task: Option<gpui::Task<()>>,
@@ -97,6 +100,8 @@ impl TerminalView {
             mouse_buttons: 0,
             mouse_reporter: MouseReporter::default(),
             mouse_error: false,
+            raw_input: false,
+            raw_requests: paseo_desktop::terminal_retention::PendingInput::default(),
             glyphs: glyphs::Glyphs::default(),
             blink: paseo_desktop::terminal_geometry::CursorBlink::new(Instant::now()),
             blink_task: None,
@@ -150,6 +155,7 @@ impl TerminalView {
     // Slot binding can still be in flight when a workspace is left. The daemon's
     // ID-addressed input lane preserves the already-committed bytes before unsubscribe.
     pub fn prepare_detach(&mut self) -> Result<()> {
+        self.raw_requests.prepare_detach()?;
         if !self.pending_input.is_empty() {
             let text = std::str::from_utf8(&self.pending_input)?;
             self.connection.send_session(json!({"type":"terminal_input","terminalId":self.terminal_id,"message":{"type":"input","data":text}}))?;
@@ -161,7 +167,7 @@ impl TerminalView {
         self.slot
     }
     pub fn can_release(&self) -> bool {
-        !self.opening && self.pending_input.is_empty()
+        !self.opening && self.pending_input.is_empty() && self.raw_requests.is_empty()
     }
     pub fn owns_request(&self, payload: &Value) -> bool {
         self.opening
@@ -217,12 +223,79 @@ impl TerminalView {
         if let Some(error) = payload["error"].as_str() {
             self.error = Some(error.into());
         } else {
+            // This host-owned field is the capability boundary: old workers and
+            // ConPTY remain usable through the established UTF-8 input lane.
+            self.raw_input = payload["rawByteInput"].as_bool() == Some(true);
             self.slot = payload["slot"]
                 .as_u64()
                 .and_then(|slot| u8::try_from(slot).ok());
         }
         self.notify_visible(cx);
         true
+    }
+
+    pub fn owns_raw_request(&self, payload: &Value) -> bool {
+        payload["requestId"]
+            .as_str()
+            .is_some_and(|id| self.raw_requests.contains(id))
+    }
+
+    pub fn receive_raw(&mut self, payload: &Value, cx: &mut Context<Self>) {
+        let Some(id) = payload["requestId"].as_str() else {
+            return;
+        };
+        if !self.raw_requests.settle(id) {
+            return;
+        }
+        if payload["terminalId"].as_str() != Some(self.terminal_id.as_str())
+            || payload["success"].as_bool() != Some(true)
+        {
+            self.error = Some(
+                payload["error"]
+                    .as_str()
+                    .unwrap_or("Raw terminal input was not accepted.")
+                    .into(),
+            );
+            self.mouse_error = false;
+        }
+        self.notify_visible(cx);
+    }
+
+    fn send_raw(&mut self, bytes: &[u8], repeat: usize, cx: &mut Context<Self>) -> Result<()> {
+        ensure!(
+            self.raw_input,
+            "This terminal does not support raw-byte input. Update its host and open a terminal on the new worker; existing terminals remain usable with SGR mouse mode."
+        );
+        self.raw_requests.admit()?;
+        let count = repeat.min(1000);
+        ensure!(
+            bytes.len().saturating_mul(count) <= 64 * 1024,
+            "Raw terminal input exceeds 64 KiB."
+        );
+        if self.needs_claim {
+            self.claim(cx);
+        }
+        self.flush_input()?;
+        self.selecting = false;
+        if self.buffer.prepare_input() {
+            self.notify_visible(cx);
+        }
+        let id = self.connection.request("terminal.input.write_raw.request", json!({"terminalId":self.terminal_id,"dataBase64":STANDARD.encode(bytes.repeat(count))}))?;
+        self.raw_requests.insert(id.clone());
+        let timer = cx
+            .background_executor()
+            .timer(std::time::Duration::from_secs(30));
+        cx.spawn(async move |this, cx| {
+            timer.await;
+            let _ = this.update(cx, |this, cx| {
+                if this.raw_requests.settle(&id) {
+                    this.error = Some("Terminal input acceptance timed out. It may have reached the program and was not retried.".into());
+                    this.mouse_error = false;
+                    this.notify_visible(cx);
+                }
+            });
+        }).detach();
+        Ok(())
     }
 
     pub fn receive(&mut self, frame: TerminalFrame, cx: &mut Context<Self>) {
@@ -519,9 +592,14 @@ impl TerminalView {
                     }
                 }
                 Err(_) => {
-                    self.error = Some("Legacy mouse reports at this position require raw-byte terminal input. Use SGR mouse mode in the terminal application.".into());
-                    self.mouse_error = true;
-                    self.notify_visible(cx);
+                    if self.raw_input {
+                        let result = self.send_raw(&bytes, repeat, cx);
+                        self.finish(result, cx);
+                    } else {
+                        self.error = Some("Legacy mouse reports at this position require raw-byte terminal input. This terminal's worker or platform does not support it; use SGR mouse mode in the terminal application.".into());
+                        self.mouse_error = true;
+                        self.notify_visible(cx);
+                    }
                 }
             }
         }

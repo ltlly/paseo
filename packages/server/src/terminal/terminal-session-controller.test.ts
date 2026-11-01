@@ -944,11 +944,16 @@ describe("terminal-session-controller backpressure snapshot fallback", () => {
   });
 });
 
-function exitFixture(readReplay: () => Promise<ReplayFixture | null>, backedUp = false) {
+function exitFixture(
+  readReplay: () => Promise<ReplayFixture | null>,
+  backedUp = false,
+  rawInput?: TerminalSession["rawInput"],
+) {
   const outputs = new Set<(message: ServerMessage) => void>();
   const exits = new Set<Parameters<TerminalSession["onExit"]>[0]>();
   const terminal: TerminalSession = {
     id: "exit-terminal",
+    ...(rawInput ? { rawInput } : {}),
     name: "Terminal",
     cwd: "/unused",
     workspaceId: "workspace",
@@ -981,7 +986,7 @@ function exitFixture(readReplay: () => Promise<ReplayFixture | null>, backedUp =
     async killAndWait() {},
   };
   const manager: TerminalManager = {
-    getTerminal: () => terminal,
+    getTerminal: (id) => (id === terminal.id ? terminal : undefined),
     replayTerminal: replayFixture(readReplay),
     getTerminals: async () => [terminal],
     createTerminal: async () => terminal,
@@ -1424,4 +1429,114 @@ test("bounds a capturing viewer tail without ending a healthy viewer", async () 
     pending.resolve(null);
     await f.delivery.close();
   }
+});
+
+test("raw input rejects unsupported owners explicitly and preserves their stream", async () => {
+  const f = exitFixture(async () => terminalReplay("screen", 0));
+  const source = {};
+  await f.subscribe(source, true, "raw-sub");
+  const request = {
+    type: "terminal.input.write_raw.request" as const,
+    terminalId: "exit-terminal",
+    requestId: "raw-1",
+    dataBase64: "gP8=",
+  };
+  await f.delivery.request(source, request, async () => {
+    await f.controller.dispatch(request, f.delivery);
+  });
+  expect(
+    f.frames
+      .filter((row) => row.message?.type === "terminal.input.write_raw.response")
+      .map((row) => row.message),
+  ).toEqual([
+    {
+      type: "terminal.input.write_raw.response",
+      payload: {
+        terminalId: "exit-terminal",
+        requestId: "raw-1",
+        success: false,
+        error: "Terminal does not support raw-byte input",
+      },
+    },
+  ]);
+  expect(f.frames.filter((row) => row.message?.type === "terminal_stream_exit")).toEqual([]);
+  await f.delivery.close();
+});
+
+test("raw input validates bytes before writing and reports worker failure without dropping observation", async () => {
+  const writes: Buffer[] = [];
+  const f = exitFixture(async () => terminalReplay("screen", 0), false, {
+    write: async (bytes) => {
+      writes.push(Buffer.from(bytes));
+      if (bytes[0] === 255) throw new Error("Worker disconnected");
+    },
+  });
+  const source = {};
+  await f.subscribe(source, true, "raw-sub");
+  const reply = f.frames.find(
+    (row) => row.message?.type === "subscribe_terminal_response",
+  )?.message;
+  expect(
+    reply?.type === "subscribe_terminal_response" &&
+      reply.payload.error === null &&
+      reply.payload.rawByteInput,
+  ).toBe(true);
+  const dispatch = async (dataBase64: string, requestId: string, terminalId = "exit-terminal") => {
+    const request = {
+      type: "terminal.input.write_raw.request" as const,
+      terminalId,
+      requestId,
+      dataBase64,
+    };
+    await f.delivery.request(source, request, async () => {
+      await f.controller.dispatch(request, f.delivery);
+    });
+    return f.frames.find(
+      (row) =>
+        row.message?.type === "terminal.input.write_raw.response" &&
+        row.message.payload.requestId === requestId,
+    )?.message;
+  };
+  expect(await dispatch("AID/", "ok")).toEqual({
+    type: "terminal.input.write_raw.response",
+    payload: { terminalId: "exit-terminal", requestId: "ok", success: true, error: null },
+  });
+  for (const [index, invalid] of [
+    "gP8",
+    "gP8=\n",
+    "!!!!",
+    "AB==",
+    Buffer.alloc(65537).toString("base64"),
+  ].entries()) {
+    expect(await dispatch(invalid, "invalid-" + index)).toEqual({
+      type: "terminal.input.write_raw.response",
+      payload: {
+        terminalId: "exit-terminal",
+        requestId: "invalid-" + index,
+        success: false,
+        error: "Invalid raw terminal input: expected canonical base64 of at most 64 KiB",
+      },
+    });
+  }
+  expect(await dispatch("/w==", "failed")).toEqual({
+    type: "terminal.input.write_raw.response",
+    payload: {
+      terminalId: "exit-terminal",
+      requestId: "failed",
+      success: false,
+      error: "Worker disconnected",
+    },
+  });
+  expect(await dispatch("", "missing", "absent")).toEqual({
+    type: "terminal.input.write_raw.response",
+    payload: {
+      terminalId: "absent",
+      requestId: "missing",
+      success: false,
+      error: "Terminal not found",
+    },
+  });
+  expect(writes).toEqual([Buffer.from([0, 128, 255]), Buffer.from([255])]);
+  expect(f.frames.filter((row) => row.message?.type === "terminal_stream_exit")).toEqual([]);
+  await f.delivery.close();
 });

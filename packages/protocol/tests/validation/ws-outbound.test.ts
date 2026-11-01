@@ -401,3 +401,52 @@ const SourceSchema = z.object({
     });
   });
 });
+
+describe("raw input generated validation", () => {
+  it("validates raw replies and optional owner support while accepting old replies", () => {
+    const raw = {
+      type: "session",
+      message: {
+        type: "terminal.input.write_raw.response",
+        payload: {
+          terminalId: "raw-term",
+          requestId: "raw",
+          success: false,
+          error: "Unsupported owner",
+        },
+      },
+    };
+    expect(validateWSOutboundMessage(raw).success).toBe(true);
+    expect(
+      validateWSOutboundMessage({
+        ...raw,
+        message: { ...raw.message, payload: { ...raw.message.payload, success: "false" } },
+      }).success,
+    ).toBe(false);
+    const payload = { terminalId: "raw-term", slot: 1, error: null, requestId: "sub" };
+    expect(
+      validateWSOutboundMessage({
+        type: "session",
+        message: { type: "subscribe_terminal_response", payload },
+      }).success,
+    ).toBe(true);
+    expect(
+      validateWSOutboundMessage({
+        type: "session",
+        message: {
+          type: "subscribe_terminal_response",
+          payload: { ...payload, rawByteInput: false },
+        },
+      }).success,
+    ).toBe(true);
+    expect(
+      validateWSOutboundMessage({
+        type: "session",
+        message: {
+          type: "subscribe_terminal_response",
+          payload: { ...payload, rawByteInput: "yes" },
+        },
+      }).success,
+    ).toBe(false);
+  });
+});

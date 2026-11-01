@@ -42,6 +42,8 @@ The worker writes `$PASEO_HOME/terminal-worker/<pid>.json` (owner-only) with its
 
 Never more than two workers run. A new worker launches only when none is current, none is incompatible and fewer than two run. The count comes from the records, so an unreachable or unidentified worker counts, and so does one a cleanup could not confirm gone. When two run, the daemon starts with no current worker, and the first terminal created after one of them exits launches it.
 
+Protocol 6 adds a dedicated raw-byte request. Its version-5 adapter preserves the string input, replay and lifecycle requests while version-5 terminals drain. Raw input requires a version-6 POSIX owner; do not upgrade or close an existing terminal to obtain it. ConPTY remains a UTF-8 console interface, not an arbitrary-byte stdin transport.
+
 **The frozen envelope never changes across versions:** the frame format (4-byte length + `v8.serialize`), `hello`/`helloAck`, the `listTerminals` info fields and `shutdown`. That is what lets any daemon close any worker: a kill stop sends `shutdown` to a newer worker it cannot otherwise drive. Protocol 5 hard cuts unreleased protocols 1 through 4, including the acknowledgement-based replay contract: those workers are obsolete and close. For future versions, keep a previous-version adapter so the draining worker can still be driven, and drop the adapter for the version before that.
 
 Tests stand up other versions with `PASEO_TERMINAL_WORKER_PROTOCOL_OVERRIDE`, read by the worker. It is test-only.

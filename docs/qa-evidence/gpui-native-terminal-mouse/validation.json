@@ -49,5 +49,18 @@
     "Hard-line trailing-space copy mismatch from the selection checkpoint remains.",
     "No complete performance, memory or multi-platform deployment acceptance."
   ],
+  "rawInputFollowUp": {
+    "date": "2026-11-01",
+    "baseCommit": "f2d6aaf138783834c8d27275b9dcb7ce67b6f485",
+    "nativeSourceArchiveSha256": "29650b49897a17ca45ab5726ed844b788b9a3cb75be8fb3a4f94628903886442",
+    "contract": "Separate ID-addressed terminal.input.write_raw request/response with canonical base64 <=64KiB. Existing Input opcode and UTF8 strings unchanged. Worker6 has dedicated Buffer request and frozen V5 adapter; actual owner advertises rawByteInput, only V6 POSIX owners support it. ConPTY and old draining terminals explicitly refuse raw while keeping ordinary input.",
+    "tests": "Existing protocol compatibility/AOT, SDK/public terminal, controller boundaries, worker framing/handshake/platform, true frozen-V5 draining/mixed-owner, bundle closure and authorization registry tests passed in the isolated implementation worktree. Real Linux Web->worker->PTY checks preserve all256 bytes,64KiB,subarray/chunks and UTF8/raw order after observation release. Logs in /tmp/paseo-raw-input-logs. Parent added passing source-owned reply test beside a legacy sibling and reconnect admission rejection regression.",
+    "frozenV5": "Fixture built from31c6570e5 before protocol changes; decoded bundleSHA25644827b89635b4814346a8d43ecd6a37215d8949582232c2dc702985b8ad6ad99. Tests adopt it without override and preserve worker/PTY process identity and UTF8 continuation while refusing raw.",
+    "native": "Actual GPUI OS click at classic-mouse column101 reached real PTY as1b5b4d2085211b5b4d238521, preserving0x85. Immediate workspace navigation retained bytes. Held raw acceptance keeps a contextual busy error and prevents workspace release until accepted; native bounds64pending requests, no implicit retries,30s unknown timeout. Mac/runtime-shaders and Windows/MSVC final native check plus focused pending-input state test passed.",
+    "reconnect": "New raw input rejects immediately while worker connection is down instead of being deferred beyond client expiry. Existing UTF8 recovery policy unchanged. Late raw rpc_error does not fall through into another workspace's global error.",
+    "cleanup": "Final private raw native executable verified and closed; six PTYs retained. Extra Raw mouse QA explicitly removed with original A-E still live, then owning fixture835691 stopped. Worker/all original PTYs and tmp home removed; verified private WM835690/Xvfb835682 stopped; ports35007/45059 absent. Production6767, installed clients, user sessions and Android sources untouched.",
+    "evidence": "Local ~/.cache/paseo-native-qa/raw-* plus parent /tmp/paseo-gpui-raw-*.txt. Native GUI evidence predates extraction of pure pending-input state and late-error/reconnect fixes; those final changes have focused tests/checks, not repeated GUI captures.",
+    "limits": "Mac real POSIX PTY and Windows real ConPTY behavior remain untested; Windows intentionally has no arbitrary raw-byte support. Pending64 bounds acknowledgement debt, not node-pty's downstream queue or slow-program drain. Deployment still requires reviewing old-worker versions and preserving real sessions; no production restart authorized by this checkpoint. Full terminal/performance/Electron pixel/platform migration remains NOT_PASSED."
+  },
   "cleanup": "Confirmed fixture, its PTYs and client stopped; stopped only matching private Xvfb/Openbox PIDs and removed the private fixture home. Production daemon and user sessions untouched."
 }

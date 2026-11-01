@@ -87,7 +87,13 @@ export interface TerminalActivityTransition {
   previous: TerminalActivity | null;
 }
 
+export interface TerminalRawInput {
+  // Acceptance means queued to node-pty, not that the program has read it. Never retry implicitly.
+  write(data: Uint8Array): Promise<void>;
+}
+
 export interface TerminalSession {
+  readonly rawInput?: TerminalRawInput;
   id: string;
   name: string;
   cwd: string;
@@ -1135,6 +1141,17 @@ export async function createTerminal(
     return inputModeTracker.getPreamble();
   }
 
+  function writeRawInput(data: Uint8Array): Promise<void> {
+    if (killed || disposed) return Promise.reject(new Error("Terminal has exited"));
+    if (process.platform === "win32")
+      return Promise.reject(new Error("ConPTY does not support raw-byte input"));
+    // Flush text before bytes; later text stays on its existing leading/trailing input queue.
+    flushPendingInput();
+    if (data.byteLength === 1 && (data[0] === 3 || data[0] === 27)) activityTracker.interrupt();
+    ptyProcess.write(Buffer.from(data));
+    return Promise.resolve();
+  }
+
   function writeInputToPty(data: string): void {
     ptyProcess.write(data);
   }
@@ -1385,6 +1402,9 @@ export async function createTerminal(
   return {
     id,
     pid: ptyProcess.pid,
+    ...(process.platform === "linux" || process.platform === "darwin"
+      ? { rawInput: { write: writeRawInput } }
+      : {}),
     name,
     cwd,
     workspaceId,

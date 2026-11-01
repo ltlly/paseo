@@ -1,6 +1,7 @@
+import { isPlatform } from "../../test-utils/platform.js";
 import { Terminal as HeadlessTerminal } from "@xterm/headless";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { mkdtempSync, rmSync } from "fs";
+import { existsSync, readFileSync, mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import path from "path";
 import { WebSocket } from "ws";
@@ -2003,7 +2004,6 @@ test.each([false, true])(
 test.each([false, true])(
   "a paused terminal consumer catches up through ANSI replay instead of retaining every output frame (chunked=%s)",
   async (chunked) => {
-    const { existsSync } = await import("node:fs");
     const cwd = tmpCwd();
     tempDirs.push(cwd);
     const marker = path.join(cwd, "output-complete");
@@ -2060,4 +2060,68 @@ test.each([false, true])(
     }
   },
   40000,
+);
+
+test.runIf(isPlatform("linux", "darwin"))(
+  "raw input reaches a real POSIX PTY through the ID RPC without changing UTF8 Input",
+  async () => {
+    const cwd = tmpCwd();
+    tempDirs.push(cwd);
+    const ready = path.join(cwd, "ready");
+    const receipt = path.join(cwd, "receipt");
+    const client = await connectClient(ctx.daemon.port, "raw-byte-input");
+    try {
+      expect(client.getLastServerInfoMessage()?.features?.terminalRawInput).toBe(true);
+      const created = await createTerminalInWorkspace(client, {
+        cwd,
+        options: {
+          command: process.execPath,
+          args: [
+            "-e",
+            `process.stdin.setRawMode(true); process.stdin.on('data', bytes => require('node:fs').appendFileSync(${JSON.stringify(receipt)}, bytes)); require('node:fs').writeFileSync(${JSON.stringify(ready)}, 'ready');`,
+          ],
+        },
+      });
+      if (!created.terminal) throw new Error(created.error ?? "Missing test terminal");
+      const id = created.terminal.id;
+      const observation = client.observeTerminal(id, () => {}, { restore: { mode: "live" } });
+      const subscribed = await observation.ready;
+      if (subscribed.error !== null) throw new Error(subscribed.error);
+      expect(subscribed.rawByteInput).toBe(true);
+      await waitForCondition(() => existsSync(ready), 10000);
+      const text = "中文🙂é\ufeff";
+      const raw = new Uint8Array([27, 91, 77, 32, 128, 255, 0, 127]);
+      client.sendTerminalInput(id, { type: "input", data: text });
+      await client.writeTerminalRawInput(id, raw);
+      client.sendTerminalInput(id, { type: "input", data: "尾" });
+      const expected = Buffer.concat([Buffer.from(text), raw, Buffer.from("尾")]);
+      await waitForCondition(
+        () => existsSync(receipt) && readFileSync(receipt).equals(expected),
+        10000,
+      );
+      const all = Uint8Array.from({ length: 256 }, (_, i) => i);
+      await client.writeTerminalRawInput(id, all);
+      await waitForCondition(
+        () => readFileSync(receipt).equals(Buffer.concat([expected, all])),
+        10000,
+      );
+      const maximum = Uint8Array.from({ length: 65536 }, (_, i) => i & 255);
+      await client.writeTerminalRawInput(id, maximum.subarray(0, 32768));
+      await client.writeTerminalRawInput(id, maximum.subarray(32768));
+      await client.writeTerminalRawInput(id, maximum);
+      const committed = Buffer.concat([expected, all, maximum, maximum]);
+      await waitForCondition(() => readFileSync(receipt).equals(committed), 10000);
+      await observation.release();
+      // ID-addressed lane does not depend on a live binary slot, including during detach.
+      await client.writeTerminalRawInput(id, new Uint8Array([128, 255]));
+      await waitForCondition(
+        () => readFileSync(receipt).equals(Buffer.concat([committed, Buffer.from([128, 255])])),
+        10000,
+      );
+      await client.killTerminal(id);
+    } finally {
+      client.close();
+    }
+  },
+  30000,
 );

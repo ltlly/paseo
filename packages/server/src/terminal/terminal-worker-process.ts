@@ -608,6 +608,16 @@ function runWorker(argv: string[]): void {
         return;
       }
 
+      case "writeRawInput": {
+        const session = manager.getTerminal(message.terminalId);
+        if (!session?.rawInput) throw new Error("Terminal does not support raw-byte input");
+        if (!Buffer.isBuffer(message.data) || message.data.byteLength > 64 * 1024)
+          throw new Error("Invalid raw terminal input");
+        await session.rawInput.write(message.data);
+        sendToController({ type: "response", requestId: message.requestId, ok: true });
+        return;
+      }
+
       case "send": {
         const session = manager.getTerminal(message.terminalId);
         session?.send(message.message);

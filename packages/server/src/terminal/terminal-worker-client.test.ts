@@ -115,3 +115,81 @@ it("bounds a stalled framed writer to one chunk and resumes in order", async () 
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 });
+
+describe("raw input worker frames", () => {
+  it("preserves Buffer bytes and offsets across every frame split", () => {
+    const source = Buffer.from([9, 0, 128, 255, 8]);
+    const message = {
+      type: "writeRawInput",
+      requestId: "raw",
+      terminalId: "terminal",
+      data: source.subarray(1, 4),
+    };
+    const encoded = encodeFrame(message);
+    for (let split = 0; split <= encoded.length; split++) {
+      const decoder = new FrameDecoder();
+      const decoded = [
+        ...decoder.push(encoded.subarray(0, split)),
+        ...decoder.push(encoded.subarray(split)),
+      ];
+      expect(decoded).toEqual([{ ...message, data: Buffer.from([0, 128, 255]) }]);
+    }
+  });
+});
+
+it("raw input handshake checks the owning record version without stopping its worker", async () => {
+  const paseoHome = mkdtempSync(path.join(tmpdir(), "tw-raw-version-"));
+  temporaryDirs.push(paseoHome);
+  const { record, recordPath } = await launchTerminalWorker({
+    paseoHome,
+    paseoVersion: "0.0.0-test",
+  });
+  const owner = await connectTerminalWorker({
+    socketPath: record.socketPath,
+    secret: record.secret,
+  });
+  const created = new Promise<void>((resolve, reject) => {
+    owner.on("message", (message) => {
+      if (message.type === "response" && message.requestId === "idle") {
+        if (message.ok) resolve();
+        else reject(new Error(message.error));
+      }
+    });
+  });
+  owner.send(
+    {
+      type: "createTerminal",
+      requestId: "idle",
+      options: {
+        cwd: tmpdir(),
+        workspaceId: "handshake-test",
+        command: process.execPath,
+        args: ["-e", "setInterval(() => {},1000)"],
+      },
+    },
+    (error) => {
+      if (error) throw error;
+    },
+  );
+  await created;
+  await expect(
+    connectTerminalWorker({
+      socketPath: record.socketPath,
+      secret: record.secret,
+      expectedProtocolVersion: 5,
+    }),
+  ).rejects.toThrow("does not match its record");
+  expect(existsSync(recordPath)).toBe(true);
+  const connection = await connectTerminalWorker({
+    socketPath: record.socketPath,
+    secret: record.secret,
+    expectedProtocolVersion: 6,
+  });
+  expect(connection.protocolVersion).toBe(6);
+  expect(connection.workerPid).toBe(record.pid);
+  connection.send({ type: "shutdown", requestId: "cleanup" }, (error) => {
+    if (error) throw error;
+  });
+  await waitUntil(() => !existsSync(recordPath), 10000);
+  connection.disconnect();
+});

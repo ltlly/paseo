@@ -3,6 +3,7 @@ import { createConnection } from "node:net";
 import { attachFramedSocket, type FramedSocket } from "./terminal-worker-frames.js";
 import {
   TERMINAL_WORKER_PROTOCOL_VERSION,
+  adaptTerminalWorkerRequest,
   type TerminalWorkerHello,
   type TerminalWorkerHelloAck,
   type TerminalWorkerRequest,
@@ -15,6 +16,7 @@ const DEFAULT_CONNECT_TIMEOUT_MS = 5_000;
 export interface TerminalWorkerConnection {
   readonly connected: boolean;
   readonly workerPid: number;
+  readonly protocolVersion: number;
   send(message: TerminalWorkerRequest, callback: (error: Error | null) => void): boolean;
   /** Closes the socket. The worker keeps running and keeps its terminals. */
   disconnect(): void;
@@ -31,13 +33,15 @@ export class TerminalWorkerConnectError extends Error {
 
 class SocketTerminalWorkerConnection extends EventEmitter implements TerminalWorkerConnection {
   readonly workerPid: number;
+  readonly protocolVersion: number;
   private readonly framed: FramedSocket;
   private closed = false;
 
-  constructor(framed: FramedSocket, workerPid: number) {
+  constructor(framed: FramedSocket, workerPid: number, protocolVersion: number) {
     super();
     this.framed = framed;
     this.workerPid = workerPid;
+    this.protocolVersion = protocolVersion;
     framed.socket.once("close", () => {
       this.closed = true;
       this.emit("close");
@@ -49,7 +53,12 @@ class SocketTerminalWorkerConnection extends EventEmitter implements TerminalWor
   }
 
   send(message: TerminalWorkerRequest, callback: (error: Error | null) => void): boolean {
-    return this.framed.send(message, callback);
+    try {
+      return this.framed.send(adaptTerminalWorkerRequest(message, this.protocolVersion), callback);
+    } catch (error) {
+      callback(error instanceof Error ? error : new Error(String(error)));
+      return false;
+    }
   }
 
   disconnect(): void {
@@ -66,7 +75,8 @@ function isHelloAck(message: unknown): message is TerminalWorkerHelloAck {
     typeof message === "object" &&
     message !== null &&
     (message as { type?: unknown }).type === "helloAck" &&
-    typeof (message as { pid?: unknown }).pid === "number"
+    typeof (message as { pid?: unknown }).pid === "number" &&
+    Number.isSafeInteger((message as { protocolVersion?: unknown }).protocolVersion)
   );
 }
 
@@ -78,6 +88,8 @@ export function connectTerminalWorker(input: {
   socketPath: string;
   secret: string;
   timeoutMs?: number;
+  // Records can retain unreadable/newer version strings. Compare without coercion.
+  expectedProtocolVersion?: number | string;
 }): Promise<TerminalWorkerConnection> {
   const timeoutMs = input.timeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
   return new Promise((resolve, reject) => {
@@ -107,9 +119,16 @@ export function connectTerminalWorker(input: {
         fail(new TerminalWorkerConnectError("Terminal worker sent an unexpected first frame"));
         return;
       }
+      if (
+        input.expectedProtocolVersion !== undefined &&
+        message.protocolVersion !== input.expectedProtocolVersion
+      ) {
+        fail(new TerminalWorkerConnectError("Terminal worker protocol does not match its record"));
+        return;
+      }
       settled = true;
       clearTimeout(timer);
-      connection = new SocketTerminalWorkerConnection(framed, message.pid);
+      connection = new SocketTerminalWorkerConnection(framed, message.pid, message.protocolVersion);
       resolve(connection);
     });
     // `on`, not `once`: an error after authentication must not go unhandled. `close`

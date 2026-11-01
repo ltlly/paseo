@@ -3134,6 +3134,24 @@ const TerminalClientMessageSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
+export const MAX_TERMINAL_RAW_INPUT_BYTES = 64 * 1024;
+export const WriteTerminalRawInputRequestSchema = z.object({
+  type: z.literal("terminal.input.write_raw.request"),
+  terminalId: z.string(),
+  dataBase64: z.string().max(Math.ceil(MAX_TERMINAL_RAW_INPUT_BYTES / 3) * 4),
+  requestId: z.string(),
+});
+
+export const WriteTerminalRawInputResponseSchema = z.object({
+  type: z.literal("terminal.input.write_raw.response"),
+  payload: z.object({
+    terminalId: z.string(),
+    requestId: z.string(),
+    success: z.boolean(),
+    error: z.string().nullable(),
+  }),
+});
+
 export const TerminalInputSchema = z.object({
   type: z.literal("terminal_input"),
   terminalId: z.string(),
@@ -3476,6 +3494,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   SubscribeTerminalRequestSchema,
   UnsubscribeTerminalRequestSchema,
   TerminalInputSchema,
+  WriteTerminalRawInputRequestSchema,
   KillTerminalRequestSchema,
   CaptureTerminalRequestSchema,
   ChatCreateRequestSchema,
@@ -3759,6 +3778,8 @@ export const ServerInfoStatusPayloadSchema = z
         resumeOnStartupSetting: z.boolean().optional(),
         // COMPAT(terminalRestoreModes): added in v0.1.81, remove gate after 2026-11-23.
         "terminal-restore-modes": z.boolean().optional(),
+        // Negotiation API support only; each terminal owner reports rawByteInput on subscribe.
+        terminalRawInput: z.boolean().optional(),
         // COMPAT(terminalInputModeReplay): added in v0.2.6, remove gate after 2027-02-02.
         "terminal-input-mode-replay": z.boolean().optional(),
         // COMPAT(terminalSizeOwnership): added in v0.2.6, remove gate after 2027-02-02.
@@ -6633,6 +6654,7 @@ export const SubscribeTerminalResponseSchema = z.object({
     z.object({
       terminalId: z.string(),
       slot: z.number().int().min(0).max(255),
+      rawByteInput: z.boolean().optional(),
       subscriptionId: z.string().optional(),
       error: z.null(),
       requestId: z.string(),
@@ -7230,6 +7252,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   CreateTerminalResponseSchema,
   RenameTerminalResponseSchema,
   SubscribeTerminalResponseSchema,
+  WriteTerminalRawInputResponseSchema,
   KillTerminalResponseSchema,
   CaptureTerminalResponseSchema,
   TerminalStreamExitSchema,
@@ -7838,3 +7861,6 @@ export function parseServerInfoStatusPayload(payload: unknown): ServerInfoStatus
   }
   return parsed.data;
 }
+
+export type WriteTerminalRawInputRequest = z.infer<typeof WriteTerminalRawInputRequestSchema>;
+export type WriteTerminalRawInputResponse = z.infer<typeof WriteTerminalRawInputResponseSchema>;

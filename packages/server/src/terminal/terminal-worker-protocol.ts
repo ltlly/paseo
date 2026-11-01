@@ -43,7 +43,7 @@ export interface WorkerCreateTerminalOptions {
 // `shutdown`. A daemon drives a worker of its own version, drains one a version older (no new
 // terminals; it exits after its last terminal), shuts down anything older, and leaves a newer
 // worker running untouched. See docs/terminal-worker.md.
-export const TERMINAL_WORKER_PROTOCOL_VERSION = 5;
+export const TERMINAL_WORKER_PROTOCOL_VERSION = 6;
 
 // Test-only: the protocol version a worker reports, so tests can stand up older and newer
 // workers from one build.
@@ -88,7 +88,7 @@ export interface WorkerKillAndWaitOptions {
   forceTimeoutMs?: number;
 }
 
-export type TerminalWorkerRequest =
+export type TerminalWorkerRequestV5 =
   | {
       type: "createTerminal";
       requestId: string;
@@ -151,6 +151,34 @@ export type TerminalWorkerRequest =
       terminalId: string;
       message: ClientMessage;
     };
+
+// COMPAT(terminalWorkerV5): added in v0.14.0, remove after 2027-05-01 once worker floor >= 6.
+// V5 keeps its string-only send lane. Never send this new request to a draining V5 worker.
+export type TerminalWorkerRequest =
+  | TerminalWorkerRequestV5
+  | {
+      type: "writeRawInput";
+      requestId: string;
+      terminalId: string;
+      data: Buffer;
+    };
+
+export function supportsTerminalRawInput(
+  protocolVersion: number,
+  platform: NodeJS.Platform,
+): boolean {
+  return protocolVersion === 6 && (platform === "linux" || platform === "darwin");
+}
+
+export function adaptTerminalWorkerRequest(
+  request: TerminalWorkerRequest,
+  protocolVersion: number,
+): TerminalWorkerRequest {
+  if (request.type === "writeRawInput" && protocolVersion !== 6) {
+    throw new Error("Terminal worker does not support raw-byte input");
+  }
+  return request;
+}
 
 export type TerminalWorkerResponse =
   | {

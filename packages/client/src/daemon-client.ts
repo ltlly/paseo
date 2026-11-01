@@ -1,3 +1,4 @@
+import { MAX_TERMINAL_RAW_INPUT_BYTES } from "@getpaseo/protocol/messages";
 import {
   ChunkedTransport,
   ChunkedTransportProtocolError,
@@ -6552,6 +6553,34 @@ export class DaemonClient {
   > {
     const subscription = this.observeTerminal(terminalId, () => {}, options);
     return { ...(await subscription.ready), subscription };
+  }
+
+  /** Writes bytes without UTF8 decoding. Unsupported terminal owners reject explicitly.
+   * Acceptance means queued to the PTY, not program receipt. Requests are never retried.
+   */
+  async writeTerminalRawInput(
+    terminalId: string,
+    data: Uint8Array,
+    requestId?: string,
+  ): Promise<void> {
+    this.ensureConnected();
+    if (this.lastServerInfoMessage?.features?.terminalRawInput !== true) {
+      throw new Error("Update the host to use raw-byte terminal input");
+    }
+    if (data.byteLength > MAX_TERMINAL_RAW_INPUT_BYTES)
+      throw new Error("Raw terminal input exceeds 64 KiB");
+    let binary = "";
+    for (const byte of data) binary += String.fromCharCode(byte);
+    const response = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: {
+        type: "terminal.input.write_raw.request",
+        terminalId,
+        dataBase64: globalThis.btoa(binary),
+      },
+      responseType: "terminal.input.write_raw.response",
+    });
+    if (!response.success) throw new Error(response.error ?? "Raw terminal input failed");
   }
 
   sendTerminalInput(terminalId: string, message: TerminalInput["message"]): void {

@@ -1,3 +1,6 @@
+import { gunzipSync } from "node:zlib";
+import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { TerminalInputModeTracker } from "@getpaseo/protocol/terminal-input-mode";
 import { encodeTerminalKeyInput } from "@getpaseo/protocol/terminal-key-input";
 import type { SubscribeTerminalRequest } from "@getpaseo/protocol/messages";
@@ -16,6 +19,7 @@ import { afterEach, expect, it } from "vitest";
 import { isPlatform } from "../test-utils/platform.js";
 import { EventEmitter } from "node:events";
 import {
+  cpSync,
   closeSync,
   existsSync,
   openSync,
@@ -63,12 +67,16 @@ import {
   terminalWorkerRecordPath,
   type TerminalWorkerRecord,
 } from "./terminal-worker-record.js";
-import { TERMINAL_WORKER_PROTOCOL_OVERRIDE_ENV } from "./terminal-worker-protocol.js";
+import {
+  TERMINAL_WORKER_PROTOCOL_VERSION,
+  TERMINAL_WORKER_PROTOCOL_OVERRIDE_ENV,
+} from "./terminal-worker-protocol.js";
 import {
   NoTerminalWorkerAvailableError,
   TerminalWorkerIncompatibleError,
 } from "./terminal-worker-pool.js";
 import { connectTerminalWorker } from "./terminal-worker-client.js";
+import { prepareTerminalWorkerRuntime } from "./terminal-worker-runtime.js";
 import { launchTerminalWorker } from "./terminal-worker-launch.js";
 
 type TerminalRow = TerminalState["grid"][number];
@@ -159,6 +167,7 @@ function createTerminalState(): WorkerTerminalState {
 class FakeTerminalWorker extends EventEmitter {
   connected = true;
   readonly workerPid = 1;
+  readonly protocolVersion = 6;
   readonly sentMessages: TerminalWorkerRequest[] = [];
 
   send(message: TerminalWorkerRequest, callback: (error: Error | null) => void): boolean {
@@ -631,6 +640,50 @@ it("captures terminal output from the worker authority", async () => {
 
   expect(capture.lines.join("\n")).toContain("hello world");
   expect(capture.totalLines).toBeGreaterThan(0);
+});
+
+it("raw input rejects while worker reconnects without submitting expired bytes later", async () => {
+  const worker = new FakeTerminalWorker();
+  const recovered = new FakeTerminalWorker();
+  let completeReconnect: (worker: FakeTerminalWorker) => void = () => {
+    throw new Error("Reconnect not started");
+  };
+  const reconnect = new Promise<FakeTerminalWorker>((resolve) => {
+    completeReconnect = resolve;
+  });
+  manager = createWorkerTerminalManager({
+    worker,
+    requestTimeoutMs: 100,
+    reconnect: () => reconnect,
+  });
+  worker.emitWorkerMessage({
+    type: "terminalCreated",
+    terminal: {
+      id: "terminal-raw",
+      name: "Terminal",
+      cwd: "/tmp",
+      workspaceId: "ws-test",
+      activity: null,
+    },
+    state: createTerminalState(),
+  });
+  const session = manager.getTerminal("terminal-raw")!;
+  worker.disconnect();
+  await expect(session.rawInput!.write(new Uint8Array([0x80]))).rejects.toThrow("not running");
+  expect(worker.sentMessages).toEqual([]);
+  completeReconnect(recovered);
+  await waitForCondition(
+    () => recovered.sentMessages.some((message) => message.type === "listTerminals"),
+    1000,
+  );
+  const list = recovered.sentMessages.find((message) => message.type === "listTerminals")!;
+  recovered.emitWorkerMessage({
+    type: "response",
+    requestId: list.requestId,
+    ok: true,
+    result: [],
+  });
+  expect(recovered.sentMessages.filter((message) => message.type === "writeRawInput")).toEqual([]);
 });
 
 it("does not surface fire-and-forget send timeouts as unhandled rejections", async () => {
@@ -1621,19 +1674,19 @@ it.each([1, 4])(
     expect(manager.getTerminal(old.terminalId)).toBeUndefined();
     const workers = await workerRecords(paseoHome);
     expect(workers).toHaveLength(1);
-    expect(workers[0]!.protocolVersion).toBe(5);
+    expect(workers[0]!.protocolVersion).toBe(TERMINAL_WORKER_PROTOCOL_VERSION);
   },
 );
 
 it("leaves a worker from a newer Paseo running, reports it incompatible, and closes it on a kill stop", async () => {
   const paseoHome = createTemporaryHome();
-  const newer = await leaveWorkerWithTerminal(paseoHome, 6);
+  const newer = await leaveWorkerWithTerminal(paseoHome, TERMINAL_WORKER_PROTOCOL_VERSION + 1);
 
   manager = await startRealWorkerManager({ paseoHome });
 
   const unavailable = manager.getUnavailableError?.();
   expect(unavailable).toBeInstanceOf(TerminalWorkerIncompatibleError);
-  expect(unavailable?.message).toContain("worker protocol 6");
+  expect(unavailable?.message).toContain(`worker protocol ${TERMINAL_WORKER_PROTOCOL_VERSION + 1}`);
   await expect(manager.getTerminals(newer.cwd)).rejects.toBeInstanceOf(
     TerminalWorkerIncompatibleError,
   );
@@ -2644,4 +2697,183 @@ it.each([false, true])(
     }
   },
   45000,
+);
+
+it.runIf(isPlatform("linux", "darwin"))(
+  "raw input preserves high-bit bytes and interleaved UTF8 through a real POSIX worker",
+  async () => {
+    manager = await startRealWorkerManager();
+    const ready = join(createTemporaryHome(), "raw-ready");
+    const expected = Buffer.concat([
+      Buffer.from("中文🙂"),
+      Buffer.from([27, 91, 77, 32, 128, 255, 0]),
+      Buffer.from("é\ufeff"),
+    ]);
+    const session = trackTerminal(
+      await manager.createTerminal({
+        cwd: tmpdir(),
+        workspaceId: "raw-input",
+        ...nodeTerminalCommand(
+          `process.stdin.setRawMode(true); let bytes = Buffer.alloc(0); process.stdin.on('data', data => { bytes = Buffer.concat([bytes, data]); if (bytes.length >= ${expected.length}) process.stdout.write('RAW-HEX:' + bytes.toString('hex') + '\\r\\n'); }); require('node:fs').writeFileSync(${JSON.stringify(ready)}, 'ready');`,
+        ),
+      }),
+    );
+    let output = "";
+    session.subscribe((message) => {
+      if (message.type === "output") output += message.data;
+    });
+    await waitForCondition(() => existsSync(ready), 10000);
+    expect(session.rawInput).not.toBeUndefined();
+    session.send({ type: "input", data: "中文🙂" });
+    await session.rawInput!.write(Buffer.from([27, 91, 77, 32, 128, 255, 0]));
+    session.send({ type: "input", data: "é\ufeff" });
+    await waitForCondition(() => output.includes("RAW-HEX:" + expected.toString("hex")), 10000);
+  },
+);
+
+it.runIf(isPlatform("linux", "darwin"))(
+  "raw input drains a genuinely frozen v5 worker without interrupting UTF8 or its PTY",
+  async () => {
+    // Built before this change from 31c6570e54834ba8745329c6ee5fb9efc3864d7b,
+    // using build-terminal-worker.mjs and node-pty 1.2.0-beta.15. No version override.
+    const bundle = gunzipSync(
+      readFileSync(new URL("./testdata/terminal-worker-v5.mjs.gz", import.meta.url)),
+    );
+    expect(createHash("sha256").update(bundle).digest("hex")).toBe(
+      "44827b89635b4814346a8d43ecd6a37215d8949582232c2dc702985b8ad6ad99",
+    );
+    const home = createTemporaryHome();
+    const sources = createTemporaryHome();
+    writeFileSync(join(sources, "terminal-worker.mjs"), bundle);
+    cpSync(new URL("./shell-integration", import.meta.url), join(sources, "shell-integration"), {
+      recursive: true,
+    });
+    const require = createRequire(import.meta.url);
+    const nodePtyDirectory = join(require.resolve("node-pty/package.json"), "..");
+    const entry = prepareTerminalWorkerRuntime({
+      paseoHome: home,
+      paseoVersion: "0.0.0-frozen-v5",
+      bundleDirectory: sources,
+      nodePtyDirectory,
+    });
+    const launched = await launchTerminalWorker({
+      paseoHome: home,
+      paseoVersion: "0.0.0-frozen-v5",
+      entry,
+    });
+    expect(launched.record.protocolVersion).toBe(5);
+    const connection = await connectTerminalWorker({
+      socketPath: launched.record.socketPath,
+      secret: launched.record.secret,
+    });
+    const old = createWorkerTerminalManager({ worker: connection });
+    const receipt = join(sources, "receipt");
+    const ready = join(sources, "ready");
+    const terminal = await old.createTerminal({
+      cwd: tmpdir(),
+      workspaceId: "frozen-v5",
+      ...nodeTerminalCommand(
+        `process.stdin.setRawMode(true); process.stdin.on('data', data => require('node:fs').appendFileSync(${JSON.stringify(receipt)}, data)); require('node:fs').writeFileSync(${JSON.stringify(ready)}, 'ready');`,
+      ),
+    });
+    await waitForCondition(() => existsSync(ready), 10000);
+    const initialRecord = await readTerminalWorkerRecord(launched.recordPath);
+    const rejected = await new Promise<Error | null>((resolve) => {
+      connection.send(
+        {
+          type: "writeRawInput",
+          requestId: "unsupported",
+          terminalId: terminal.id,
+          data: Buffer.from([128, 255]),
+        },
+        resolve,
+      );
+    });
+    expect(rejected?.message).toBe("Terminal worker does not support raw-byte input");
+    await old.detach({ afterPendingRequests: true });
+    manager = await startRealWorkerManager({ paseoHome: home });
+    const adopted = manager.getTerminal(terminal.id)!;
+    expect(adopted.rawInput).toBeUndefined();
+    const replies: SessionOutboundMessage[] = [];
+    const delivery = new SessionDelivery((_source, reply) => replies.push(reply));
+    const source = {};
+    delivery.attach(source, true);
+    const controller = new TerminalSessionController({
+      terminalManager: manager,
+      emit: (reply) => {
+        delivery.reply(reply);
+      },
+      hasBinaryChannel: () => true,
+      isPathWithinRoot: () => false,
+      sessionLogger: pino({ level: "silent" }),
+    });
+    const rawRequest = {
+      type: "terminal.input.write_raw.request" as const,
+      requestId: "v5-raw",
+      terminalId: terminal.id,
+      dataBase64: "gP8=",
+    };
+    await delivery.request(source, rawRequest, async () => {
+      await controller.dispatch(rawRequest, delivery);
+    });
+    expect(replies).toEqual([
+      {
+        type: "terminal.input.write_raw.response",
+        payload: {
+          terminalId: terminal.id,
+          requestId: "v5-raw",
+          success: false,
+          error: "Terminal does not support raw-byte input",
+        },
+      },
+    ]);
+    const current = trackTerminal(
+      await manager.createTerminal({
+        cwd: tmpdir(),
+        workspaceId: "current-v6",
+        ...nodeTerminalCommand("setInterval(() => {},1000)"),
+      }),
+    );
+    expect(current.rawInput).not.toBeUndefined();
+    for (const [id, rawByteInput] of [
+      [terminal.id, false],
+      [current.id, true],
+    ] as const) {
+      const request = {
+        type: "subscribe_terminal_request" as const,
+        terminalId: id,
+        requestId: id,
+        restore: { mode: "live" as const },
+      };
+      await delivery.request(source, request, async () => {
+        await controller.dispatch(request, delivery);
+      });
+      const reply = replies.find(
+        (message) =>
+          message.type === "subscribe_terminal_response" && message.payload.terminalId === id,
+      );
+      if (reply?.type !== "subscribe_terminal_response" || reply.payload.error !== null)
+        throw new Error("Missing owner support response");
+      expect(reply.payload.rawByteInput).toBe(rawByteInput);
+    }
+    await delivery.close();
+
+    const v5 = await readTerminalWorkerRecord(launched.recordPath);
+    expect(v5.pid).toBe(initialRecord.pid);
+    expect(v5.terminals).toEqual(initialRecord.terminals);
+    adopted.send({ type: "input", data: "中文🙂\ufeff" });
+    await waitForCondition(
+      () => existsSync(receipt) && readFileSync(receipt).equals(Buffer.from("中文🙂\ufeff")),
+      10000,
+    );
+    adopted.send({ type: "input", data: "续用" });
+    await waitForCondition(
+      () => readFileSync(receipt).equals(Buffer.from("中文🙂\ufeff续用")),
+      10000,
+    );
+    expect((await readTerminalWorkerRecord(launched.recordPath)).terminals).toEqual(
+      initialRecord.terminals,
+    );
+    expect(await readReplay(manager, terminal.id)).not.toBeNull();
+  },
 );

@@ -66,6 +66,8 @@ Explicit caller restore modes and history counts pass through unchanged. JSON sn
 wire declarations remain accepted, but JSON snapshot frames have no rendering runtime.
 Terminals require `terminal-restore-modes`; older hosts show an update message without attaching.
 
+Raw terminal input is separate from the established UTF-8 `Input` opcode. Discover the API through optional `terminalRawInput`; read optional `subscribe_terminal_response.rawByteInput` for the actual terminal owner's support. The ID-addressed `terminal.input.write_raw` RPC rejects unsupported owners and never falls back to text or retries ambiguous writes. Version-5 workers and ConPTY keep ordinary input working without gaining raw-byte support. Acceptance means queued to the PTY, not that the program read or drained it.
+
 ## Binary chunking
 
 `binary_chunking_v1` in hello and optional `server_info.features.binaryChunkingV1`

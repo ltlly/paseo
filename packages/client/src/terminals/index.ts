@@ -49,6 +49,8 @@ export interface PaseoTerminalHandle {
   refresh(options?: { requestId?: string }): Promise<PaseoTerminal | null>;
   /** Sends literal input and returns its UTF-16 length. Does not await command execution. */
   write(data: string): number;
+  /** Byte-preserving POSIX input; unsupported terminal owners reject. Does not await execution. */
+  writeRaw(data: Uint8Array, requestId?: string): Promise<void>;
   /** Expands CLI key tokens; other strings are literal. Returns the input's UTF-16 length. */
   sendKeys(keys: readonly string[]): number;
   capture(options?: PaseoTerminalCaptureOptions): Promise<PaseoTerminalCaptureResult>;
@@ -73,6 +75,7 @@ type TerminalClient = Pick<
   | "createTerminal"
   | "listTerminals"
   | "sendTerminalInput"
+  | "writeTerminalRawInput"
   | "captureTerminal"
   | "killTerminal"
 >;
@@ -117,6 +120,7 @@ export function createTerminalActions(
         return current;
       },
       write,
+      writeRaw: (data, requestId) => client().writeTerminalRawInput(id, data, requestId),
       sendKeys: (keys) => write(keys.map(resolveKeyToken).join("")),
       capture: (options = {}) => {
         const { requestId, ...captureOptions } = options;

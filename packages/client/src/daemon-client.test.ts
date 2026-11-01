@@ -8924,3 +8924,123 @@ test("routed channels inherit an origin without drain support", async () => {
   expect(route.supportsDrain).toBe(false);
   route.close();
 });
+
+test("raw input uses a gated ID RPC with byte-preserving base64 and surfaces rejection", async () => {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    clientId: "raw-test",
+    transportFactory: () => mock.transport,
+    logger: createMockLogger(),
+  });
+  const connecting = client.connect();
+  mock.triggerOpen({ features: { terminalRawInput: true, ownedSubscriptions: true } });
+  await connecting;
+  const pending = client.writeTerminalRawInput("term-raw", new Uint8Array([0, 128, 255]), "raw-1");
+  expect(parseSentFrame(mock.sent.at(-1))).toEqual({
+    type: "terminal.input.write_raw.request",
+    terminalId: "term-raw",
+    dataBase64: "AID/",
+    requestId: "raw-1",
+  });
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "terminal.input.write_raw.response",
+      payload: {
+        terminalId: "term-raw",
+        requestId: "raw-1",
+        success: false,
+        error: "Terminal does not support raw-byte input",
+      },
+    }),
+  );
+  await expect(pending).rejects.toThrow("Terminal does not support raw-byte input");
+  client.sendTerminalInput("term-raw", { type: "input", data: "中文🙂" });
+  expect(parseSentFrame(mock.sent.at(-1))).toEqual({
+    type: "terminal_input",
+    terminalId: "term-raw",
+    message: { type: "input", data: "中文🙂" },
+  });
+  client.close();
+});
+
+test("raw input on an old host rejects without sending while UTF8 remains available", async () => {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    clientId: "raw-old",
+    transportFactory: () => mock.transport,
+    logger: createMockLogger(),
+  });
+  const connecting = client.connect();
+  mock.triggerOpen();
+  await connecting;
+  const before = mock.sent.length;
+  await expect(client.writeTerminalRawInput("term", new Uint8Array([255]))).rejects.toThrow(
+    "Update the host",
+  );
+  expect(mock.sent.length).toBe(before);
+  client.sendTerminalInput("term", { type: "input", data: "中文🙂" });
+  expect(parseSentFrame(mock.sent.at(-1))).toEqual({
+    type: "terminal_input",
+    terminalId: "term",
+    message: { type: "input", data: "中文🙂" },
+  });
+  client.close();
+});
+
+test("raw input bounds uploads and owns subarray bytes without retrying failed acceptance", async () => {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    clientId: "raw-size",
+    transportFactory: () => mock.transport,
+    logger: createMockLogger(),
+  });
+  const connecting = client.connect();
+  mock.triggerOpen({ features: { terminalRawInput: true } });
+  await connecting;
+  const before = mock.sent.length;
+  await expect(client.writeTerminalRawInput("term", new Uint8Array(65537))).rejects.toThrow(
+    "exceeds 64 KiB",
+  );
+  expect(mock.sent.length).toBe(before);
+  const bytes = new Uint8Array([1, 128, 255, 2]);
+  const pending = client.writeTerminalRawInput("term", bytes.subarray(1, 3), "raw-size");
+  bytes.fill(0);
+  expect(parseSentFrame(mock.sent.at(-1))).toEqual({
+    type: "terminal.input.write_raw.request",
+    terminalId: "term",
+    dataBase64: "gP8=",
+    requestId: "raw-size",
+  });
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "terminal.input.write_raw.response",
+      payload: { terminalId: "term", requestId: "raw-size", success: true, error: null },
+    }),
+  );
+  await pending;
+  expect(mock.sent.length).toBe(before + 1);
+  client.close();
+});
+
+test("raw input disconnect rejects acceptance without resending after reconnect", async () => {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    clientId: "raw-disconnect",
+    transportFactory: () => mock.transport,
+    logger: createMockLogger(),
+    reconnect: { enabled: false },
+  });
+  const connecting = client.connect();
+  mock.triggerOpen({ features: { terminalRawInput: true } });
+  await connecting;
+  const pending = client.writeTerminalRawInput("term", new Uint8Array([128, 255]), "raw-lost");
+  const rejection = expect(pending).rejects.toThrow();
+  mock.triggerClose();
+  await rejection;
+  expect(
+    mock.sent.filter(
+      (frame) => typeof frame === "string" && frame.includes("terminal.input.write_raw.request"),
+    ),
+  ).toHaveLength(1);
+  client.close();
+});

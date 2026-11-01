@@ -51,6 +51,7 @@ import type {
 } from "./terminal-manager.js";
 import {
   classifyTerminalWorkerProtocol,
+  supportsTerminalRawInput,
   type TerminalWorkerProtocolFit,
 } from "./terminal-worker-protocol.js";
 import type {
@@ -279,6 +280,18 @@ export function createWorkerTerminalManager(
       },
       get workspaceId() {
         return record.info.workspaceId;
+      },
+      get rawInput() {
+        if (!supportsTerminalRawInput(worker.protocolVersion, process.platform)) return undefined;
+        return {
+          write: async (data: Uint8Array): Promise<void> => {
+            await sendRequest({
+              type: "writeRawInput",
+              terminalId: record.info.id,
+              data: Buffer.from(data),
+            });
+          },
+        };
       },
       send(message: ClientMessage): void {
         if (message.type === "resize") {
@@ -673,6 +686,11 @@ export function createWorkerTerminalManager(
     input: TerminalWorkerRequestInput,
     sink?: TerminalReplaySink,
   ): Promise<unknown> {
+    if (input.type === "writeRawInput" && (workerDisconnected || !worker.connected)) {
+      return Promise.reject(
+        new Error("Terminal worker is not running; raw input was not submitted"),
+      );
+    }
     if (reconnecting && workerDisconnected)
       return reconnecting.then(() => sendRequest(input, sink));
     if (workerDisconnected || !worker.connected) {
@@ -1132,6 +1150,10 @@ export async function startWorkerTerminalManager(
     record: TerminalWorkerRecord,
     connection: TerminalWorkerConnection,
   ): Promise<TerminalWorkerPoolMember> => {
+    if (connection.protocolVersion !== record.protocolVersion) {
+      connection.disconnect();
+      throw new Error("Terminal worker protocol does not match its record");
+    }
     let alive = true;
     let resolveExit!: () => void;
     const exited = new Promise<void>((resolve) => {
@@ -1164,6 +1186,7 @@ export async function startWorkerTerminalManager(
             return await connectTerminalWorker({
               socketPath: record.socketPath,
               secret: record.secret,
+              expectedProtocolVersion: record.protocolVersion,
               timeoutMs: 500,
             });
           } catch {
@@ -1217,6 +1240,7 @@ export async function startWorkerTerminalManager(
       connection = await connectTerminalWorker({
         socketPath: entry.record.socketPath,
         secret: entry.record.secret,
+        expectedProtocolVersion: entry.record.protocolVersion,
       });
     } catch (error) {
       logger.warn(
@@ -1256,6 +1280,7 @@ export async function startWorkerTerminalManager(
     const connection = await connectTerminalWorker({
       socketPath: launched.record.socketPath,
       secret: launched.record.secret,
+      expectedProtocolVersion: launched.record.protocolVersion,
     });
     logger.info(
       { pid: launched.record.pid, runtime: launched.record.runtime ?? null },

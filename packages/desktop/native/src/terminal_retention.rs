@@ -1,5 +1,41 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
+use anyhow::{Result, ensure};
+
+#[derive(Default)]
+pub struct PendingInput {
+    requests: BTreeSet<String>,
+}
+
+impl PendingInput {
+    pub fn admit(&self) -> Result<()> {
+        ensure!(
+            self.requests.len() < 64,
+            "Too many terminal input requests are awaiting acceptance."
+        );
+        Ok(())
+    }
+    pub fn insert(&mut self, id: String) {
+        self.requests.insert(id);
+    }
+    pub fn contains(&self, id: &str) -> bool {
+        self.requests.contains(id)
+    }
+    pub fn settle(&mut self, id: &str) -> bool {
+        self.requests.remove(id)
+    }
+    pub fn is_empty(&self) -> bool {
+        self.requests.is_empty()
+    }
+    pub fn prepare_detach(&self) -> Result<()> {
+        ensure!(
+            self.is_empty(),
+            "Waiting for terminal input acceptance before leaving this workspace."
+        );
+        Ok(())
+    }
+}
+
 pub struct TerminalCache<T> {
     capacity: usize,
     entries: BTreeMap<String, T>,
@@ -66,6 +102,27 @@ impl<T: Clone> TerminalCache<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn raw_input_acceptance_is_bounded_blocks_detach_and_never_retries_timeout() {
+        let mut pending = PendingInput::default();
+        for i in 0..64 {
+            pending.admit().unwrap();
+            pending.insert(i.to_string());
+        }
+        assert!(pending.admit().is_err());
+        assert!(pending.prepare_detach().is_err());
+        assert!(pending.contains("1"));
+        assert!(!pending.settle("unknown"));
+        assert!(pending.settle("1"));
+        assert!(!pending.settle("1"));
+        pending.admit().unwrap();
+        for i in 0..64 {
+            pending.settle(&i.to_string());
+        }
+        assert!(pending.is_empty());
+        pending.prepare_detach().unwrap();
+    }
+
     #[test]
     fn recent_tabs_reuse_state_and_evict_the_least_recent_view_at_the_limit() {
         let mut cache = TerminalCache::new(3);

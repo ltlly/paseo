@@ -14,6 +14,7 @@ import type {
   SubscribeTerminalRequest,
   SubscribeTerminalsRequest,
   TerminalInput,
+  WriteTerminalRawInputRequest,
   UnsubscribeTerminalRequest,
   UnsubscribeTerminalsRequest,
 } from "../server/messages.js";
@@ -40,6 +41,8 @@ import { applyTerminalSize } from "./terminal-size-ownership.js";
 import { TerminalWorkerIncompatibleError } from "./terminal-worker-pool.js";
 import type { TerminalActivity } from "@getpaseo/protocol/terminal-activity";
 import { terminalSubscriptionKey } from "@getpaseo/protocol/terminal-subscription-key";
+
+import { MAX_TERMINAL_RAW_INPUT_BYTES } from "@getpaseo/protocol/messages";
 
 const MAX_TERMINAL_STREAM_SLOTS = 256;
 
@@ -116,6 +119,7 @@ type TerminalDispatchableMessage =
   | CreateTerminalRequest
   | SubscribeTerminalRequest
   | UnsubscribeTerminalRequest
+  | WriteTerminalRawInputRequest
   | TerminalInput
   | KillTerminalRequest
   | CaptureTerminalRequest
@@ -129,6 +133,7 @@ const TERMINAL_MESSAGE_TYPES: ReadonlySet<TerminalDispatchableMessage["type"]> =
   "subscribe_terminal_request",
   "unsubscribe_terminal_request",
   "terminal_input",
+  "terminal.input.write_raw.request",
   "kill_terminal_request",
   "capture_terminal_request",
   "terminal.rename.request",
@@ -215,6 +220,9 @@ export class TerminalSessionController {
         return this.handleSubscribeTerminalRequest(msg, ownership);
       case "unsubscribe_terminal_request":
         return ownership.releaseLegacySlot(`terminal-output:${msg.terminalId}`);
+      case "terminal.input.write_raw.request":
+        if (!ownership.currentSource) throw new Error("Terminal input requires a source");
+        return this.handleRawTerminalInput(msg);
       case "terminal_input":
         if (!ownership.currentSource) throw new Error("Terminal input requires a source");
         this.handleTerminalInput(msg, ownership.currentSource);
@@ -768,6 +776,7 @@ export class TerminalSessionController {
         terminalId: msg.terminalId,
         slot,
         subscriptionId: owner.responseId,
+        rawByteInput: session.rawInput !== undefined,
         error: null,
         requestId: msg.requestId,
       },
@@ -775,6 +784,36 @@ export class TerminalSessionController {
 
     stream = this.activeStreams.get(slot);
     if (stream) void this.trySendSnapshot(stream);
+  }
+
+  private async handleRawTerminalInput(msg: WriteTerminalRawInputRequest): Promise<void> {
+    let error: string | null = null;
+    try {
+      const session = this.terminalManager?.getTerminal(msg.terminalId);
+      if (!session) throw new Error("Terminal not found");
+      const rawInput = session.rawInput;
+      if (!rawInput) throw new Error("Terminal does not support raw-byte input");
+      const bytes = Buffer.from(msg.dataBase64, "base64");
+      if (
+        bytes.byteLength > MAX_TERMINAL_RAW_INPUT_BYTES ||
+        bytes.toString("base64") !== msg.dataBase64
+      ) {
+        throw new Error("Invalid raw terminal input: expected canonical base64 of at most 64 KiB");
+      }
+      // Enqueue synchronously before awaiting acceptance, preserving order with subsequent UTF8 input.
+      await rawInput.write(bytes);
+    } catch (cause) {
+      error = cause instanceof Error ? cause.message : String(cause);
+    }
+    this.emit({
+      type: "terminal.input.write_raw.response",
+      payload: {
+        terminalId: msg.terminalId,
+        requestId: msg.requestId,
+        success: error === null,
+        error,
+      },
+    });
   }
 
   private handleTerminalInput(msg: TerminalInput, source: object): void {

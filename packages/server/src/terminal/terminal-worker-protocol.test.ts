@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { classifyTerminalWorkerProtocol } from "./terminal-worker-protocol.js";
+import {
+  classifyTerminalWorkerProtocol,
+  supportsTerminalRawInput,
+  adaptTerminalWorkerRequest,
+  TERMINAL_WORKER_PROTOCOL_VERSION,
+} from "./terminal-worker-protocol.js";
 
 describe("classifyTerminalWorkerProtocol", () => {
   it("rejects the unreleased cell protocol without a draining adapter", () => {
@@ -21,5 +26,37 @@ describe("classifyTerminalWorkerProtocol", () => {
     [undefined, "newer"],
   ])("a worker reporting %s to a daemon at 6 is %s", (reported, fit) => {
     expect(classifyTerminalWorkerProtocol(reported, 6)).toBe(fit);
+  });
+});
+
+describe("raw input worker compatibility", () => {
+  it("advertises raw bytes only for POSIX owners of the new protocol", () => {
+    expect(TERMINAL_WORKER_PROTOCOL_VERSION).toBe(6);
+    expect(supportsTerminalRawInput(6, "linux")).toBe(true);
+    expect(supportsTerminalRawInput(6, "darwin")).toBe(true);
+    expect(supportsTerminalRawInput(6, "win32")).toBe(false);
+    expect(supportsTerminalRawInput(5, "linux")).toBe(false);
+    expect(supportsTerminalRawInput(7, "linux")).toBe(false);
+  });
+  it("keeps v5 string send and frozen envelopes intact, refusing new raw requests", () => {
+    const send = {
+      type: "send" as const,
+      requestId: "input",
+      terminalId: "term",
+      message: { type: "input" as const, data: "中文🙂" },
+    };
+    expect(adaptTerminalWorkerRequest(send, 5)).toBe(send);
+    const list = { type: "listTerminals" as const, requestId: "list" };
+    expect(adaptTerminalWorkerRequest(list, 5)).toBe(list);
+    const shutdown = { type: "shutdown" as const, requestId: "stop" };
+    expect(adaptTerminalWorkerRequest(shutdown, 5)).toBe(shutdown);
+    const raw = {
+      type: "writeRawInput" as const,
+      requestId: "raw",
+      terminalId: "term",
+      data: Buffer.from([128, 255]),
+    };
+    expect(() => adaptTerminalWorkerRequest(raw, 5)).toThrow("does not support raw-byte input");
+    expect(adaptTerminalWorkerRequest(raw, 6)).toBe(raw);
   });
 });

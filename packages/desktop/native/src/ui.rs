@@ -164,6 +164,23 @@ impl Paseo {
     }
 
     fn apply_session(&mut self, kind: &str, payload: Value, cx: &mut Context<Self>) -> Result<()> {
+        if kind == "terminal.input.write_raw.response" || kind == "rpc_error" {
+            if let Some(terminal) = self
+                .terminals
+                .values()
+                .find(|terminal| terminal.read(cx).owns_raw_request(&payload))
+                .cloned()
+            {
+                terminal.update(cx, |view, cx| view.receive_raw(&payload, cx));
+                return Ok(());
+            }
+        }
+        if kind == "rpc_error"
+            && payload["requestType"].as_str() == Some("terminal.input.write_raw.request")
+        {
+            // Late input failures must not appear in another workspace after expiry/eviction.
+            return Ok(());
+        }
         if kind == "rpc_error" {
             if let Some(terminal) = self
                 .terminals
@@ -315,6 +332,7 @@ impl Paseo {
                 return;
             }
         }
+        self.error = None;
         self.clear_conversation(cx);
         self.hide_terminal(cx);
         self.terminals.clear();
