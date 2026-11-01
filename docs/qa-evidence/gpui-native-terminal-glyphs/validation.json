@@ -1,0 +1,113 @@
+{
+  "date": "2026-11-01",
+  "baseCommit": "f806eecdbd273096ee5ab016032bfb95e6f11514",
+  "sourceArchiveSha256": "1f50030cada19eb9c156918a872391f9ba67e7a883ed25244268997f485e3eb7",
+  "scope": "Native terminal glyph preparation only. No daemon, worker, wire, app/Android or installed-client changes; production6767 untouched.",
+  "changes": [
+    "Cache complete shaped cells by full text, effective foreground and font attributes. Grid placement, background/selection drawing, cursor, IME composition and source terminal buffer are unchanged.",
+    "Bound cache entry count and text bytes; oversize combining sequences bypass cache without truncation. Clear cached shapes when the retained terminal is hidden or font/size context changes.",
+    "hashbrown uses the already-locked 0.16.1 dependency only in the desktop feature."
+  ],
+  "checks": {
+    "Linux": "Native build/check and actual X11/GPUI window with isolated daemon and real PTYs.",
+    "macOS": "runtime-shaders cargo check of exact source archive; no GUI evidence in this checkpoint.",
+    "Windows": "MSVC cargo check of exact source archive; no GUI evidence in this checkpoint.",
+    "format": "passed",
+    "lint": "passed",
+    "typecheck": "passed",
+    "unchangedCoreSuites": "Not rerun: no model, wire, parser, mouse or keyboard changes. Their prior focused results remain in the preceding checkpoints.",
+    "realFontHarness": "Actual bundled JetBrains Mono faces and GPUI WindowTextSystem, not a mock shaper. Full debug representations of shaped lines match the original path for visible corpus cells, churn, long combining sequences and selected cells. Font-size invalidation and explicit release also pass."
+  },
+  "visualEvidence": {
+    "viewport": [1280, 800],
+    "scale": 1,
+    "masks": null,
+    "comparison": "Same isolated daemon/PTYS, before executable built at baseCommit and final-source executable; Xvfb/Openbox/lavapipe.",
+    "states": "ASCII, Unicode/combining/fallback, color/font attributes, erase, cursor, scrolled history, selected attributes, retained selected pane after hide/reveal, cleared selection after OS key input.",
+    "result": "9 whole-window captures: zero changed pixels. See pixels.json. Representative pairs are included.",
+    "clipboard": "Real OS clipboard reads Bold | Italic | Both | Underline before and after.",
+    "wholeElectronParity": "NOT_PASSED; these are regressions against the existing native implementation, which retains the documented original-renderer gaps."
+  },
+  "preparationBenchmark": {
+    "command": "CARGO_TARGET_DIR=/home/ltlly/Code/paseo/target CARGO_BUILD_JOBS=2 cargo build --locked --offline --manifest-path /home/ltlly/.cache/paseo-native-qa/glyph-bench/Cargo.toml; then run target/debug/paseo-glyph-bench on isolated DISPLAY=:94. The source and manifest are copied alongside this file.",
+    "profile": "paseo-glyph-bench and GPUI opt-level=2, with other existing dev-profile dependencies. This is not a whole-application release build.",
+    "method": "Prepopulate real TerminalBuffer and GPUI font layouts, compare original/cached shaped results, then count allocations/reallocations around 100 traversals of the same borrowed grid. Run both preparation paths against the same WindowTextSystem. Pixel paint/GPU/transport cost is outside this measurement.",
+    "measurements": [
+      {
+        "workload": "ascii",
+        "cached": false,
+        "nanosecondsPerTraversal": 1656641,
+        "allocationsPerTraversal": 4509,
+        "allocatedBytesPerTraversal": 180360
+      },
+      {
+        "workload": "ascii",
+        "cached": true,
+        "nanosecondsPerTraversal": 737392,
+        "allocationsPerTraversal": 0,
+        "allocatedBytesPerTraversal": 0
+      },
+      {
+        "workload": "unicode",
+        "cached": false,
+        "nanosecondsPerTraversal": 1332602,
+        "allocationsPerTraversal": 4137,
+        "allocatedBytesPerTraversal": 141416
+      },
+      {
+        "workload": "unicode",
+        "cached": true,
+        "nanosecondsPerTraversal": 659538,
+        "allocationsPerTraversal": 752,
+        "allocatedBytesPerTraversal": 6016
+      },
+      {
+        "workload": "styles",
+        "cached": false,
+        "nanosecondsPerTraversal": 1122378,
+        "allocationsPerTraversal": 3034,
+        "allocatedBytesPerTraversal": 110576
+      },
+      {
+        "workload": "styles",
+        "cached": true,
+        "nanosecondsPerTraversal": 595397,
+        "allocationsPerTraversal": 337,
+        "allocatedBytesPerTraversal": 2696
+      }
+    ],
+    "allocationScope": "Cumulative requested bytes, not live memory or process RSS. Unicode and style cases retain temporary text allocations for combining-cell key materialization.",
+    "debug": "The unoptimized cache implementation is roughly equal in this stage, with a small Unicode slowdown in the recorded sample. Do not infer a debug-build speedup.",
+    "budgetAndRelease": {
+      "maximumEntries": 256,
+      "maximumCachedTextBytes": 16384,
+      "maximumIndividualGlyphTextBytes": 512,
+      "shapedLineBytesOnThisBuild": 2984,
+      "fullCacheExplicitReleaseRequestedBytes": 763904,
+      "textBudgetChurnFinal": [40, 16120],
+      "scope": "Bounds cache residency, not total terminal memory. GPUI glyph/layout/atlas ownership is separate."
+    }
+  },
+  "adjacentRuntimeSamples": {
+    "method": "Same isolated visible terminal, 16ms updates to first row over populated ASCII grid, 2s warmup and about 5s process sampling, fresh client per source. Final pair taken without active builds or benchmark processes. Native debug executable, lavapipe software rendering.",
+    "before": {
+      "cpuPercentOneCore": 249.6440472502829,
+      "rssKiBMin": 245272,
+      "rssKiBMax": 245296
+    },
+    "after": {
+      "cpuPercentOneCore": 245.84369230583695,
+      "rssKiBMin": 244504,
+      "rssKiBMax": 245628
+    },
+    "conclusion": "No established meaningful overall CPU or RSS improvement. One adjacent pair and software rendering are insufficient for overall acceptance. Earlier exploratory samples had build/benchmark overlap and are excluded."
+  },
+  "limitations": [
+    "Full GPUI migration, original Electron UI pixel parity and full terminal fidelity remain incomplete.",
+    "Cross-cell shaping, grapheme/fallback fidelity and explicit trailing-space copy gaps remain unchanged.",
+    "This checkpoint does not validate hardware GPU latency, overall memory savings, real Pi/Grok workloads or Mac/Windows native interaction.",
+    "The font database is loaded before any native window in the current application; appearance and dynamic font loading remain migration work.",
+    "Raw-byte input, shared replay-mode edge cases, reconnect, full IME/keyboard, word/line/autoscroll/context menus, images and remaining transports/splits remain required."
+  ],
+  "cleanup": "Verified five live fixture PTYs after closing native clients, then stopped the owning private fixture. Confirmed its worker/PTYS gone; stopped only matching private WM/Xvfb PIDs and removed private home. Completed benchmark processes were cleaned; the final harness exits normally using an asynchronous event-loop quit. Production daemon, real sessions and installed apps untouched."
+}

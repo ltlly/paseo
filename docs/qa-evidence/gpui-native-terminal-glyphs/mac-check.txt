@@ -1,0 +1,11 @@
+Verified source archive 1f50030cada19eb9c156918a872391f9ba67e7a883ed25244268997f485e3eb7
+    Checking allocator-api2 v0.2.21
+    Checking hashbrown v0.16.1
+    Checking accesskit_consumer v0.38.0
+    Checking accesskit_macos v0.26.3
+    Checking gpui_macos v0.1.0 (https://github.com/zed-industries/zed?rev=c4273271092b0287f7d181f616bd5171e0a2f70c#c4273271)
+    Checking gpui_platform v0.1.0 (https://github.com/zed-industries/zed?rev=c4273271092b0287f7d181f616bd5171e0a2f70c#c4273271)
+    Checking paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-check-terminal-glyphs/packages/desktop/native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.28s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`

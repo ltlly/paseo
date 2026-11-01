@@ -1,0 +1,19 @@
+[package]
+name = "paseo-glyph-bench"
+version = "0.0.0"
+edition = "2024"
+[dependencies]
+paseo-desktop = { path = "/home/ltlly/Code/paseo/packages/desktop/native", default-features = false }
+gpui = { git = "https://github.com/zed-industries/zed", rev = "c4273271092b0287f7d181f616bd5171e0a2f70c", default-features = false }
+gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "c4273271092b0287f7d181f616bd5171e0a2f70c", features = [
+  "font-kit",
+  "wayland",
+  "x11",
+] }
+hashbrown = "0.16"
+[profile.dev]
+debug = 1
+[profile.dev.package.gpui]
+opt-level = 2
+[profile.dev.package.paseo-glyph-bench]
+opt-level = 2

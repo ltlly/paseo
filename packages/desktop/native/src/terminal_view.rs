@@ -1,3 +1,5 @@
+mod glyphs;
+
 use std::{ops::Range, sync::Arc, time::Instant};
 
 use alacritty_terminal::term::TermMode;
@@ -44,6 +46,7 @@ pub struct TerminalView {
     mouse_buttons: u8,
     mouse_reporter: MouseReporter,
     mouse_error: bool,
+    glyphs: glyphs::Glyphs,
 }
 
 impl TerminalView {
@@ -78,6 +81,7 @@ impl TerminalView {
             mouse_buttons: 0,
             mouse_reporter: MouseReporter::default(),
             mouse_error: false,
+            glyphs: glyphs::Glyphs::default(),
         }
     }
 
@@ -110,6 +114,7 @@ impl TerminalView {
             if !visible {
                 self.selecting = false;
                 self.mouse_buttons = 0;
+                self.glyphs.clear();
             }
             if visible {
                 cx.notify();
@@ -667,6 +672,7 @@ impl Render for TerminalView {
                             }
                         });
                         paint_view.update(cx, |view, cx| {
+                            view.glyphs.prepare(base_font.clone(), px(FONT_SIZE));
                             let screen = view.buffer.screen();
                             window.with_content_mask(
                                 Some(gpui::ContentMask { bounds }),
@@ -704,49 +710,10 @@ impl Render for TerminalView {
                                         if cell.character == ' ' && cell.zerowidth.is_empty() {
                                             continue;
                                         }
-                                        let font = match (cell.bold, cell.italic) {
-                                            (true, true) => base_font.clone().bold().italic(),
-                                            (true, false) => base_font.clone().bold(),
-                                            (false, true) => base_font.clone().italic(),
-                                            _ => base_font.clone(),
-                                        };
-                                        let text: gpui::SharedString = if cell.zerowidth.is_empty()
-                                        {
-                                            cell.character.into()
-                                        } else {
-                                            cell.chars().collect::<String>().into()
-                                        };
-                                        let run = TextRun {
-                                            len: text.len(),
-                                            font,
-                                            color: rgb(if cell.selected {
-                                                crate::theme::terminal_selection::FOREGROUND
-                                            } else {
-                                                cell.foreground
-                                            })
-                                            .into(),
-                                            background_color: None,
-                                            underline: cell
-                                                .underline
-                                                .then_some(gpui::UnderlineStyle {
-                                                thickness: px(1.),
-                                                color: Some(
-                                                    rgb(if cell.selected {
-                                                        crate::theme::terminal_selection::FOREGROUND
-                                                    } else {
-                                                        cell.foreground
-                                                    })
-                                                    .into(),
-                                                ),
-                                                wavy: false,
-                                            }),
-                                            strikethrough: None,
-                                        };
-                                        let line = window.text_system().shape_line(
-                                            text,
-                                            px(FONT_SIZE),
-                                            &[run],
-                                            None,
+                                        let line = view.glyphs.line(
+                                            &cell,
+                                            window.text_system(),
+                                            crate::theme::terminal_selection::FOREGROUND,
                                         );
                                         let _ = line.paint(
                                             origin,

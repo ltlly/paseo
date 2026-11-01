@@ -3640,6 +3640,7 @@ dependencies = [
  "futures-util",
  "gpui",
  "gpui_platform",
+ "hashbrown 0.16.1",
  "image",
  "memchr",
  "raw-window-handle",

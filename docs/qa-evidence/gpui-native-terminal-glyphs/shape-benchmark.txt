@@ -1,0 +1,9 @@
+name=ascii cached=false iterations=100 nsPerTraversal=1656641 allocsPerTraversal=4509 allocatedBytesPerTraversal=180360 cache=(36, 36) checksum=450900
+name=ascii cached=true iterations=100 nsPerTraversal=737392 allocsPerTraversal=0 allocatedBytesPerTraversal=0 cache=(36, 36) checksum=450900
+name=unicode cached=false iterations=100 nsPerTraversal=1332602 allocsPerTraversal=4137 allocatedBytesPerTraversal=141416 cache=(18, 56) checksum=1052900
+name=unicode cached=true iterations=100 nsPerTraversal=659538 allocsPerTraversal=752 allocatedBytesPerTraversal=6016 cache=(18, 56) checksum=1052900
+name=styles cached=false iterations=100 nsPerTraversal=1122378 allocsPerTraversal=3034 allocatedBytesPerTraversal=110576 cache=(8, 14) checksum=471900
+name=styles cached=true iterations=100 nsPerTraversal=595397 allocsPerTraversal=337 allocatedBytesPerTraversal=2696 cache=(8, 14) checksum=471900
+Cleared entries=256, freed requested allocation bytes=763904
+Text-byte budget bounded while shaping full combining sequences: (40, 16120)
+Eviction churn, complete long combining sequence and explicit release passed; ShapedLineBytes=2984

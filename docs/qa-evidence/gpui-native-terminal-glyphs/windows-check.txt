@@ -1,0 +1,9 @@
+Verified source archive 1f50030cada19eb9c156918a872391f9ba67e7a883ed25244268997f485e3eb7
+    Checking allocator-api2 v0.2.21
+    Checking hashbrown v0.16.1
+    Checking accesskit_consumer v0.38.0
+    Checking accesskit_windows v0.34.0
+    Checking gpui_windows v0.1.0 (https://github.com/zed-industries/zed?rev=c4273271092b0287f7d181f616bd5171e0a2f70c#c4273271)
+    Checking gpui_platform v0.1.0 (https://github.com/zed-industries/zed?rev=c4273271092b0287f7d181f616bd5171e0a2f70c#c4273271)
+    Checking paseo-desktop v0.14.0 (C:\Users\Administrator\.cache\paseo-gpui-check-terminal-glyphs\packages\desktop\native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.34s

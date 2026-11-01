@@ -9,7 +9,7 @@ default-run = "paseo-desktop"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:gpui", "dep:gpui_platform", "dep:raw-window-handle", "dep:x11rb"]
+desktop = ["dep:gpui", "dep:gpui_platform", "dep:hashbrown", "dep:raw-window-handle", "dep:x11rb"]
 runtime-shaders = ["gpui_platform/runtime_shaders"]
 
 [dependencies]
@@ -31,6 +31,7 @@ uuid = { version = "1.18", features = ["v4"] }
 unicode-segmentation = "1.13"
 unicode-linebreak = "0.1.5"
 memchr = "2.8"
+hashbrown = { version = "0.16", optional = true }
 base64 = "0.22.1"
 chrono = { version = "0.4.45", default-features = false, features = ["std"] }
 image = { version = "=0.25.10", default-features = false, features = [
