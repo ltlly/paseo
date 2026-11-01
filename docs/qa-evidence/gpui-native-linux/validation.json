@@ -1,0 +1,23 @@
+{
+  "revision": "2ba2994ab+bundled-fonts",
+  "source": "native OS input on isolated Xvfb, WGPU/lavapipe",
+  "lines": ["Paseo native GPUI QA", "keys=\"nativeagain\" wheels=9", "中文 é 😀", "row 0"],
+  "typed": "nativeagain",
+  "wheelReports": 9,
+  "originalTerminalPreservedAfterClientClose": true,
+  "scope": "Linux real GPUI application on isolated Xvfb with software rendering; no hardware performance or cross-platform parity claim",
+  "sourceBase": "2ba2994ab",
+  "sourceSha256": {
+    "packages/desktop/native/src/main.rs": "488ef604ff26fed2116828f3dc7711b105716e12363e14de796d3c96e258f274",
+    "packages/desktop/native/src/fonts.rs": "ab92acf8fd47173624bc948e54a5808a9abd6c91c404975a04f831e19025756d",
+    "packages/desktop/native/src/terminal_view.rs": "1461c99efa4042b993aa5e2157d9743412915ee8b6145cdb341582b71e6e30ab"
+  },
+  "notVerified": [
+    "physical GPU behavior",
+    "OS IME composition",
+    "terminal images and selection",
+    "Kitty keyboard events",
+    "macOS and Windows interaction",
+    "complete feature parity"
+  ]
+}

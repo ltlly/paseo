@@ -1,3 +1,4 @@
+mod fonts;
 mod terminal_view;
 mod ui;
 
@@ -10,6 +11,9 @@ fn main() {
         Err(_) => default_home().and_then(|home| Target::local(&home)),
     };
     gpui_platform::application().run(|cx: &mut App| {
+        cx.text_system()
+            .add_fonts(fonts::terminal_faces())
+            .expect("load bundled terminal fonts");
         let bounds = Bounds::centered(None, size(px(1280.), px(800.)), cx);
         cx.open_window(
             WindowOptions {

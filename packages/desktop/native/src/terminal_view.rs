@@ -293,14 +293,7 @@ impl Render for TerminalView {
             .child(
                 canvas(
                     move |bounds, window, cx| {
-                        let family = if cfg!(target_os = "macos") {
-                            "Menlo"
-                        } else if cfg!(windows) {
-                            "Consolas"
-                        } else {
-                            "monospace"
-                        };
-                        let font = font(family);
+                        let font = font(crate::fonts::TERMINAL_FAMILY);
                         let width = window
                             .text_system()
                             .advance(window.text_system().resolve_font(&font), px(FONT_SIZE), 'M')

@@ -19,7 +19,7 @@ Run `npm run dev:desktop:native` against the local daemon, or set `PASEO_HOME` t
 
 On macOS with only Command Line Tools, pass `--features runtime-shaders` to Cargo. That uses GPUI's native Metal source compilation at application startup. Default distribution builds precompile Metal shaders and require Xcode's Metal tools.
 
-The crates.io `gpui` 0.2.2 artifact predates the platform split in the current upstream source. Use the pinned Git pair rather than mixing the published crate with a newer platform backend. An early Linux check mapped a window but captured a black frame; a mapped native window alone is not rendering evidence.
+The crates.io `gpui` 0.2.2 artifact predates the platform split in the current upstream source. Use the pinned Git pair rather than mixing the published crate with a newer platform backend. A mapped native window alone is not rendering evidence. The pinned baseline has now drawn the directory and terminal in isolated Linux QA; hardware rendering and the other desktop platforms still require interaction checks.
 
 ## Acceptance
 
@@ -34,6 +34,8 @@ The crates.io `gpui` 0.2.2 artifact predates the platform split in the current u
 | Product integration | Themes/settings, plugins, schedules/heartbeats, notifications, links, multi-window, updates and packaging                                           | Pending  |
 | Platforms           | Native build and interaction on macOS, Linux and Windows; Android source/build behavior unchanged                                                   | Pending  |
 | Performance         | Same-workload input/scroll latency, idle and busy CPU, memory by process, repeated navigation and lifecycle checks                                  | Pending  |
+
+Linux interaction evidence is in [the native terminal capture](qa-evidence/gpui-native-linux/validation.json) and its adjacent screenshot. The fixture received keyboard input and SGR wheel reports; closing and reopening the client retained the same daemon-owned terminal and its input. This uses software rendering and does not establish hardware performance or full terminal parity.
 
 Use isolated test projects and homes. Do not type into live user agents. Compare the same retained workspace and workload before claiming a performance improvement.
 
