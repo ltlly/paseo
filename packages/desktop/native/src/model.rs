@@ -68,16 +68,73 @@ pub struct TerminalList {
     pub terminals: Vec<Terminal>,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum AgentExecution {
+    #[serde(rename_all = "camelCase")]
+    Terminal { terminal_id: String },
+    #[serde(other)]
+    Unknown,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Agent {
+    pub id: String,
+    pub provider: String,
+    pub workspace_id: Option<String>,
+    pub title: Option<String>,
+    pub status: String,
+    pub execution: Option<AgentExecution>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AgentEntry {
+    pub agent: Agent,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentPage {
+    pub entries: Vec<AgentEntry>,
+    pub page_info: PageInfo,
+}
+
 #[derive(Default, Debug, Serialize)]
 pub struct Directory {
     pub projects: BTreeMap<String, Project>,
     pub workspaces: BTreeMap<String, Workspace>,
     pub terminals: BTreeMap<String, Terminal>,
+    pub agents: BTreeMap<String, Agent>,
 }
 
 impl Directory {
     pub fn apply(&mut self, kind: &str, payload: Value) -> Result<()> {
         match kind {
+            "fetch_agents_response" => {
+                let page: AgentPage = serde_json::from_value(payload)?;
+                self.agents.extend(
+                    page.entries
+                        .into_iter()
+                        .map(|entry| (entry.agent.id.clone(), entry.agent)),
+                );
+            }
+            "agent_update" => match payload["kind"].as_str() {
+                Some("upsert") => {
+                    let agent: Agent = serde_json::from_value(payload["agent"].clone())?;
+                    self.agents.insert(agent.id.clone(), agent);
+                }
+                Some("remove") => {
+                    if let Some(id) = payload["agentId"].as_str() {
+                        self.agents.remove(id);
+                    }
+                }
+                _ => {}
+            },
+            "agent_status" => {
+                let agent: Agent = serde_json::from_value(payload["info"].clone())?;
+                self.agents.insert(agent.id.clone(), agent);
+            }
             "project.list.response" => {
                 let list: ProjectList = serde_json::from_value(payload)?;
                 self.projects = list
@@ -170,5 +227,45 @@ mod tests {
                 .is_err()
         );
         assert_eq!(directory.workspaces["one"].name, "main");
+    }
+
+    #[test]
+    fn idle_terminal_agents_keep_execution_identity_through_status_updates() {
+        let mut directory = Directory::default();
+        let mut agent = json!({"id":"agent","provider":"pi","workspaceId":"workspace","title":"Current task","status":"idle","execution":{"kind":"terminal","terminalId":"pty","providerSessionId":"different-id"}});
+        directory
+            .apply(
+                "fetch_agents_response",
+                json!({"entries":[{"agent":agent}],"pageInfo":{"nextCursor":null,"hasMore":false}}),
+            )
+            .unwrap();
+        assert!(
+            matches!(&directory.agents["agent"].execution,Some(AgentExecution::Terminal{terminal_id}) if terminal_id=="pty")
+        );
+        agent["status"] = "running".into();
+        agent["title"] = "New task".into();
+        directory
+            .apply(
+                "agent_status",
+                json!({"agentId":"agent","status":"running","info":agent}),
+            )
+            .unwrap();
+        assert_eq!(directory.agents["agent"].title.as_deref(), Some("New task"));
+        directory
+            .apply("agent_update", json!({"kind":"remove","agentId":"agent"}))
+            .unwrap();
+        assert!(directory.agents.is_empty());
+    }
+
+    #[test]
+    fn invalid_terminal_execution_cannot_fall_back_to_an_agent_conversation() {
+        assert!(
+            serde_json::from_value::<Agent>(
+                json!({"id":"a","provider":"pi","status":"idle","execution":{"kind":"terminal"}})
+            )
+            .is_err()
+        );
+        let future:Agent=serde_json::from_value(json!({"id":"a","provider":"future","status":"future","execution":{"kind":"remote-future","id":"other"}})).unwrap();
+        assert!(matches!(future.execution, Some(AgentExecution::Unknown)));
     }
 }

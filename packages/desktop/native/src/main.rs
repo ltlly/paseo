@@ -1,3 +1,4 @@
+mod conversation;
 mod fonts;
 mod terminal_view;
 mod ui;

@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use crate::terminal_view::TerminalView;
 use paseo_desktop::{
     client::{Connection, Event, Target},
-    model::{Directory, ServerInfo, WorkspacePage},
+    model::{AgentExecution, AgentPage, Directory, ServerInfo, WorkspacePage},
 };
 
 pub struct Paseo {
@@ -18,6 +18,8 @@ pub struct Paseo {
     selected_terminal: Option<String>,
     terminal: Option<Entity<TerminalView>>,
     error: Option<String>,
+    selected_agent: Option<String>,
+    conversation: Option<Entity<crate::conversation::Conversation>>,
 }
 
 impl Paseo {
@@ -30,6 +32,8 @@ impl Paseo {
             selected_terminal: None,
             terminal: None,
             error: None,
+            selected_agent: None,
+            conversation: None,
         };
         match target.and_then(Connection::start) {
             Ok(connection) => {
@@ -55,7 +59,17 @@ impl Paseo {
                 self.info = Some(info);
                 self.load_directory()
             }
-            Event::Session { kind, payload } => self.apply_session(&kind, payload, cx),
+            Event::Session { kind, payload } => {
+                let timeline_owned = matches!(
+                    kind.as_str(),
+                    "agent_stream" | "fetch_agent_timeline_response" | "agent.timeline.replacement"
+                );
+                let result = self.apply_session(&kind, payload, cx);
+                if timeline_owned && result.is_ok() {
+                    return;
+                }
+                result
+            }
             Event::Terminal(frame) => {
                 if let Some(terminal) = &self.terminal {
                     terminal.update(cx, |terminal, cx| terminal.receive(frame, cx));
@@ -79,11 +93,34 @@ impl Paseo {
         connection.request("project.list.request", json!({}))?;
         connection.request("fetch_workspaces_request", json!({"subscribe":{}}))?;
         connection.request("list_terminals_request", json!({}))?;
+        connection.request(
+            "fetch_agents_request",
+            json!({"scope":"active","subscribe":{}}),
+        )?;
         Ok(())
     }
 
     fn apply_session(&mut self, kind: &str, payload: Value, cx: &mut Context<Self>) -> Result<()> {
+        if let Some(conversation) = &self.conversation {
+            conversation.update(cx, |view, cx| view.receive(kind, &payload, cx))?;
+        }
         match kind {
+            "fetch_agents_response" => {
+                let page: AgentPage = serde_json::from_value(payload.clone())?;
+                if page.page_info.has_more {
+                    let cursor = page
+                        .page_info
+                        .next_cursor
+                        .context("agent continuation cursor missing")?;
+                    self.connection
+                        .as_ref()
+                        .context("host disconnected")?
+                        .request(
+                            "fetch_agents_request",
+                            json!({"scope":"active","page":{"cursor":cursor}}),
+                        )?;
+                }
+            }
             "rpc_error" => anyhow::bail!("{}", payload["error"]),
             "subscribe_terminal_response" => {
                 if let Some(terminal) = &self.terminal {
@@ -127,6 +164,7 @@ impl Paseo {
     }
 
     fn select_workspace(&mut self, id: String, cx: &mut Context<Self>) {
+        self.clear_conversation();
         self.terminal = None;
         self.selected_terminal = None;
         self.selected_workspace = Some(id);
@@ -138,7 +176,62 @@ impl Paseo {
         cx.notify();
     }
 
+    fn clear_conversation(&mut self) {
+        self.selected_agent = None;
+        self.conversation = None;
+        if let Some(connection) = &self.connection {
+            let _ = connection.request(
+                "agent.timeline.set_subscription.request",
+                json!({"agentIds":[]}),
+            );
+        }
+    }
+
+    fn select_agent(&mut self, id: String, window: &mut Window, cx: &mut Context<Self>) {
+        let Some(agent) = self.directory.agents.get(&id).cloned() else {
+            return;
+        };
+        self.select_workspace(agent.workspace_id.clone().unwrap_or_default(), cx);
+        match agent.execution {
+            Some(AgentExecution::Terminal { terminal_id }) => {
+                self.select_terminal(terminal_id, window, cx)
+            }
+            Some(AgentExecution::Unknown) => {
+                self.error = Some("Update this client to open this agent execution type.".into());
+            }
+            None => {
+                if let Some(connection) = &self.connection {
+                    match connection.request(
+                        "agent.timeline.set_subscription.request",
+                        json!({"agentIds":[id]}),
+                    ) {
+                        Ok(_) => {
+                            let connection = connection.clone();
+                            let agent_id = id.clone();
+                            let whole_turns = self
+                                .info
+                                .as_ref()
+                                .and_then(|info| info.features.get("wholeTurnTimeline"))
+                                == Some(&Value::Bool(true));
+                            self.conversation = Some(cx.new(|_| {
+                                crate::conversation::Conversation::new(
+                                    agent_id,
+                                    connection,
+                                    whole_turns,
+                                )
+                            }));
+                        }
+                        Err(error) => self.error = Some(error.to_string()),
+                    }
+                }
+            }
+        }
+        self.selected_agent = Some(id);
+        cx.notify();
+    }
+
     fn select_terminal(&mut self, id: String, window: &mut Window, cx: &mut Context<Self>) {
+        self.clear_conversation();
         let Some(connection) = &self.connection else {
             return;
         };
@@ -211,6 +304,13 @@ impl Render for Paseo {
                                     .child(project.project_display_name),
                             )
                             .children(workspaces.into_iter().map(|workspace| {
+                                let agents = self
+                                    .directory
+                                    .agents
+                                    .values()
+                                    .filter(|a| a.workspace_id.as_deref() == Some(&workspace.id))
+                                    .cloned()
+                                    .collect::<Vec<_>>();
                                 let id = workspace.id.clone();
                                 let selected = self.selected_workspace.as_ref() == Some(&id);
                                 div()
@@ -228,6 +328,38 @@ impl Render for Paseo {
                                         }),
                                     )
                                     .child(div().text_sm().child(workspace.name))
+                                    .child(div().flex().flex_wrap().gap_1().children(
+                                        agents.into_iter().map(|agent| {
+                                            let id = agent.id.clone();
+                                            let title = agent
+                                                .title
+                                                .clone()
+                                                .unwrap_or_else(|| agent.provider.clone());
+                                            div()
+                                                .id(gpui::SharedString::from(format!("agent-{id}")))
+                                                .rounded_md()
+                                                .px_2()
+                                                .py_1()
+                                                .text_xs()
+                                                .cursor_pointer()
+                                                .bg(rgb(if agent.status == "running" {
+                                                    0x304334
+                                                } else {
+                                                    0x222626
+                                                }))
+                                                .child(format!(
+                                                    "{} · {} · {}",
+                                                    agent.provider, agent.status, title
+                                                ))
+                                                .on_mouse_down(
+                                                    MouseButton::Left,
+                                                    cx.listener(move |this, _, window, cx| {
+                                                        cx.stop_propagation();
+                                                        this.select_agent(id.clone(), window, cx);
+                                                    }),
+                                                )
+                                        }),
+                                    ))
                                     .child(
                                         div()
                                             .text_xs()
@@ -262,6 +394,12 @@ impl Render for Paseo {
                     .map(|w| w.name.clone())
             })
             .unwrap_or_else(|| "Workspaces".into());
+        let title = self
+            .selected_agent
+            .as_ref()
+            .and_then(|id| self.directory.agents.get(id))
+            .and_then(|agent| agent.title.clone())
+            .unwrap_or(title);
         let tabs = self
             .directory
             .terminals
@@ -337,15 +475,21 @@ impl Render for Paseo {
                     .min_h_0()
                     .min_w_0()
                     .when_some(self.terminal.clone(), |pane, terminal| pane.child(terminal))
-                    .when(self.terminal.is_none(), |pane| {
-                        pane.child(div().p_6().text_color(rgb(0x808989)).child(
-                            if self.selected_workspace.is_some() {
-                                "Select a terminal tab"
-                            } else {
-                                "Select a workspace"
-                            },
-                        ))
-                    }),
+                    .when_some(self.conversation.clone(), |pane, conversation| {
+                        pane.child(conversation)
+                    })
+                    .when(
+                        self.terminal.is_none() && self.conversation.is_none(),
+                        |pane| {
+                            pane.child(div().p_6().text_color(rgb(0x808989)).child(
+                                if self.selected_workspace.is_some() {
+                                    "Select a terminal tab"
+                                } else {
+                                    "Select a workspace"
+                                },
+                            ))
+                        },
+                    ),
             );
         div()
             .size_full()

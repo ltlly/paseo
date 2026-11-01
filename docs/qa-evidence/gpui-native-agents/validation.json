@@ -1,0 +1,23 @@
+{
+  "base": "d44af0be6",
+  "environment": "isolated test daemon with fake provider, real native GPUI window, Xvfb/lavapipe",
+  "verified": [
+    "idle built-in and terminal agents appear in workspace",
+    "Pi hook registered terminal agent; native chip opened bound PTY and OS key input arrived",
+    "built-in Codex chip opened authoritative history",
+    "fake-provider new user and assistant rows appeared through live subscription/catch-up",
+    "focused agent title displayed in header"
+  ],
+  "tests": {
+    "model": 4,
+    "history": 3
+  },
+  "notVerified": [
+    "real provider authentication and prompts",
+    "composer and message submission from native UI",
+    "Markdown rendering and native selection",
+    "complete plugin/provider icon parity",
+    "macOS and Windows interaction",
+    "hardware GPU performance"
+  ]
+}

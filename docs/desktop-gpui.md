@@ -37,6 +37,8 @@ The crates.io `gpui` 0.2.2 artifact predates the platform split in the current u
 
 Linux interaction evidence is in [the native terminal capture](qa-evidence/gpui-native-linux/validation.json) and its adjacent screenshot. The fixture received keyboard input and SGR wheel reports; closing and reopening the client retained the same daemon-owned terminal and its input. This uses software rendering and does not establish hardware performance or full terminal parity.
 
+Agent navigation evidence is in [the native Agent capture](qa-evidence/gpui-native-agents/validation.json). An isolated fake-provider fixture exercises built-in history and live catch-up alongside a Pi hook registered terminal. Provider chips currently use text labels. Composer, rich content, permissions and full Agent-tab lifecycle acceptance remain pending.
+
 Use isolated test projects and homes. Do not type into live user agents. Compare the same retained workspace and workload before claiming a performance improvement.
 
 The native keyboard encoder has focused regressions for application cursor mode, modified arrows, function keys, control punctuation and native IME ownership. These do not cover Kitty key events, operating-system IME interaction or native rendering; terminal acceptance remains pending until those paths are exercised.
