@@ -165,10 +165,40 @@ const { outputFiles: densityOutput } = await bundle({
 const { density } = await import(
   `data:text/javascript;base64,${Buffer.from(densityOutput[0].text).toString("base64")}`
 );
-const markdownStyles = createMarkdownStyles(theme, { blockGap: density.blockGap.md }).markdownStyle;
+const markdownPresentation = createMarkdownStyles(theme, { blockGap: density.blockGap.md });
+const markdownStyles = markdownPresentation.markdownStyle;
+const inlineCodeSource = await authoredNode(
+  "packages/app/node_modules/react-native-enriched-markdown/src/web/styles.ts",
+  "codeStyle",
+);
+const { outputFiles: inlineCodeOutput } = await bundle({
+  stdin: {
+    contents: `const normalizeFontFamily=f=>f;${inlineCodeSource};export {codeStyle};`,
+    loader: "ts",
+    resolveDir: root,
+  },
+  write: false,
+  format: "esm",
+  platform: "node",
+});
+const { codeStyle } = await import(
+  `data:text/javascript;base64,${Buffer.from(inlineCodeOutput[0].text).toString("base64")}`
+);
+const inlineCode = codeStyle({ code: markdownStyles.code });
+const inlinePadding = inlineCode.padding.split(" ").map(parseFloat);
+const inlineBorder = parseFloat(inlineCode.border);
+const selectionComponents = markdownPresentation.selectionColor.match(/[\d.]+/g).map(Number);
+const selectionRgba =
+  selectionComponents
+    .slice(0, 3)
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("") +
+  Math.round(selectionComponents[3] * 255)
+    .toString(16)
+    .padStart(2, "0");
 await output(
   "packages/desktop/native/src/message_geometry.rs",
-  `// Generated from the existing message and Markdown presentation. Do not edit.\npub const BLOCK_GAP:f32=${markdownStyles.paragraph.marginBottom}.0;\npub const BODY_SIZE:f32=${markdownStyles.paragraph.fontSize}.0;\npub const BODY_LINE:f32=${markdownStyles.paragraph.lineHeight}.0;\npub const HEADINGS:[(f32,f32);6]=[${[1, 2, 3, 4, 5, 6].map((level) => `(${markdownStyles["h" + level].fontSize}.0,${markdownStyles["h" + level].lineHeight}.0)`).join(",")}];\npub const CODE_SIZE:f32=${markdownStyles.codeBlock.fontSize}.0;\npub const CODE_PADDING:f32=${markdownStyles.codeBlock.padding}.0;\npub const QUOTE_PADDING:f32=${markdownStyles.blockquote.padding}.0;\npub const QUOTE_BORDER:f32=${markdownStyles.blockquote.borderWidth}.0;\npub const LIST_INDENT:f32=${markdownStyles.list.marginLeft}.0;\npub const LIST_ITEM_GAP:f32=${markdownStyles.list.itemSpacing}.0;\n`,
+  `// Generated from the existing message and Markdown presentation. Do not edit.\npub const BLOCK_GAP:f32=${markdownStyles.paragraph.marginBottom}.0;\npub const BODY_SIZE:f32=${markdownStyles.paragraph.fontSize}.0;\npub const BODY_LINE:f32=${markdownStyles.paragraph.lineHeight}.0;\npub const HEADINGS:[(f32,f32);6]=[${[1, 2, 3, 4, 5, 6].map((level) => `(${markdownStyles["h" + level].fontSize}.0,${markdownStyles["h" + level].lineHeight}.0)`).join(",")}];\npub const INLINE_CODE_SCALE:f32=${markdownStyles.code.fontScale};\npub const INLINE_CODE_PADDING_X:f32=${inlinePadding[1] + inlineBorder}.0;\npub const INLINE_CODE_PADDING_Y:f32=${inlinePadding[0] + inlineBorder}.0;\npub const INLINE_CODE_RADIUS:f32=${inlineCode.borderRadius}.0;\npub const SELECTION_RGBA:u32=0x${selectionRgba};\npub const CODE_SIZE:f32=${markdownStyles.codeBlock.fontSize}.0;\npub const CODE_PADDING:f32=${markdownStyles.codeBlock.padding}.0;\npub const QUOTE_PADDING:f32=${markdownStyles.blockquote.padding}.0;\npub const QUOTE_BORDER:f32=${markdownStyles.blockquote.borderWidth}.0;\npub const LIST_INDENT:f32=${markdownStyles.list.marginLeft}.0;\npub const LIST_ITEM_GAP:f32=${markdownStyles.list.itemSpacing}.0;\n`,
 );
 const parserHashes = Object.fromEntries(
   await Promise.all(

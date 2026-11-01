@@ -10,6 +10,11 @@ pub const HEADINGS: [(f32, f32); 6] = [
     (15.0, 20.0),
     (15.0, 20.0),
 ];
+pub const INLINE_CODE_SCALE: f32 = 0.8;
+pub const INLINE_CODE_PADDING_X: f32 = 5.0;
+pub const INLINE_CODE_PADDING_Y: f32 = 2.0;
+pub const INLINE_CODE_RADIUS: f32 = 3.0;
+pub const SELECTION_RGBA: u32 = 0xffffff33;
 pub const CODE_SIZE: f32 = 12.0;
 pub const CODE_PADDING: f32 = 12.0;
 pub const QUOTE_PADDING: f32 = 12.0;

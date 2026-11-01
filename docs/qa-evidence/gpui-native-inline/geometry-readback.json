@@ -1,0 +1,356 @@
+{
+  "900": {
+    "referenceDom": [
+      {
+        "tag": "H2",
+        "text": "Heading with smaller code",
+        "box": {
+          "x": 344,
+          "y": 217,
+          "w": 532,
+          "h": 28
+        },
+        "font": "700 21px / 27px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px 0px 16px"
+      },
+      {
+        "tag": "CODE",
+        "text": "smaller code",
+        "box": {
+          "x": 493.15625,
+          "y": 218,
+          "w": 130.828125,
+          "h": 27
+        },
+        "font": "700 16.8px / 27px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      },
+      {
+        "tag": "P",
+        "text": "English before an inline code span with enough words to wrap across several visual lines while preserving its source bytes and after.",
+        "box": {
+          "x": 344,
+          "y": 261,
+          "w": 532,
+          "h": 42
+        },
+        "font": "15px / 21px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px 0px 16px"
+      },
+      {
+        "tag": "CODE",
+        "text": "an inline code span with enough words to wrap across several visual lines while preserving its source bytes",
+        "box": {
+          "x": 344,
+          "y": 261,
+          "w": 484.65625,
+          "h": 42
+        },
+        "font": "12px / 21px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      },
+      {
+        "tag": "P",
+        "text": "中文测试 中文 👩‍💻 é 混合代码 回到正文，检查中文和完整 emoji 的选择与换行。",
+        "box": {
+          "x": 344,
+          "y": 319,
+          "w": 532,
+          "h": 21
+        },
+        "font": "15px / 21px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px 0px 16px"
+      },
+      {
+        "tag": "CODE",
+        "text": "中文 👩‍💻 é 混合代码",
+        "box": {
+          "x": 408.234375,
+          "y": 319,
+          "w": 125.78125,
+          "h": 21
+        },
+        "font": "12px / 21px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      },
+      {
+        "tag": "P",
+        "text": "A final short_code paragraph.",
+        "box": {
+          "x": 344,
+          "y": 356,
+          "w": 532,
+          "h": 21
+        },
+        "font": "15px / 21px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px 0px 16px"
+      },
+      {
+        "tag": "CODE",
+        "text": "short_code",
+        "box": {
+          "x": 392.515625,
+          "y": 356,
+          "w": 82.015625,
+          "h": 21
+        },
+        "font": "12px / 21px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      },
+      {
+        "tag": "P",
+        "text": "Normal code abcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnop after.",
+        "box": {
+          "x": 344,
+          "y": 393,
+          "w": 532,
+          "h": 63
+        },
+        "font": "15px / 21px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px 0px 16px"
+      },
+      {
+        "tag": "CODE",
+        "text": "abcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnop",
+        "box": {
+          "x": 344,
+          "y": 414,
+          "w": 931.609375,
+          "h": 21
+        },
+        "font": "12px / 21px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      },
+      {
+        "tag": "P",
+        "text": "Linked code abcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnop after.",
+        "box": {
+          "x": 344,
+          "y": 472,
+          "w": 532,
+          "h": 63
+        },
+        "font": "15px / 21px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px"
+      },
+      {
+        "tag": "CODE",
+        "text": "abcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnop",
+        "box": {
+          "x": 344,
+          "y": 493,
+          "w": 530.609375,
+          "h": 42
+        },
+        "font": "12px / 21px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      }
+    ],
+    "nativeSampledInk": {
+      "heading": {
+        "sample": [344, 217, 490, 249],
+        "firstInkRow": 221,
+        "lastInkRow": 241
+      },
+      "paragraph": {
+        "sample": [344, 257, 447, 283],
+        "firstInkRow": 265,
+        "lastInkRow": 278
+      },
+      "user": {
+        "sample": [749, 135, 867, 160],
+        "firstInkRow": 140,
+        "lastInkRow": 150
+      }
+    },
+    "referenceSampledInk": {
+      "heading": {
+        "sample": [344, 217, 490, 249],
+        "firstInkRow": 221,
+        "lastInkRow": 241
+      },
+      "paragraph": {
+        "sample": [344, 257, 447, 283],
+        "firstInkRow": 265,
+        "lastInkRow": 278
+      },
+      "user": {
+        "sample": [749, 135, 867, 160],
+        "firstInkRow": 140,
+        "lastInkRow": 150
+      }
+    }
+  },
+  "1280": {
+    "referenceDom": [
+      {
+        "tag": "H2",
+        "text": "Heading with smaller code",
+        "box": {
+          "x": 398,
+          "y": 217,
+          "w": 804,
+          "h": 28
+        },
+        "font": "700 21px / 27px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px 0px 16px"
+      },
+      {
+        "tag": "CODE",
+        "text": "smaller code",
+        "box": {
+          "x": 547.15625,
+          "y": 218,
+          "w": 130.828125,
+          "h": 27
+        },
+        "font": "700 16.8px / 27px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      },
+      {
+        "tag": "P",
+        "text": "English before an inline code span with enough words to wrap across several visual lines while preserving its source bytes and after.",
+        "box": {
+          "x": 398,
+          "y": 261,
+          "w": 804,
+          "h": 42
+        },
+        "font": "15px / 21px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px 0px 16px"
+      },
+      {
+        "tag": "CODE",
+        "text": "an inline code span with enough words to wrap across several visual lines while preserving its source bytes",
+        "box": {
+          "x": 398,
+          "y": 261,
+          "w": 787.0625,
+          "h": 42
+        },
+        "font": "12px / 21px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      },
+      {
+        "tag": "P",
+        "text": "中文测试 中文 👩‍💻 é 混合代码 回到正文，检查中文和完整 emoji 的选择与换行。",
+        "box": {
+          "x": 398,
+          "y": 319,
+          "w": 804,
+          "h": 21
+        },
+        "font": "15px / 21px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px 0px 16px"
+      },
+      {
+        "tag": "CODE",
+        "text": "中文 👩‍💻 é 混合代码",
+        "box": {
+          "x": 462.234375,
+          "y": 319,
+          "w": 125.78125,
+          "h": 21
+        },
+        "font": "12px / 21px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      },
+      {
+        "tag": "P",
+        "text": "A final short_code paragraph.",
+        "box": {
+          "x": 398,
+          "y": 356,
+          "w": 804,
+          "h": 21
+        },
+        "font": "15px / 21px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px 0px 16px"
+      },
+      {
+        "tag": "CODE",
+        "text": "short_code",
+        "box": {
+          "x": 446.515625,
+          "y": 356,
+          "w": 82.015625,
+          "h": 21
+        },
+        "font": "12px / 21px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      },
+      {
+        "tag": "P",
+        "text": "Normal code abcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnop after.",
+        "box": {
+          "x": 398,
+          "y": 393,
+          "w": 804,
+          "h": 63
+        },
+        "font": "15px / 21px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px 0px 16px"
+      },
+      {
+        "tag": "CODE",
+        "text": "abcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnop",
+        "box": {
+          "x": 398,
+          "y": 414,
+          "w": 931.609375,
+          "h": 21
+        },
+        "font": "12px / 21px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      },
+      {
+        "tag": "P",
+        "text": "Linked code abcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnop after.",
+        "box": {
+          "x": 398,
+          "y": 472,
+          "w": 804,
+          "h": 63
+        },
+        "font": "15px / 21px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+        "padding": "0px",
+        "margin": "0px"
+      },
+      {
+        "tag": "CODE",
+        "text": "abcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnop",
+        "box": {
+          "x": 398,
+          "y": 493,
+          "w": 797.015625,
+          "h": 42
+        },
+        "font": "12px / 21px SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+        "padding": "1px 4px",
+        "margin": "0px"
+      }
+    ]
+  }
+}

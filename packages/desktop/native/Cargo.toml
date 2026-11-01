@@ -29,6 +29,7 @@ tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 futures-util = "0.3"
 uuid = { version = "1.18", features = ["v4"] }
 unicode-segmentation = "1.13"
+unicode-linebreak = "0.1.5"
 base64 = "0.22.1"
 chrono = { version = "0.4.45", default-features = false, features = ["std"] }
 image = { version = "=0.25.10", default-features = false, features = [

@@ -7,6 +7,7 @@ mod fonts;
 mod identity_colors;
 mod message_geometry;
 mod message_view;
+mod rich_text;
 mod terminal_view;
 mod theme;
 mod ui;

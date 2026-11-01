@@ -6,6 +6,7 @@ pub mod composer;
 pub mod editing;
 pub mod font_selection;
 pub mod history;
+pub mod inline_layout;
 pub mod keyboard;
 pub mod markdown;
 pub mod message_document;

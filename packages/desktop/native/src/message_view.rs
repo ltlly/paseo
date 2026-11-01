@@ -1,17 +1,47 @@
 use crate::{message_geometry as g, theme::colors as c};
 use gpui::{
-    App, ClipboardItem, Context, EventEmitter, FocusHandle, Focusable, FontStyle, FontWeight,
-    KeyDownEvent, MouseButton, Pixels, Point, Render, SharedString, StyledText, TextLayout,
-    TextRun, Window, div, prelude::*, px, rgb,
+    App, ClipboardItem, Context, EventEmitter, FocusHandle, Focusable, FontWeight, KeyDownEvent,
+    MouseButton, Pixels, Point, Render, SharedString, StyledText, TextLayout, Window, div,
+    prelude::*, px, rgb,
 };
 use paseo_desktop::message_document::{Block, BlockKind, Document, Text};
-use std::{cell::Cell, collections::BTreeMap, ops::Range, rc::Rc, sync::Arc};
+use std::{
+    cell::{Cell, RefCell},
+    collections::BTreeMap,
+    ops::Range,
+    rc::Rc,
+    sync::Arc,
+};
 
 pub enum MessageEvent {
     OpenUrl(String),
 }
+enum Geometry {
+    Plain(TextLayout),
+    Mixed(Rc<RefCell<crate::rich_text::Layout>>),
+}
+impl Geometry {
+    fn bounds(&self) -> gpui::Bounds<Pixels> {
+        match self {
+            Self::Plain(layout) => layout.bounds(),
+            Self::Mixed(layout) => layout.borrow().bounds.expect("prepainted inline text"),
+        }
+    }
+    fn index_at(&self, position: Point<Pixels>) -> usize {
+        match self {
+            Self::Plain(layout) => layout.index_for_position(position).unwrap_or_else(|i| i),
+            Self::Mixed(layout) => layout.borrow().index_at(position),
+        }
+    }
+    fn height(&self) -> Pixels {
+        match self {
+            Self::Plain(layout) => layout.bounds().size.height,
+            Self::Mixed(layout) => layout.borrow().size.height,
+        }
+    }
+}
 struct Layout {
-    layout: TextLayout,
+    geometry: Geometry,
     offset: usize,
     len: usize,
     ready: Rc<Cell<bool>>,
@@ -116,7 +146,7 @@ impl MessageView {
             .filter(|l| l.ready.get())
             .min_by(|a, b| {
                 let distance = |item: &Layout| {
-                    let bounds = item.layout.bounds();
+                    let bounds = item.geometry.bounds();
                     let y = if position.y < bounds.top() {
                         bounds.top() - position.y
                     } else if position.y > bounds.bottom() {
@@ -138,12 +168,7 @@ impl MessageView {
         else {
             return 0;
         };
-        layout.offset
-            + layout
-                .layout
-                .index_for_position(position)
-                .unwrap_or_else(|i| i)
-                .min(layout.len)
+        layout.offset + layout.geometry.index_at(position).min(layout.len)
     }
     fn key_down(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         let key = &event.keystroke;
@@ -181,80 +206,94 @@ impl MessageView {
         size: f32,
         line: f32,
         bold: bool,
-        _cx: &mut Context<Self>,
+        code_block: bool,
+        cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
-        let mut runs = Vec::new();
-        let mut links = Vec::new();
-        for span in &text.spans {
-            let mut cuts = vec![span.range.start, span.range.end];
-            for point in [
-                self.selection.start.saturating_sub(text.offset),
-                self.selection.end.saturating_sub(text.offset),
-            ] {
-                if span.range.contains(&point) {
-                    cuts.push(point);
+        let links = text
+            .spans
+            .iter()
+            .filter_map(|span| {
+                span.style
+                    .target
+                    .as_ref()
+                    .map(|target| (span.range.clone(), target.clone()))
+            })
+            .collect();
+        let mixed = !code_block && text.spans.iter().any(|span| span.style.code);
+        let (element, geometry) = if mixed {
+            let selected = self.selection.start.saturating_sub(text.offset)
+                ..self.selection.end.saturating_sub(text.offset);
+            let (element, layout) =
+                crate::rich_text::RichText::new(text.clone(), size, line, bold, selected);
+            (element.into_any_element(), Geometry::Mixed(layout))
+        } else {
+            let mut runs = Vec::new();
+            for span in &text.spans {
+                let mut cuts = vec![span.range.start, span.range.end];
+                for point in [
+                    self.selection.start.saturating_sub(text.offset),
+                    self.selection.end.saturating_sub(text.offset),
+                ] {
+                    if span.range.contains(&point) {
+                        cuts.push(point);
+                    }
+                }
+                cuts.sort_unstable();
+                cuts.dedup();
+                for pair in cuts.windows(2) {
+                    let mut run = crate::rich_text::run(&span.style, pair[1] - pair[0], bold);
+                    if self.selection.contains(&(text.offset + pair[0])) {
+                        run.background_color = Some(
+                            gpui::rgba(if self.user {
+                                0x3390ff66
+                            } else {
+                                g::SELECTION_RGBA
+                            })
+                            .into(),
+                        );
+                    }
+                    runs.push(run);
                 }
             }
-            cuts.sort_unstable();
-            cuts.dedup();
-            for pair in cuts.windows(2) {
-                let mut font = gpui::font(if span.style.code {
-                    crate::fonts::code_family()
-                } else {
-                    crate::fonts::ui_family()
-                });
-                if bold || span.style.bold {
-                    font.weight = FontWeight::BOLD;
-                }
-                if span.style.italic {
-                    font.style = FontStyle::Italic;
-                }
-                let selected = self.selection.contains(&(text.offset + pair[0]));
-                runs.push(TextRun {
-                    len: pair[1] - pair[0],
-                    font,
-                    color: rgb(if span.style.target.is_some() {
-                        c::ACCENT_BRIGHT
-                    } else {
-                        c::FOREGROUND
-                    })
-                    .into(),
-                    background_color: if selected {
-                        Some(gpui::rgba(0x3390ff66).into())
-                    } else if span.style.code {
-                        Some(rgb(c::SURFACE2).into())
-                    } else {
-                        None
-                    },
-                    underline: None,
-                    strikethrough: span.style.strike.then_some(gpui::StrikethroughStyle {
-                        thickness: px(1.),
-                        color: None,
-                    }),
-                });
-            }
-            if let Some(target) = &span.style.target {
-                links.push((span.range.clone(), target.clone()));
-            }
-        }
-        let element = StyledText::new(SharedString::from(text.value.to_string())).with_runs(runs);
-        let layout = element.layout().clone();
+            let element =
+                StyledText::new(SharedString::from(text.value.to_string())).with_runs(runs);
+            let layout = element.layout().clone();
+            (element.into_any_element(), Geometry::Plain(layout))
+        };
         let ready = Rc::new(Cell::new(false));
         let mark = ready.clone();
         let id = self.layouts.len();
         self.layouts.push(Layout {
-            layout,
+            geometry,
             offset: text.offset,
             len: text.value.len(),
             ready,
             links,
         });
+        let font = crate::rich_text::run(
+            &paseo_desktop::message_document::InlineStyle {
+                code: code_block,
+                ..Default::default()
+            },
+            1,
+            bold,
+        )
+        .font;
+        let font_id = cx.text_system().resolve_font(&font);
+        let ascent = cx.text_system().ascent(font_id, px(size));
+        let descent = cx.text_system().descent(font_id, px(size)).abs();
+        let offset = if mixed {
+            px(0.)
+        } else {
+            crate::rich_text::css_baseline(ascent, descent, px(line))
+                - ((px(line) - ascent - descent) / 2. + ascent)
+        };
         div()
             .id(("message-text", id))
             .min_w_0()
             .text_size(px(size))
             .line_height(px(line))
-            .child(element)
+            .child(div().relative().top(offset).child(element))
             .child(
                 gpui::canvas(move |_, _, _| mark.set(true), |_, (), _, _| {})
                     .h(px(0.))
@@ -293,6 +332,7 @@ impl MessageView {
                     size,
                     line,
                     matches!(block.kind, BlockKind::Heading(_)),
+                    false,
                     cx,
                 )
             }
@@ -309,7 +349,14 @@ impl MessageView {
                     .p(px(g::CODE_PADDING))
                     .rounded(px(8.))
                     .bg(rgb(c::SURFACE2))
-                    .child(self.text(text, g::CODE_SIZE, (g::CODE_SIZE * 1.45).round(), false, cx))
+                    .child(self.text(
+                        text,
+                        g::CODE_SIZE,
+                        (g::CODE_SIZE * 1.45).round(),
+                        false,
+                        true,
+                        cx,
+                    ))
                     .child(
                         div()
                             .id(("copy-code", text.offset))
@@ -436,6 +483,7 @@ impl MessageView {
                 g::BODY_SIZE,
                 g::BODY_LINE,
                 *header,
+                false,
                 cx,
             ),
             BlockKind::Rule => div()
@@ -499,7 +547,7 @@ impl Render for MessageView {
                             .layouts
                             .iter()
                             .filter(|l| l.ready.get())
-                            .any(|l| l.layout.bounds().size.height > px(240.));
+                            .any(|l| l.geometry.height() > px(240.));
                         if this.overflowing != overflowing {
                             this.overflowing = overflowing;
                             cx.notify();
@@ -600,7 +648,7 @@ impl Render for MessageView {
                         let index = this.index_at(event.position);
                         for layout in &this.layouts {
                             if layout.ready.get()
-                                && layout.layout.bounds().contains(&event.position)
+                                && layout.geometry.bounds().contains(&event.position)
                                 && index >= layout.offset
                                 && index <= layout.offset + layout.len
                             {

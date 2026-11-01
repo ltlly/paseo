@@ -1,0 +1,68 @@
+{
+  "sourceBase": "1c322c9d6",
+  "environment": "Isolated Linux Xvfb/Openbox, scale 1, WGPU/lavapipe. Final native build and actual Electron renderer use the same fake-provider daemon and transcript. Electron uses a fresh Electron-targeted Expo export and explicit default appearance. No real agents/model calls or production restarts.",
+  "appearance": {
+    "uiFontSize": 14,
+    "contentFontSize": 15,
+    "codeFontSize": 12,
+    "theme": "dark",
+    "contentMaxWidth": 820,
+    "uiFont": "SF Pro Text",
+    "codeFont": "Noto Sans Mono"
+  },
+  "visualAcceptance": "NOT_PASSED",
+  "pixelComparisons": [
+    {
+      "viewport": {
+        "width": 900,
+        "height": 800,
+        "scale": 1
+      },
+      "differentPixels": 41032,
+      "totalPixels": 720000,
+      "maskedRegions": [],
+      "thresholdUsed": null
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 800,
+        "scale": 1
+      },
+      "differentPixels": 42635,
+      "totalPixels": 1024000,
+      "maskedRegions": [],
+      "thresholdUsed": null
+    }
+  ],
+  "verified": [
+    "Matched 900x800 and 1280x800 captures cover heading code, wrapped prose/code, Chinese, ZWJ emoji, combining accents, ordinary overflowing code and linked code that wraps anywhere",
+    "Inline font scale, padding, transparent border and rounded background derive from the existing Markdown styles and pinned web renderer; selection color derives from the existing theme",
+    "Mixed font baselines account for signed FontMetrics descents and retain extra descender room in a heading with smaller monospace code; sampled text ink rows agree with Electron in the recorded regions",
+    "Final-build OS mouse selection and Ctrl+C return exact heading code, wrapped code with no added visual newline, and Chinese/ZWJ/combining source bytes",
+    "Ctrl+A/C preserves every byte of the visible document, including the complete 128-character code token beyond the viewport edge",
+    "Unicode wrapping tests retain hard blank lines, non-breaking spaces, complete grapheme clusters and separate normal overflow from link emergency wrapping",
+    "Final native close leaves both fake Agents and the exact canonical Markdown transcript available through the SDK before isolated fixture teardown"
+  ],
+  "focusedRustTests": {
+    "inline_layout": 5
+  },
+  "notVerified": [
+    "Complete pixel parity: font rasterization/fallback, fractional intrinsic measurement, selected-range box geometry and missing navigation/turn controls still differ",
+    "Mixed bidi/RTL layout, all scripts/font fallback and complex ligatures and high-DPI rendering; repeat-space/tab normalization and every CSS line-breaking case",
+    "Selection autoscroll, keyboard extension, cross-message selection, accessibility and rich clipboard HTML",
+    "Syntax highlighting, HTML/details/workspace-path source adaptation, images/Mermaid, file links, tools/permissions, timestamps, turn copy/fork/footer and sent attachments",
+    "Persistent shape/layout reuse during streaming/selection, retained text deduplication and same-workload CPU/RSS/latency measurements; no performance improvement is claimed",
+    "All themes/appearance settings/locales, macOS/Windows build and interaction, hardware rendering, packaging and rollout"
+  ],
+  "captureNote": "Both matched overflow scenes and native Unicode selection use the final Rust build. Reference selection is set on the code text in the actual Electron DOM; native selection uses OS mouse drag. Sampled ink bounds are diagnostic and do not establish complete font or pixel parity. Raw full-window differences have no masks or acceptance threshold.",
+  "checks": {
+    "nativeBuild": "passed",
+    "nativeCheck": "passed",
+    "typecheck": "passed",
+    "lint": "passed",
+    "format": "passed",
+    "fullLocalSuiteRun": false
+  },
+  "androidSourcesChanged": false
+}

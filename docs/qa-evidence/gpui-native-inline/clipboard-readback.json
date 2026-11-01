@@ -1,0 +1,6 @@
+{
+  "headingCode": "smaller code",
+  "wrappedCode": "an inline code span with enough words to wrap across several visual lines while preserving its source bytes",
+  "unicodeCode": "中文 👩‍💻 é 混合代码",
+  "entireMessage": "Heading with smaller code\n\nEnglish before an inline code span with enough words to wrap across several visual lines while preserving its source bytes and after.\n\n中文测试 中文 👩‍💻 é 混合代码 回到正文，检查中文和完整 emoji 的选择与换行。\n\nA final short_code paragraph.\n\nNormal code abcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnop after.\n\nLinked code abcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnop after."
+}
