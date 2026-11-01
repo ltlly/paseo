@@ -255,6 +255,13 @@ impl TerminalBuffer {
         )
     }
 
+    pub fn kitty_input(&self) -> bool {
+        self.mouse.kitty_input()
+    }
+    pub fn win32_input(&self) -> bool {
+        self.mouse.win32_input()
+    }
+
     pub fn mouse_modes(&self) -> crate::mouse::Modes {
         self.mouse.modes()
     }

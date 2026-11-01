@@ -497,17 +497,28 @@ impl TerminalView {
             cx.stop_propagation();
             return;
         }
+        let modifiers = paseo_desktop::keyboard::Modifiers {
+            shift: key.modifiers.shift,
+            alt: key.modifiers.alt,
+            control: key.modifiers.control,
+            platform: key.modifiers.platform,
+        };
+        if key.key == "enter" && self.marked.is_empty() {
+            let kitty = self.buffer.kitty_input();
+            if let Some(text) =
+                paseo_desktop::keyboard::enhanced_enter(modifiers, kitty, self.buffer.win32_input())
+            {
+                self.focus.focus(window, cx);
+                self.send_input(&text, cx);
+                cx.stop_propagation();
+                return;
+            }
+        }
+        if !self.marked.is_empty() {
+            return;
+        }
         let app = self.buffer.modes().contains(TermMode::APP_CURSOR);
-        let text = paseo_desktop::keyboard::encode(
-            &key.key,
-            paseo_desktop::keyboard::Modifiers {
-                shift: key.modifiers.shift,
-                alt: key.modifiers.alt,
-                control: key.modifiers.control,
-                platform: key.modifiers.platform,
-            },
-            app,
-        );
+        let text = paseo_desktop::keyboard::encode(&key.key, modifiers, app);
         if let Some(text) = text {
             self.focus.focus(window, cx);
             self.send_input(&text, cx);

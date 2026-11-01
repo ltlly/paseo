@@ -185,13 +185,20 @@ enum State {
     String,
 }
 
-/// Alacritty omits X10/pixel mode state and implements deprecated UTF-8 mouse
-/// differently from xterm. Observe only pointer modes at this client boundary.
+/// Alacritty omits X10/pixel and Win32 input state and implements deprecated UTF-8
+/// mouse differently from xterm. Observe those modes at this client boundary.
 /// Discard string payloads instead of duplicating the VT parser's OSC buffers.
 #[derive(Default)]
 pub struct ModeTracker {
     state: State,
     modes: Modes,
+    win32: bool,
+    kitty: u16,
+    kitty_stack: Vec<u16>,
+    prefix: u8,
+    param_present: [bool; 2],
+    utf8: [u8; 3],
+    utf8_count: usize,
     protocol_revision: u64,
     reset_revision: u64,
     params: [u16; 32],
@@ -207,6 +214,12 @@ impl ModeTracker {
     pub fn modes(&self) -> Modes {
         self.modes
     }
+    pub fn kitty_input(&self) -> bool {
+        self.kitty != 0
+    }
+    pub fn win32_input(&self) -> bool {
+        self.win32
+    }
     pub fn protocol_revision(&self) -> u64 {
         self.protocol_revision
     }
@@ -218,13 +231,18 @@ impl ModeTracker {
         let mut cursor = 0;
         while cursor < data.len() {
             let tail = &data[cursor..];
-            if matches!(self.state, State::Ground) {
-                let Some(skip) = memchr::memchr(0x1b, tail) else {
+            if matches!(self.state, State::Ground) && self.utf8_count == 0 {
+                let Some(skip) = memchr::memchr3(0x1b, 0xc2, 0xef, tail) else {
                     break;
                 };
                 cursor += skip;
-            } else if matches!(self.state, State::Osc | State::String) {
+            } else if matches!(self.state, State::Osc | State::String) && self.utf8_count == 0 {
                 let control = memchr::memchr3(0x1b, 0x18, 0x1a, tail);
+                let unicode = memchr::memchr2(0xc2, 0xef, tail);
+                let control = match (control, unicode) {
+                    (Some(a), Some(b)) => Some(a.min(b)),
+                    (a, b) => a.or(b),
+                };
                 let stop = if matches!(self.state, State::Osc) {
                     match (control, memchr::memchr(7, tail)) {
                         (Some(a), Some(b)) => Some(a.min(b)),
@@ -240,6 +258,53 @@ impl ModeTracker {
             }
             let byte = data[cursor];
             cursor += 1;
+            if self.utf8_count > 0 {
+                if byte & 0xc0 == 0x80 {
+                    self.utf8[self.utf8_count] = byte;
+                    self.utf8_count += 1;
+                    let needed = if self.utf8[0] == 0xc2 { 2 } else { 3 };
+                    if self.utf8_count < needed {
+                        continue;
+                    }
+                    self.utf8_count = 0;
+                    if self.utf8 == [0xef, 0xbb, 0xbf] {
+                        continue;
+                    }
+                    if self.utf8[0] == 0xc2 && (0x80..=0x9f).contains(&byte) {
+                        match byte {
+                            0x9b => {
+                                self.start_csi();
+                                continue;
+                            }
+                            0x9d => {
+                                self.state = State::Osc;
+                                continue;
+                            }
+                            0x90 | 0x98 | 0x9e | 0x9f => {
+                                self.state = State::String;
+                                continue;
+                            }
+                            _ => {
+                                self.state = State::Ground;
+                                continue;
+                            }
+                        }
+                    }
+                    if !matches!(self.state, State::Osc | State::String) {
+                        self.state = State::Ground;
+                    }
+                    continue;
+                }
+                self.utf8_count = 0;
+                if !matches!(self.state, State::Osc | State::String) {
+                    self.state = State::Ground;
+                }
+            }
+            if byte == 0xc2 || byte == 0xef {
+                self.utf8 = [byte, 0, 0];
+                self.utf8_count = 1;
+                continue;
+            }
             if byte == 0x1b {
                 self.state = State::Escape;
                 continue;
@@ -257,26 +322,20 @@ impl ModeTracker {
                 }
                 State::String => {}
                 State::Escape => match byte {
-                    b'[' => {
-                        self.state = State::Csi;
-                        self.params.fill(0);
-                        self.count = 0;
-                        self.private = false;
-                        self.started = false;
-                        self.invalid = false;
-                        self.subparam = false;
-                        self.excess_params = false;
-                    }
+                    b'[' => self.start_csi(),
                     b']' => self.state = State::Osc,
                     b'P' | b'X' | b'^' | b'_' => self.state = State::String,
                     b'c' => {
                         self.modes = Modes::default();
+                        self.win32 = false;
+                        self.kitty = 0;
+                        self.kitty_stack.clear();
                         self.protocol_revision = self.protocol_revision.wrapping_add(1);
                         self.reset_revision = self.reset_revision.wrapping_add(1);
                         self.state = State::Ground;
                     }
                     0x20..=0x2f => self.state = State::EscapeIntermediate,
-                    0x30..=0x7e => self.state = State::Ground,
+                    0x30..=0x7e | 0x80..=0xff => self.state = State::Ground,
                     _ => {}
                 },
                 State::EscapeIntermediate => {
@@ -285,12 +344,16 @@ impl ModeTracker {
                     }
                 }
                 State::Csi => match byte {
-                    b'?' if !self.started => {
-                        self.private = true;
+                    b'?' | b'>' | b'=' | b'<' if !self.started => {
+                        self.prefix = byte;
+                        self.private = byte == b'?';
                         self.started = true;
                     }
                     b'0'..=b'9' if !self.subparam && !self.excess_params => {
                         self.started = true;
+                        if self.count < 2 {
+                            self.param_present[self.count] = true;
+                        }
                         self.params[self.count] = self.params[self.count]
                             .saturating_mul(10)
                             .saturating_add(u16::from(byte - b'0'));
@@ -314,7 +377,12 @@ impl ModeTracker {
                             for index in 0..=self.count {
                                 self.set_mode(self.params[index], byte == b'h');
                             }
+                        } else if !self.invalid && byte == b'u' {
+                            self.set_kitty();
                         }
+                        self.state = State::Ground;
+                    }
+                    0x80..=0xff => {
                         self.state = State::Ground;
                     }
                     0x20..=0x3f => self.invalid = true,
@@ -324,12 +392,55 @@ impl ModeTracker {
         }
     }
 
+    fn start_csi(&mut self) {
+        self.state = State::Csi;
+        self.params.fill(0);
+        self.count = 0;
+        self.prefix = 0;
+        self.param_present = [false; 2];
+        self.private = false;
+        self.started = false;
+        self.invalid = false;
+        self.subparam = false;
+        self.excess_params = false;
+    }
+
+    fn set_kitty(&mut self) {
+        // Match Paseo's shared input-mode tracker, not Alacritty's independent
+        // screen-local keyboard stack. Only modified Enter consumes these flags.
+        match self.prefix {
+            b'>' => {
+                self.kitty_stack.push(self.kitty);
+                self.kitty = if self.param_present[0] {
+                    self.params[0]
+                } else {
+                    1
+                };
+            }
+            b'=' => {
+                self.kitty = if self.param_present[1] && self.params[1] == 0 {
+                    0
+                } else {
+                    self.params[0]
+                }
+            }
+            b'<' => {
+                let count = usize::from(self.params[0].max(1)).min(self.kitty_stack.len() + 1);
+                for _ in 0..count {
+                    self.kitty = self.kitty_stack.pop().unwrap_or(0);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn set_mode(&mut self, mode: u16, enabled: bool) {
         match mode {
             9 | 1000 | 1002 | 1003 => {
                 self.modes.protocol = if enabled { mode } else { 0 };
                 self.protocol_revision = self.protocol_revision.wrapping_add(1);
             }
+            9001 => self.win32 = enabled,
             1006 | 1016 => self.modes.encoding = if enabled { mode } else { 0 },
             _ => {}
         }
@@ -339,6 +450,74 @@ impl ModeTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn enhanced_input_modes_follow_shared_stack_and_utf8_control_boundaries() {
+        for data in [
+            "\x1b[=1u\x1b[>7u\x1b[<u",
+            "\x1b[>7u\x1b[=7;3u",
+            "\x1b[>7u\x1b[?1049h",
+            "\x1b[>u",
+            "\u{009b}>7u",
+        ] {
+            for split in 0..=data.len() {
+                let mut tracker = ModeTracker::default();
+                tracker.feed(&data.as_bytes()[..split]);
+                tracker.feed(&data.as_bytes()[split..]);
+                assert!(tracker.kitty_input(), "{data:?} split{split}");
+            }
+        }
+        for data in [
+            "\u{009b}?9001h",
+            "\x1b[?90\u{feff}01h",
+            "\u{009d}ignored [?9001l\u{009c}\u{009b}?9001h",
+        ] {
+            for split in 0..=data.len() {
+                let mut tracker = ModeTracker::default();
+                tracker.feed(&data.as_bytes()[..split]);
+                tracker.feed(&data.as_bytes()[split..]);
+                assert!(tracker.win32_input(), "{data:?} split{split}");
+            }
+        }
+        for data in [
+            b"\x1b[?9001\xc2h".as_slice(),
+            b"\x1b[>1\xefu".as_slice(),
+            b"\x1b[?9001\xef\xbbh".as_slice(),
+            b"\x1b[?9001\xd0\x9bh".as_slice(),
+            b"\x1b[>1\xe2\x82\x9bu".as_slice(),
+        ] {
+            for split in 0..=data.len() {
+                let mut tracker = ModeTracker::default();
+                tracker.feed(&data[..split]);
+                tracker.feed(&data[split..]);
+                assert!(!tracker.win32_input());
+                assert!(!tracker.kitty_input());
+            }
+        }
+        let mut tracker = ModeTracker::default();
+        tracker.feed(b"\x1b[>7u\x1b[=7;0u");
+        assert!(!tracker.kitty_input());
+        tracker.feed(b"\x1b[>7u\x1bc");
+        assert!(!tracker.kitty_input());
+    }
+
+    #[test]
+    fn win32_input_mode_survives_chunk_boundaries_and_resets_without_parsing_string_payloads() {
+        for split in 0..=9 {
+            let data = b"\x1b[?9001h";
+            let split = split.min(data.len());
+            let mut tracker = ModeTracker::default();
+            tracker.feed(&data[..split]);
+            tracker.feed(&data[split..]);
+            assert!(tracker.win32_input());
+            tracker.feed(b"\x1b]title ?9001l\x07\x1bPpayload ?9001l\x1b\\");
+            assert!(tracker.win32_input());
+            tracker.feed(b"\x1b[?9001l");
+            assert!(!tracker.win32_input());
+            tracker.feed(b"\x1b[?9001h\x1bc");
+            assert!(!tracker.win32_input());
+        }
+    }
+
     #[test]
     fn wheel_preserves_fractional_distance_and_resets_on_direction_route_and_idle() {
         let mut wheel = Wheel::default();

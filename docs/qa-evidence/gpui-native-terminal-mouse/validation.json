@@ -62,5 +62,17 @@
     "evidence": "Local ~/.cache/paseo-native-qa/raw-* plus parent /tmp/paseo-gpui-raw-*.txt. Native GUI evidence predates extraction of pure pending-input state and late-error/reconnect fixes; those final changes have focused tests/checks, not repeated GUI captures.",
     "limits": "Mac real POSIX PTY and Windows real ConPTY behavior remain untested; Windows intentionally has no arbitrary raw-byte support. Pending64 bounds acknowledgement debt, not node-pty's downstream queue or slow-program drain. Deployment still requires reviewing old-worker versions and preserving real sessions; no production restart authorized by this checkpoint. Full terminal/performance/Electron pixel/platform migration remains NOT_PASSED."
   },
+  "modifiedEnterFollowUp": {
+    "date": "2026-11-01",
+    "baseCommit": "8a04cae473992d04668285357ad1a53540e51ae6",
+    "sourceArchiveSha256": "b19516ded88438651a25b7a68b299f2fb687b63ea7a4480622eccd6b2fd84b92",
+    "scope": "Modified Enter follows Paseo's shared Kitty/Win32 encoding, with Win32 priority. Ordinary keys and IME commits keep their established paths; preedit blocks key encoding. This is not complete Kitty event/physical-key support.",
+    "modeState": "Native boundary observer tracks shared global Kitty push/pop/set semantics rather than Alacritty's screen-local stack, and Win32 mode9001. UTF8 C1 and BOM boundaries survive every byte split; unrelated or interrupted Unicode invalidates CSI instead of enabling a mode. Query replies remain host-owned.",
+    "checks": "Focused enhanced-Enter keyboard and mode-observer tests pass on Linux/Mac/Windows, plus existing mouse oracle regression on Linux. Fresh final archive checks use runtime-shaders on Mac and MSVC on Windows; npm format/lint/typecheck and native freshness pass.",
+    "actualInput": "Real X11 keys in GPUI reached private PTY as Kitty Shift/Alt/Ctrl Enter CSI13;2/3/5u, ordinary CR and a once; Win32 priority CSI13;28;13;1;16;1_; RIS returns ShiftEnter to CR. Final-source cold Win32 reopen also matched exact bytes.",
+    "artifacts": "Local ~/.cache/paseo-native-qa/enter-* and /tmp/paseo-gpui-enter-*.txt; final binarySHA256a76726c070d9791b82cede9c6142f8d9f5cc24d118cb2ee76ed52f820993364e.",
+    "cleanup": "Verified final private window close retained six PTYs; extra EnterQA explicitly removed while A-E remained. Owningfixture858092 stopped; worker/PTYS/home gone, verified WM858091/Xvfb858083 stopped,43065/44785absent. Production6767, installed clients and Android sources untouched.",
+    "limits": "Mac/Windows actual keys/IME unverified. The App's non-Mac Ctrl-only early-return bypass differs from the shared encoder; native CtrlEnter follows shared protocol intent, not that accidental handler bypass. Complete Kitty repeat/release/keypad/physical metadata and stack replay are not implemented. Extended observer now includes a Kitty Vec stack; historical104-byte/zero-allocation mouse-only evidence above does not measure Kitty push allocations or whole process bounds. Full migration/pixel/performance acceptance remains NOT_PASSED."
+  },
   "cleanup": "Confirmed fixture, its PTYs and client stopped; stopped only matching private Xvfb/Openbox PIDs and removed the private fixture home. Production daemon and user sessions untouched."
 }

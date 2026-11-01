@@ -13,6 +13,25 @@ impl Modifiers {
     }
 }
 
+pub fn enhanced_enter(modifiers: Modifiers, kitty: bool, win32: bool) -> Option<String> {
+    let modified = modifiers.shift || modifiers.alt || modifiers.control || modifiers.platform;
+    if !modified {
+        return None;
+    }
+    if win32 && (modifiers.shift || modifiers.alt || modifiers.control) {
+        let state = 16 * u8::from(modifiers.shift)
+            + 8 * u8::from(modifiers.control)
+            + 2 * u8::from(modifiers.alt);
+        return Some(format!("\x1b[13;28;13;1;{state};1_"));
+    }
+    kitty.then(|| {
+        format!(
+            "\x1b[13;{}u",
+            modifiers.parameter() + 8 * u8::from(modifiers.platform)
+        )
+    })
+}
+
 pub fn encode(key: &str, modifiers: Modifiers, application_cursor: bool) -> Option<String> {
     if modifiers.platform {
         return None;
@@ -154,6 +173,105 @@ mod tests {
         assert_eq!(clipboard_text("中\u{a0}a\nb".into(), false), "中 a\nb");
         assert_eq!(clipboard_text("中\u{a0}a\nb".into(), true), "中 a\r\nb");
         assert_eq!(clipboard_text("  a  ".into(), true), "  a  ");
+    }
+
+    #[test]
+    fn enhanced_enter_matches_shared_kitty_and_win32_encoding_without_claiming_all_key_events() {
+        for (modifiers, kitty, win32, expected) in [
+            (
+                Modifiers {
+                    shift: true,
+                    ..Default::default()
+                },
+                true,
+                false,
+                "\x1b[13;2u",
+            ),
+            (
+                Modifiers {
+                    alt: true,
+                    ..Default::default()
+                },
+                true,
+                false,
+                "\x1b[13;3u",
+            ),
+            (
+                Modifiers {
+                    control: true,
+                    ..Default::default()
+                },
+                true,
+                false,
+                "\x1b[13;5u",
+            ),
+            (
+                Modifiers {
+                    platform: true,
+                    ..Default::default()
+                },
+                true,
+                false,
+                "\x1b[13;9u",
+            ),
+            (
+                Modifiers {
+                    shift: true,
+                    control: true,
+                    ..Default::default()
+                },
+                true,
+                false,
+                "\x1b[13;6u",
+            ),
+            (
+                Modifiers {
+                    shift: true,
+                    ..Default::default()
+                },
+                true,
+                true,
+                "\x1b[13;28;13;1;16;1_",
+            ),
+            (
+                Modifiers {
+                    alt: true,
+                    control: true,
+                    ..Default::default()
+                },
+                false,
+                true,
+                "\x1b[13;28;13;1;10;1_",
+            ),
+        ] {
+            assert_eq!(
+                enhanced_enter(modifiers, kitty, win32).as_deref(),
+                Some(expected)
+            );
+        }
+        assert_eq!(enhanced_enter(Modifiers::default(), true, true), None);
+        assert_eq!(
+            enhanced_enter(
+                Modifiers {
+                    shift: true,
+                    ..Default::default()
+                },
+                false,
+                false
+            ),
+            None
+        );
+        assert_eq!(
+            enhanced_enter(
+                Modifiers {
+                    platform: true,
+                    ..Default::default()
+                },
+                false,
+                true
+            ),
+            None
+        );
     }
 
     #[test]
