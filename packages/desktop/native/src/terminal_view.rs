@@ -386,112 +386,131 @@ impl Render for TerminalView {
                             .map(|s| s.width)
                             .unwrap_or(px(8.));
                         measure_view.update(cx, |view, cx| view.measure(bounds, width, cx));
-                        (measure_view.read(cx).buffer.screen(), font, width)
+                        (font, width)
                     },
-                    move |bounds, (screen, base_font, width), window, cx| {
+                    move |bounds, (base_font, width), window, cx| {
                         let focus = paint_view.read(cx).focus.clone();
                         window.handle_input(
                             &focus,
                             ElementInputHandler::new(bounds, paint_view.clone()),
                             cx,
                         );
-                        window.with_content_mask(Some(gpui::ContentMask { bounds }), |window| {
-                            for cell in screen.cells {
-                                let origin = bounds.origin
-                                    + point(
-                                        width * cell.col as f32,
-                                        px(ROW_HEIGHT * cell.row as f32),
-                                    );
-                                if cell.background != 0x171919 {
-                                    window.paint_quad(fill(
-                                        Bounds::new(
-                                            origin,
-                                            size(width * cell.columns as f32, px(ROW_HEIGHT)),
-                                        ),
-                                        rgb(cell.background),
-                                    ));
-                                }
-                                if cell.text == " " {
-                                    continue;
-                                }
-                                let font = match (cell.bold, cell.italic) {
-                                    (true, true) => base_font.clone().bold().italic(),
-                                    (true, false) => base_font.clone().bold(),
-                                    (false, true) => base_font.clone().italic(),
-                                    _ => base_font.clone(),
-                                };
-                                let text: gpui::SharedString = cell.text.into();
-                                let run = TextRun {
-                                    len: text.len(),
-                                    font,
-                                    color: rgb(cell.foreground).into(),
-                                    background_color: None,
-                                    underline: cell.underline.then_some(gpui::UnderlineStyle {
-                                        thickness: px(1.),
-                                        color: Some(rgb(cell.foreground).into()),
-                                        wavy: false,
-                                    }),
-                                    strikethrough: None,
-                                };
-                                let line = window.text_system().shape_line(
-                                    text,
-                                    px(FONT_SIZE),
-                                    &[run],
-                                    None,
-                                );
-                                let _ = line.paint(
-                                    origin,
-                                    px(ROW_HEIGHT),
-                                    gpui::TextAlign::Left,
-                                    None,
-                                    window,
-                                    cx,
-                                );
-                            }
-                            if let Some((row, col)) = screen.cursor {
-                                window.paint_quad(fill(
-                                    Bounds::new(
-                                        bounds.origin
+                        paint_view.update(cx, |view, cx| {
+                            let screen = view.buffer.screen();
+                            window.with_content_mask(
+                                Some(gpui::ContentMask { bounds }),
+                                |window| {
+                                    for cell in screen.cells {
+                                        let origin = bounds.origin
                                             + point(
-                                                width * col as f32,
-                                                px(ROW_HEIGHT * row as f32),
+                                                width * cell.col as f32,
+                                                px(ROW_HEIGHT * cell.row as f32),
+                                            );
+                                        if cell.background != 0x171919 {
+                                            window.paint_quad(fill(
+                                                Bounds::new(
+                                                    origin,
+                                                    size(
+                                                        width * cell.columns as f32,
+                                                        px(ROW_HEIGHT),
+                                                    ),
+                                                ),
+                                                rgb(cell.background),
+                                            ));
+                                        }
+                                        if cell.character == ' ' && cell.zerowidth.is_empty() {
+                                            continue;
+                                        }
+                                        let font = match (cell.bold, cell.italic) {
+                                            (true, true) => base_font.clone().bold().italic(),
+                                            (true, false) => base_font.clone().bold(),
+                                            (false, true) => base_font.clone().italic(),
+                                            _ => base_font.clone(),
+                                        };
+                                        let text: gpui::SharedString = if cell.zerowidth.is_empty()
+                                        {
+                                            cell.character.into()
+                                        } else {
+                                            cell.chars().collect::<String>().into()
+                                        };
+                                        let run = TextRun {
+                                            len: text.len(),
+                                            font,
+                                            color: rgb(cell.foreground).into(),
+                                            background_color: None,
+                                            underline: cell.underline.then_some(
+                                                gpui::UnderlineStyle {
+                                                    thickness: px(1.),
+                                                    color: Some(rgb(cell.foreground).into()),
+                                                    wavy: false,
+                                                },
                                             ),
-                                        size(px(2.), px(ROW_HEIGHT)),
-                                    ),
-                                    rgb(0x82aaff),
-                                ));
-                            }
-                            let marked = paint_view.read(cx).marked.clone();
-                            if !marked.is_empty() {
-                                let (row, col) = screen.cursor.unwrap_or((0, 0));
-                                let run = TextRun {
-                                    len: marked.len(),
-                                    font: base_font,
-                                    color: rgb(0xffcb6b).into(),
-                                    background_color: None,
-                                    underline: Some(gpui::UnderlineStyle {
-                                        thickness: px(1.),
-                                        color: None,
-                                        wavy: false,
-                                    }),
-                                    strikethrough: None,
-                                };
-                                let line = window.text_system().shape_line(
-                                    marked.into(),
-                                    px(FONT_SIZE),
-                                    &[run],
-                                    None,
-                                );
-                                let _ = line.paint(
-                                    bounds.origin
-                                        + point(width * col as f32, px(ROW_HEIGHT * row as f32)),
-                                    px(ROW_HEIGHT),
-                                    gpui::TextAlign::Left,
-                                    None,
-                                    window,
-                                    cx,
-                                );
-                            }
+                                            strikethrough: None,
+                                        };
+                                        let line = window.text_system().shape_line(
+                                            text,
+                                            px(FONT_SIZE),
+                                            &[run],
+                                            None,
+                                        );
+                                        let _ = line.paint(
+                                            origin,
+                                            px(ROW_HEIGHT),
+                                            gpui::TextAlign::Left,
+                                            None,
+                                            window,
+                                            cx,
+                                        );
+                                    }
+                                    if let Some((row, col)) = screen.cursor {
+                                        window.paint_quad(fill(
+                                            Bounds::new(
+                                                bounds.origin
+                                                    + point(
+                                                        width * col as f32,
+                                                        px(ROW_HEIGHT * row as f32),
+                                                    ),
+                                                size(px(2.), px(ROW_HEIGHT)),
+                                            ),
+                                            rgb(0x82aaff),
+                                        ));
+                                    }
+                                    let marked = view.marked.clone();
+                                    if !marked.is_empty() {
+                                        let (row, col) = screen.cursor.unwrap_or((0, 0));
+                                        let run = TextRun {
+                                            len: marked.len(),
+                                            font: base_font,
+                                            color: rgb(0xffcb6b).into(),
+                                            background_color: None,
+                                            underline: Some(gpui::UnderlineStyle {
+                                                thickness: px(1.),
+                                                color: None,
+                                                wavy: false,
+                                            }),
+                                            strikethrough: None,
+                                        };
+                                        let line = window.text_system().shape_line(
+                                            marked.into(),
+                                            px(FONT_SIZE),
+                                            &[run],
+                                            None,
+                                        );
+                                        let _ = line.paint(
+                                            bounds.origin
+                                                + point(
+                                                    width * col as f32,
+                                                    px(ROW_HEIGHT * row as f32),
+                                                ),
+                                            px(ROW_HEIGHT),
+                                            gpui::TextAlign::Left,
+                                            None,
+                                            window,
+                                            cx,
+                                        );
+                                    }
+                                },
+                            );
                         });
                     },
                 )

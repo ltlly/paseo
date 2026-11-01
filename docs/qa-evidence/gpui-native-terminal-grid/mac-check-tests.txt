@@ -1,0 +1,17 @@
+Verified source archive ba858d3c60e5d2a3a0ec8d6873d0297b7a095c98e78bb250ed7c23b0b815bd67
+    Checking paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-check-terminal-screen/packages/desktop/native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.21s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+   Compiling paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-check-terminal-screen/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.65s
+     Running unittests src/lib.rs (/Users/nmsl/.cache/paseo-gpui-target/debug/deps/paseo_desktop-db2c7bc3ef66e232)
+
+running 4 tests
+test terminal::tests::query_replies_are_not_sent_by_the_display_parser ... ok
+test terminal::tests::replay_keeps_utf8_and_escape_parser_state_across_chunks ... ok
+test terminal::tests::scrolling_and_resize_preserve_bounded_history ... ok
+test terminal::tests::visible_cells_keep_wide_columns_colored_spaces_and_unbounded_combining_text ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 61 filtered out; finished in 0.01s
+

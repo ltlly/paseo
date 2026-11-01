@@ -1,0 +1,201 @@
+{
+  "date": "2026-11-01",
+  "baseCommit": "bb4015d9806b91642e785ee910d6f768c69483ac",
+  "sourceArchiveSha256": "ba858d3c60e5d2a3a0ec8d6873d0297b7a095c98e78bb250ed7c23b0b815bd67",
+  "scope": "Native terminal grid projection only. App, Android, daemon, protocol and installed clients unchanged.",
+  "projectionBenchmark": {
+    "command": "CARGO_TARGET_DIR=/home/ltlly/Code/paseo/target CARGO_BUILD_JOBS=2 cargo run --offline --release --manifest-path /home/ltlly/.cache/paseo-native-qa/terminal-screen-bench/Cargo.toml",
+    "description": "Single-threaded real TerminalBuffer grid traversal, 20 warmup traversals and 1000 measured traversals per workload. std::alloc::System wrapper counts allocation/reallocation calls and cumulative requested bytes while enabled. Character/coordinate/colour checksums match across implementations. The harness adapts only cell.text.chars() to the borrowed cell.chars() API.",
+    "measurements": {
+      "before": [
+        {
+          "workload": "sparse",
+          "iterations": 1000,
+          "nsPerFrame": 141125,
+          "allocationsPerFrame": 4812,
+          "allocatedBytesPerFrame": 1053120,
+          "checksum": 11844123597908406945
+        },
+        {
+          "workload": "dense",
+          "iterations": 1000,
+          "nsPerFrame": 511439,
+          "allocationsPerFrame": 16814,
+          "allocatedBytesPerFrame": 4210848,
+          "checksum": 17764742483640340874
+        },
+        {
+          "workload": "unicode_styles",
+          "iterations": 1000,
+          "nsPerFrame": 130703,
+          "allocationsPerFrame": 4623,
+          "allocatedBytesPerFrame": 539037,
+          "checksum": 9056524852163945324
+        }
+      ],
+      "after": [
+        {
+          "workload": "sparse",
+          "iterations": 1000,
+          "nsPerFrame": 72210,
+          "allocationsPerFrame": 0,
+          "allocatedBytesPerFrame": 0,
+          "checksum": 11844123597908406945
+        },
+        {
+          "workload": "dense",
+          "iterations": 1000,
+          "nsPerFrame": 266684,
+          "allocationsPerFrame": 0,
+          "allocatedBytesPerFrame": 0,
+          "checksum": 17764742483640340874
+        },
+        {
+          "workload": "unicode_styles",
+          "iterations": 1000,
+          "nsPerFrame": 68390,
+          "allocationsPerFrame": 0,
+          "allocatedBytesPerFrame": 0,
+          "checksum": 9056524852163945324
+        }
+      ]
+    },
+    "allocationScope": "Grid projection and traversal, not full GPUI paint. Cumulative requested bytes, not retained/live memory."
+  },
+  "visualComparison": {
+    "platform": "Linux X11 Xvfb/Openbox with lavapipe software rendering",
+    "nativeBuild": "debug",
+    "viewport": [1280, 800],
+    "scale": 1,
+    "sameDaemonAndPty": true,
+    "masks": null,
+    "scenes": {
+      "a": "ASCII and geometry",
+      "u": "Unicode, long combining marks, ZWJ, fallback fonts",
+      "c": "attributes, RGB/indexed colour, inverse and coloured spaces",
+      "e": "erase stale cells",
+      "t": "cursor position",
+      "s": "scrolled history"
+    },
+    "results": [
+      {
+        "scene": "a",
+        "wholeWindowDifferentPixels": 0,
+        "terminalCanvasDifferentPixels": 0
+      },
+      {
+        "scene": "u",
+        "wholeWindowDifferentPixels": 0,
+        "terminalCanvasDifferentPixels": 0
+      },
+      {
+        "scene": "c",
+        "wholeWindowDifferentPixels": 0,
+        "terminalCanvasDifferentPixels": 0
+      },
+      {
+        "scene": "e",
+        "wholeWindowDifferentPixels": 0,
+        "terminalCanvasDifferentPixels": 0
+      },
+      {
+        "scene": "t",
+        "wholeWindowDifferentPixels": 0,
+        "terminalCanvasDifferentPixels": 0
+      },
+      {
+        "scene": "s",
+        "wholeWindowDifferentPixels": 0,
+        "terminalCanvasDifferentPixels": 0
+      }
+    ],
+    "acceptance": "PASS for before/after native equivalence only; NOT_PASSED for original Electron parity"
+  },
+  "checks": {
+    "terminalModelTestsPerPlatform": 4,
+    "platforms": ["Linux", "macOS runtime-shaders native check", "Windows MSVC"],
+    "typecheck": "passed",
+    "lint": "passed",
+    "format": "passed",
+    "nativeAssetAndCargoCheck": "passed",
+    "realLinuxInteraction": {
+      "actualOsKeyReceived": "u",
+      "sixTabSwitchesNewSubscriptions": 1,
+      "resizedDuringLiveOutput": [
+        [1000, 700],
+        [1280, 800]
+      ],
+      "clientCloseRetainsTerminalIds": true,
+      "liveTerminalsAfterClose": 5
+    }
+  },
+  "processSamples": {
+    "method": "Two-second warmup, then 20 /proc samples 250ms apart during a PTY updating one row every 16ms; busy-row timer has no frame/delivery instrumentation. Sequential debug builds on the same software-rendered display.",
+    "before": {
+      "durationSeconds": 5.011540489998879,
+      "cpuPercentOneCore": 259.80035531954593,
+      "rssKiBMin": 336008,
+      "rssKiBMax": 337172,
+      "samples": [
+        [38379.436060479, 1152, 336008],
+        [38379.686584203, 1211, 337172],
+        [38379.937096296, 1277, 337148],
+        [38380.187407648, 1345, 337148],
+        [38380.439067462, 1411, 337148],
+        [38380.689568698, 1474, 337148],
+        [38380.940297725, 1544, 337148],
+        [38381.191024448, 1613, 337148],
+        [38381.441415254, 1674, 337148],
+        [38381.692624374, 1736, 337148],
+        [38381.943225713, 1803, 337172],
+        [38382.194207903, 1872, 337148],
+        [38382.444594495, 1938, 337148],
+        [38382.694977225, 1998, 337148],
+        [38382.945350856, 2055, 337148],
+        [38383.195813557, 2124, 337148],
+        [38383.446258644, 2192, 337172],
+        [38383.696627491, 2258, 337148],
+        [38383.946948447, 2324, 337148],
+        [38384.197240458, 2388, 337172],
+        [38384.447600969, 2454, 337148]
+      ]
+    },
+    "after": {
+      "durationSeconds": 5.013523122004699,
+      "cpuPercentOneCore": 239.95102260922064,
+      "rssKiBMin": 307752,
+      "rssKiBMax": 307776,
+      "samples": [
+        [38549.07113816, 747, 307776],
+        [38549.321687699, 793, 307776],
+        [38549.572101679, 836, 307752],
+        [38549.82235374, 884, 307752],
+        [38550.073174654, 952, 307752],
+        [38550.323444101, 1007, 307752],
+        [38550.576390405, 1077, 307776],
+        [38550.826740894, 1129, 307752],
+        [38551.077130066, 1195, 307752],
+        [38551.32821825, 1261, 307752],
+        [38551.578654201, 1321, 307768],
+        [38551.829197046, 1377, 307752],
+        [38552.079860169, 1423, 307752],
+        [38552.330214087, 1495, 307752],
+        [38552.580479464, 1548, 307752],
+        [38552.830949911, 1616, 307752],
+        [38553.081361877, 1683, 307776],
+        [38553.331779245, 1754, 307752],
+        [38553.58216948, 1823, 307752],
+        [38553.834197137, 1880, 307768],
+        [38554.084661282, 1950, 307752]
+      ]
+    },
+    "interpretation": "Single diagnostic samples only. Uncontrolled frame scheduling and software GPU caches prevent a general CPU, RSS, frame-rate or input-latency improvement claim."
+  },
+  "limitations": [
+    "No original Electron/native pixel acceptance or complete desktop migration.",
+    "Existing native grapheme, fallback/emoji, Unicode-width and shaping limitations remain visible and unresolved.",
+    "GPUI shaping, glyph upload and combining-text conversion can still allocate; only grid projection was measured as allocation-free.",
+    "Mac/Windows native GUI and hardware rendering, IME, selection/copy/paste, full modes, images and reconnect still require work."
+  ],
+  "deployment": "Not deployed. All isolated native windows, fixture PTYs/home and QA display/WM cleaned; production port 6767 and installed clients untouched."
+}

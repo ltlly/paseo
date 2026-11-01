@@ -1,0 +1,20 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+#< CLIXML
+Verified source archive ba858d3c60e5d2a3a0ec8d6873d0297b7a095c98e78bb250ed7c23b0b815bd67
+    Checking paseo-desktop v0.14.0 (C:\Users\Administrator\.cache\paseo-gpui-check-terminal-screen\packages\desktop\native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.85s
+   Compiling paseo-desktop v0.14.0 (C:\Users\Administrator\.cache\paseo-gpui-check-terminal-screen\packages\desktop\native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.65s
+     Running unittests src\lib.rs (C:\Users\Administrator\.cache\paseo-gpui-target\debug\deps\paseo_desktop-d40d8534f2695ab9.exe)
+
+running 4 tests
+test terminal::tests::query_replies_are_not_sent_by_the_display_parser ... ok
+test terminal::tests::replay_keeps_utf8_and_escape_parser_state_across_chunks ... ok
+test terminal::tests::scrolling_and_resize_preserve_bounded_history ... ok
+test terminal::tests::visible_cells_keep_wide_columns_colored_spaces_and_unbounded_combining_text ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 61 filtered out; finished in 0.01s
+
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><Obj S="progress" RefId="0"><TN RefId="0"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>正在准备首次使用模块。</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>

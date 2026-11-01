@@ -1,0 +1,19 @@
+import sys;sys.path.insert(0,'/home/ltlly/.cache/paseo-native-qa')
+from retention_qa import *
+import os
+m=json.loads((r/'composer.json').read_text());ids=m['terminals'];labels=sorted(['A','B','C','D'],key=lambda v:ids[v])
+def choose():native_click(105,233);time.sleep(.3);native_click(round(368+93.5*labels.index('A')),53);time.sleep(.3)
+def scenes(prefix):
+ for key in ['a','u','c','e','t','s']:
+  run('node','--import','tsx',str(r/'retention-sdk.mts'),'input','A',key);wheel(-1000);time.sleep(.15)
+  if key=='s':wheel(10)
+  snapshot('screen-'+prefix+'-'+key)
+def cpu(prefix):
+ candidates=[v.split(maxsplit=1) for v in run('ps','-eo','pid=,args=').splitlines() if v.strip().split(maxsplit=1)[-1]=='paseo-desktop'];assert len(candidates)==1,candidates;pid=int(candidates[0][0]);assert Path(f'/proc/{pid}/exe').resolve().name in ['paseo-screen-before','paseo-desktop']
+ run('node','--import','tsx',str(r/'retention-sdk.mts'),'input','A','a');wheel(-1000);run('node','--import','tsx',str(r/'retention-sdk.mts'),'input','A','b');time.sleep(2)
+ def read():
+  fields=Path(f'/proc/{pid}/stat').read_text().split();status=Path(f'/proc/{pid}/status').read_text().splitlines();rss=int(next(v.split()[1] for v in status if v.startswith('VmRSS:')));return time.monotonic(),int(fields[13])+int(fields[14]),rss
+ samples=[read()]
+ for _ in range(20):time.sleep(.25);samples.append(read())
+ run('node','--import','tsx',str(r/'retention-sdk.mts'),'input','A','a');result={'durationSeconds':samples[-1][0]-samples[0][0],'cpuPercentOneCore':100*(samples[-1][1]-samples[0][1])/os.sysconf('SC_CLK_TCK')/(samples[-1][0]-samples[0][0]),'rssKiBMin':min(v[2] for v in samples),'rssKiBMax':max(v[2] for v in samples),'samples':samples};(r/('screen-'+prefix+'-runtime.json')).write_text(json.dumps(result,indent=2));print(prefix,result['cpuPercentOneCore'],result['rssKiBMax'],flush=True)
+if __name__=='__main__':prefix=sys.argv[1];choose();cpu(prefix);scenes(prefix);print('Scenes complete',prefix,flush=True)

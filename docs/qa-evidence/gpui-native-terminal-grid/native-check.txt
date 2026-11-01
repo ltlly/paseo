@@ -1,0 +1,4 @@
+npm notice run paseo@0.14.0-ltlly.3 check:desktop:native
+npm notice run node packages/desktop/scripts/sync-native-ui.mjs --check && cargo check --locked -p paseo-desktop && cargo fmt --all --check
+    Checking paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.21s

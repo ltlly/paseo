@@ -1,7 +1,7 @@
 use alacritty_terminal::{
     event::VoidListener,
     grid::{Dimensions, Scroll},
-    term::{Config, Term, TermMode, cell::Flags},
+    term::{Config, RenderableContent, Term, TermMode, cell::Flags},
     vte::ansi::{Color, NamedColor, Processor, Rgb},
 };
 use anyhow::{Result, ensure};
@@ -26,11 +26,12 @@ impl Dimensions for GridSize {
     }
 }
 
-pub struct Cell {
+pub struct Cell<'a> {
     pub row: usize,
     pub col: usize,
     pub columns: usize,
-    pub text: String,
+    pub character: char,
+    pub zerowidth: &'a [char],
     pub foreground: u32,
     pub background: u32,
     pub bold: bool,
@@ -38,9 +39,59 @@ pub struct Cell {
     pub underline: bool,
 }
 
-pub struct Screen {
-    pub cells: Vec<Cell>,
+pub struct Screen<'a> {
+    pub cells: ScreenCells<'a>,
     pub cursor: Option<(usize, usize)>,
+}
+
+impl Cell<'_> {
+    pub fn chars(&self) -> impl Iterator<Item = char> + '_ {
+        std::iter::once(self.character).chain(self.zerowidth.iter().copied())
+    }
+}
+
+pub struct ScreenCells<'a> {
+    content: RenderableContent<'a>,
+    rows: u16,
+}
+
+impl<'a> Iterator for ScreenCells<'a> {
+    type Item = Cell<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for indexed in self.content.display_iter.by_ref() {
+            let row = indexed.point.line.0 + self.content.display_offset as i32;
+            if row < 0
+                || row >= i32::from(self.rows)
+                || indexed.cell.flags.contains(Flags::WIDE_CHAR_SPACER)
+            {
+                continue;
+            }
+            let cell = indexed.cell;
+            let mut foreground = resolve_color(cell.fg, self.content.colors);
+            let mut background = resolve_color(cell.bg, self.content.colors);
+            if cell.flags.contains(Flags::INVERSE) {
+                std::mem::swap(&mut foreground, &mut background);
+            }
+            return Some(Cell {
+                row: row as usize,
+                col: indexed.point.column.0,
+                columns: if cell.flags.contains(Flags::WIDE_CHAR) {
+                    2
+                } else {
+                    1
+                },
+                character: cell.c,
+                zerowidth: cell.zerowidth().unwrap_or_default(),
+                foreground,
+                background,
+                bold: cell.flags.contains(Flags::BOLD),
+                italic: cell.flags.contains(Flags::ITALIC),
+                underline: cell.flags.intersects(Flags::ALL_UNDERLINES),
+            });
+        }
+        None
+    }
 }
 
 pub struct TerminalBuffer {
@@ -118,50 +169,23 @@ impl TerminalBuffer {
         *self.term.mode()
     }
 
-    pub fn screen(&self) -> Screen {
+    // Borrow the authoritative grid for the paint pass. No second grid or per-cell
+    // strings outlive rendering; combining marks remain borrowed without truncation.
+    pub fn screen(&self) -> Screen<'_> {
         let content = self.term.renderable_content();
         let offset = content.display_offset as i32;
-        let mut cells = Vec::new();
-        for indexed in content.display_iter {
-            let row = indexed.point.line.0 + offset;
-            if row < 0
-                || row >= i32::from(self.size.rows)
-                || indexed.cell.flags.contains(Flags::WIDE_CHAR_SPACER)
-            {
-                continue;
-            }
-            let cell = indexed.cell;
-            let mut text = cell.c.to_string();
-            if let Some(extra) = cell.zerowidth() {
-                text.extend(extra);
-            }
-            let mut foreground = resolve_color(cell.fg, content.colors);
-            let mut background = resolve_color(cell.bg, content.colors);
-            if cell.flags.contains(Flags::INVERSE) {
-                std::mem::swap(&mut foreground, &mut background);
-            }
-            cells.push(Cell {
-                row: row as usize,
-                col: indexed.point.column.0,
-                columns: if cell.flags.contains(Flags::WIDE_CHAR) {
-                    2
-                } else {
-                    1
-                },
-                text,
-                foreground,
-                background,
-                bold: cell.flags.contains(Flags::BOLD),
-                italic: cell.flags.contains(Flags::ITALIC),
-                underline: cell.flags.intersects(Flags::ALL_UNDERLINES),
-            });
-        }
         let cursor_row = content.cursor.point.line.0 + offset;
         let cursor = (self.term.mode().contains(TermMode::SHOW_CURSOR)
             && cursor_row >= 0
             && cursor_row < i32::from(self.size.rows))
         .then_some((cursor_row as usize, content.cursor.point.column.0));
-        Screen { cells, cursor }
+        Screen {
+            cells: ScreenCells {
+                content,
+                rows: self.size.rows,
+            },
+            cursor,
+        }
     }
 }
 
@@ -236,9 +260,9 @@ mod tests {
             .apply(frame(TerminalOpcode::ReplayData, b"\xb8\xad"))
             .unwrap();
         buffer.apply(frame(TerminalOpcode::ReplayEnd, b"")).unwrap();
-        let screen = buffer.screen();
-        assert_eq!(screen.cells[0].text, "中");
-        assert_eq!(screen.cells[0].foreground, 0xf07178);
+        let first = buffer.screen().cells.next().unwrap();
+        assert_eq!(first.chars().collect::<String>(), "中");
+        assert_eq!(first.foreground, 0xf07178);
         assert_eq!(buffer.size, GridSize { rows: 12, cols: 40 });
         assert!(!buffer.replaying);
     }
@@ -249,7 +273,73 @@ mod tests {
         buffer.feed(b"ok\x1b[6n\x1b[c\x1b[?1000h\x1b[?1006h");
         assert!(buffer.modes().contains(TermMode::MOUSE_REPORT_CLICK));
         assert!(buffer.modes().contains(TermMode::SGR_MOUSE));
-        assert_eq!(buffer.screen().cells[0].text, "o");
+        assert_eq!(
+            buffer
+                .screen()
+                .cells
+                .next()
+                .unwrap()
+                .chars()
+                .collect::<String>(),
+            "o"
+        );
+    }
+
+    #[test]
+    fn visible_cells_keep_wide_columns_colored_spaces_and_unbounded_combining_text() {
+        let mut buffer = TerminalBuffer::new(GridSize { rows: 3, cols: 8 }, 20);
+        let combining = format!("a{}", "\u{301}".repeat(32));
+        buffer.feed(
+            format!("\x1b[1;3;4;38;2;10;20;30;48;2;40;50;60m中e\u{301} \x1b[0mX\r\n{combining}")
+                .as_bytes(),
+        );
+        let screen = buffer.screen();
+        let cells = screen
+            .cells
+            .into_iter()
+            .map(|cell| {
+                (
+                    cell.row,
+                    cell.col,
+                    cell.columns,
+                    cell.chars().collect::<String>(),
+                    cell.foreground,
+                    cell.background,
+                    cell.bold,
+                    cell.italic,
+                    cell.underline,
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            &cells[..4],
+            &[
+                (0, 0, 2, "中".into(), 0x0a141e, 0x28323c, true, true, true),
+                (
+                    0,
+                    2,
+                    1,
+                    "e\u{301}".into(),
+                    0x0a141e,
+                    0x28323c,
+                    true,
+                    true,
+                    true
+                ),
+                (0, 3, 1, " ".into(), 0x0a141e, 0x28323c, true, true, true),
+                (0, 4, 1, "X".into(), 0xd8dee9, 0x171919, false, false, false),
+            ]
+        );
+        assert_eq!(
+            cells
+                .iter()
+                .find(|cell| cell.0 == 1 && cell.1 == 0)
+                .unwrap()
+                .3,
+            combining
+        );
+        assert_eq!(cells.len(), 23);
+        assert_eq!(screen.cursor, Some((1, 1)));
     }
 
     #[test]
@@ -262,8 +352,7 @@ mod tests {
         let rows: String = buffer
             .screen()
             .cells
-            .iter()
-            .map(|c| c.text.as_str())
+            .flat_map(|cell| cell.chars().collect::<Vec<_>>())
             .collect();
         assert!(rows.contains("row-38"));
         buffer.resize(GridSize { rows: 4, cols: 42 });

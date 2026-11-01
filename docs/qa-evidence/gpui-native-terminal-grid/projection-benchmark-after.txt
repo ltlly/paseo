@@ -1,0 +1,7 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+   Compiling paseo-screen-bench v0.0.0 (/home/ltlly/.cache/paseo-native-qa/terminal-screen-bench)
+    Finished `release` profile [optimized] target(s) in 19.80s
+     Running `target/release/paseo-screen-bench`
+{"workload":"sparse","iterations":1000,"nsPerFrame":72210,"allocationsPerFrame":0,"allocatedBytesPerFrame":0,"checksum":11844123597908406945}
+{"workload":"dense","iterations":1000,"nsPerFrame":266684,"allocationsPerFrame":0,"allocatedBytesPerFrame":0,"checksum":17764742483640340874}
+{"workload":"unicode_styles","iterations":1000,"nsPerFrame":68390,"allocationsPerFrame":0,"allocatedBytesPerFrame":0,"checksum":9056524852163945324}

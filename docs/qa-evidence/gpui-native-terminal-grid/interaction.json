@@ -1,0 +1,10 @@
+{
+  "actualOsKeyReceived": "u",
+  "sixTabSwitchesNewSubscriptions": 1,
+  "resizedDuringLiveOutput": [
+    [1000, 700],
+    [1280, 800]
+  ],
+  "clientCloseRetainsTerminalIds": true,
+  "liveTerminalsAfterClose": 5
+}
