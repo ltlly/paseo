@@ -86,6 +86,7 @@ pub struct Agent {
     pub title: Option<String>,
     pub status: String,
     pub execution: Option<AgentExecution>,
+    pub created_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -1,4 +1,6 @@
 pub mod client;
+pub mod composer;
+pub mod editing;
 pub mod history;
 pub mod keyboard;
 pub mod model;

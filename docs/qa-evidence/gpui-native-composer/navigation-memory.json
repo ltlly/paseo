@@ -1,0 +1,40 @@
+{
+  "environment": "debug native GPUI, Xvfb/lavapipe; same fake-provider two-Agent workspace; five warm-up round trips; no Electron comparator; not hardware performance acceptance",
+  "samples": [
+    {
+      "switches": 0,
+      "RssKiB": 290192,
+      "PssKiB": 210994,
+      "Private_CleanKiB": 87348,
+      "Private_DirtyKiB": 70928
+    },
+    {
+      "switches": 20,
+      "RssKiB": 290172,
+      "PssKiB": 210809,
+      "Private_CleanKiB": 87348,
+      "Private_DirtyKiB": 70908
+    },
+    {
+      "switches": 40,
+      "RssKiB": 290188,
+      "PssKiB": 190771,
+      "Private_CleanKiB": 75060,
+      "Private_DirtyKiB": 70924
+    },
+    {
+      "switches": 60,
+      "RssKiB": 290212,
+      "PssKiB": 210834,
+      "Private_CleanKiB": 87348,
+      "Private_DirtyKiB": 70948
+    },
+    {
+      "switches": 80,
+      "RssKiB": 290212,
+      "PssKiB": 210925,
+      "Private_CleanKiB": 87348,
+      "Private_DirtyKiB": 70948
+    }
+  ]
+}

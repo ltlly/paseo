@@ -1,5 +1,5 @@
 use anyhow::{Result, ensure};
-use gpui::{Context, MouseButton, Render, Window, div, prelude::*, rgb};
+use gpui::{Context, Entity, MouseButton, Render, Window, div, prelude::*, px, rgb};
 use paseo_desktop::{
     client::Connection,
     history::{History, Page},
@@ -16,10 +16,16 @@ pub struct Conversation {
     error: Option<String>,
     refresh_scheduled: bool,
     whole_turns: bool,
+    composer: Entity<crate::composer_view::Composer>,
 }
 
 impl Conversation {
-    pub fn new(agent_id: String, connection: Arc<Connection>, whole_turns: bool) -> Self {
+    pub fn new(
+        agent_id: String,
+        connection: Arc<Connection>,
+        whole_turns: bool,
+        composer: Entity<crate::composer_view::Composer>,
+    ) -> Self {
         let mut view = Self {
             agent_id,
             connection,
@@ -29,6 +35,7 @@ impl Conversation {
             error: None,
             refresh_scheduled: false,
             whole_turns,
+            composer,
         };
         if let Err(error) = view.fetch("tail") {
             view.error = Some(error.to_string());
@@ -130,77 +137,85 @@ impl Conversation {
 
 impl Render for Conversation {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        use crate::theme::{colors as c, font_size};
         div()
             .id("agent-conversation")
             .size_full()
-            .overflow_y_scroll()
-            .p_4()
+            .flex()
+            .flex_col()
             .child(
                 div()
-                    .id("refresh-messages")
-                    .py_2()
-                    .cursor_pointer()
-                    .child("Refresh messages")
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _, _, cx| {
-                            if let Err(error) = this.fetch("tail") {
-                                this.error = Some(error.to_string());
-                            }
-                            cx.notify();
-                        }),
-                    ),
-            )
-            .when_some(self.error.clone(), |view, error| {
-                view.child(div().text_color(rgb(0xf07178)).child(error))
-            })
-            .when(self.history.has_older, |view| {
-                view.child(
-                    div()
-                        .id("older-messages")
-                        .py_2()
-                        .cursor_pointer()
-                        .child("Load earlier messages")
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                if let Err(error) = this.fetch("before") {
-                                    this.error = Some(error.to_string());
-                                }
-                                cx.notify();
-                            }),
-                        ),
-                )
-            })
-            .when(self.pending.is_some(), |view| {
-                view.child(
-                    div()
-                        .py_2()
-                        .text_color(rgb(0x808989))
-                        .child("Loading messages…"),
-                )
-            })
-            .children(self.history.entries.values().map(|entry| {
-                let kind = entry.item["type"].as_str().unwrap_or("message").to_owned();
-                let text = entry.item["text"]
-                    .as_str()
-                    .or_else(|| entry.item["message"].as_str())
-                    .map(str::to_owned)
-                    .unwrap_or_else(|| {
-                        serde_json::to_string_pretty(&entry.item).unwrap_or_default()
-                    });
-                div()
-                    .id(("timeline-row", entry.seq_start))
-                    .mb_4()
-                    .w_full()
-                    .child(
-                        div()
-                            .text_xs()
-                            .mb_1()
-                            .text_color(rgb(0x808989))
-                            .child(kind.replace('_', " ")),
+                    .id("conversation-history")
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .p_4()
+                    .when_some(self.error.clone(), |view, error| {
+                        view.child(div().text_color(rgb(c::STATUS_DANGER)).child(error))
+                    })
+                    .when(self.history.has_older, |view| {
+                        view.child(
+                            div()
+                                .id("older-messages")
+                                .py_2()
+                                .cursor_pointer()
+                                .child("Load earlier messages")
+                                .on_mouse_down(
+                                    MouseButton::Left,
+                                    cx.listener(|this, _, _, cx| {
+                                        if let Err(error) = this.fetch("before") {
+                                            this.error = Some(error.to_string());
+                                        }
+                                        cx.notify();
+                                    }),
+                                ),
+                        )
+                    })
+                    .when(self.pending.is_some(), |view| {
+                        view.child(
+                            div()
+                                .py_2()
+                                .text_color(rgb(c::FOREGROUND_MUTED))
+                                .child("Loading messages…"),
+                        )
+                    })
+                    .when(
+                        self.history.entries.is_empty() && self.pending.is_none(),
+                        |view| {
+                            view.child(
+                                div()
+                                    .size_full()
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .text_color(rgb(c::FOREGROUND_MUTED))
+                                    .child("Start chatting with this agent..."),
+                            )
+                        },
                     )
-                    .child(div().w_full().child(text))
-            }))
+                    .children(self.history.entries.values().map(|entry| {
+                        let kind = entry.item["type"].as_str().unwrap_or("message").to_owned();
+                        let text = entry.item["text"]
+                            .as_str()
+                            .or_else(|| entry.item["message"].as_str())
+                            .map(str::to_owned)
+                            .unwrap_or_else(|| {
+                                serde_json::to_string_pretty(&entry.item).unwrap_or_default()
+                            });
+                        div()
+                            .id(("timeline-row", entry.seq_start))
+                            .mb_4()
+                            .w_full()
+                            .child(
+                                div()
+                                    .text_xs()
+                                    .mb_1()
+                                    .text_color(rgb(c::FOREGROUND_MUTED))
+                                    .child(kind.replace('_', " ")),
+                            )
+                            .child(div().w_full().text_size(px(font_size::CONTENT)).child(text))
+                    })),
+            )
+            .child(self.composer.clone())
     }
 }

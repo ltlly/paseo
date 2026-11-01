@@ -4,6 +4,8 @@ The target is a native GPUI desktop client on macOS, Linux and Windows. Android 
 
 The existing Electron application stays available during migration. A native window, terminal demo or subset of features does not complete the migration. Switch the desktop entrypoints and packages only after the parity and deployment checks below pass.
 
+The existing desktop UI is the visual specification. Preserve its layout, typography, icons, colors, spacing, control geometry and interaction states pixel for pixel. Use the authored tokens in `packages/app/src/styles/theme.ts` and the existing components as references. Native migration does not authorize a redesign.
+
 ## Boundaries
 
 - `packages/desktop/native` owns the Rust application. It connects directly to daemon transports; it does not embed the web application or a JavaScript schema runtime.
@@ -16,6 +18,8 @@ The existing Electron application stays available during migration. A native win
 Run `npm run dev:desktop:native` against the local daemon, or set `PASEO_HOME` to an isolated daemon home. An explicit `PASEO_ENDPOINT=ws://host:port/ws` selects a remote TCP endpoint. Credentials from a local home are never sent to an explicit remote endpoint. `PASEO_PASSWORD` supplies remote password authentication.
 
 `cargo run -p paseo-desktop --no-default-features --bin paseo-native-inspect` exercises native discovery, authentication and paginated directory reads without opening a window. It prints counts and host identity, not credentials or transcripts.
+
+Run `npm run sync:desktop:native-ui` after changing authored theme tokens or provider icons. The generated native assets reuse the app's default dark tokens, identity palette, built-in provider vectors and installed Lucide RN geometry. `npm run check:desktop:native` rejects stale output. Native theme selection and custom appearance settings still require migration.
 
 On macOS with only Command Line Tools, pass `--features runtime-shaders` to Cargo. That uses GPUI's native Metal source compilation at application startup. Default distribution builds precompile Metal shaders and require Xcode's Metal tools.
 
@@ -32,13 +36,16 @@ The crates.io `gpui` 0.2.2 artifact predates the platform split in the current u
 | Conversations       | Complete paged history, streaming, Markdown/code/images, tools, permissions, composer drafts, attachments, provider controls and cancellation       | Pending  |
 | Workspace tools     | Explorer, editor, search, git/diff/forge, scripts, browser and port/service integrations                                                            | Pending  |
 | Product integration | Themes/settings, plugins, schedules/heartbeats, notifications, links, multi-window, updates and packaging                                           | Pending  |
+| Visual parity       | Matched reference/native captures per desktop OS, viewport, scale, theme, font setting and state; pixel differences reviewed and resolved           | Pending  |
 | Platforms           | Native build and interaction on macOS, Linux and Windows; Android source/build behavior unchanged                                                   | Pending  |
 | Performance         | Same-workload input/scroll latency, idle and busy CPU, memory by process, repeated navigation and lifecycle checks                                  | Pending  |
 
 Linux interaction evidence is in [the native terminal capture](qa-evidence/gpui-native-linux/validation.json) and its adjacent screenshot. The fixture received keyboard input and SGR wheel reports; closing and reopening the client retained the same daemon-owned terminal and its input. This uses software rendering and does not establish hardware performance or full terminal parity.
 
-Agent navigation evidence is in [the native Agent capture](qa-evidence/gpui-native-agents/validation.json). An isolated fake-provider fixture exercises built-in history and live catch-up alongside a Pi hook registered terminal. Provider chips currently use text labels. Composer, rich content, permissions and full Agent-tab lifecycle acceptance remain pending.
+Agent navigation evidence is in [the native Agent capture](qa-evidence/gpui-native-agents/validation.json). An isolated fake-provider fixture exercises built-in history and live catch-up alongside a Pi hook registered terminal. The later [composer and visual comparison](qa-evidence/gpui-native-composer/validation.json) exercises OS text entry, submission, cancellation and independent drafts across Agent navigation. Provider vectors now replace the prototype text chips. Its pixel comparison is explicitly **not passed**: font rendering, controls and states remain incomplete. Rich content, permissions, durable drafts and full Agent-tab lifecycle acceptance remain pending.
 
 Use isolated test projects and homes. Do not type into live user agents. Compare the same retained workspace and workload before claiming a performance improvement.
+
+Capture the reference and native client against the same isolated daemon and data. Cover empty, idle, running, attention, selected, hovered, pressed, disabled and open-menu states. Fix the viewport, device scale, theme, fonts, sidebar widths and scroll position. Keep image diffs as evidence. Mask only recorded nondeterministic regions such as a timestamp or spinner angle; do not hide geometry or text differences behind a broad similarity threshold. Framework text rasterization differences remain explicit unresolved evidence until checked on that desktop OS.
 
 The native keyboard encoder has focused regressions for application cursor mode, modified arrows, function keys, control punctuation and native IME ownership. These do not cover Kitty key events, operating-system IME interaction or native rendering; terminal acceptance remains pending until those paths are exercised.

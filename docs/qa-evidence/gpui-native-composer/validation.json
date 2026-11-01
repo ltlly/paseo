@@ -1,0 +1,46 @@
+{
+  "sourceBase": "ff0210fd9",
+  "environment": "Isolated fake-provider daemon; native GPUI Linux window via Xvfb/lavapipe. Reference is the existing shared desktop UI in Chromium with the repository desktop runtime fixture (darwin bridge), not a real macOS/Electron capture.",
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 1
+  },
+  "visualAcceptance": "NOT_PASSED",
+  "pixelComparison": {
+    "maskedRegions": [],
+    "differentPixels": 18579,
+    "totalPixels": 1024000,
+    "thresholdUsed": null
+  },
+  "verified": [
+    "OS typing and Enter submitted exactly one prompt to the fake provider",
+    "Shift+Enter inserted a newline without sending",
+    "Two agent drafts remained independent after switching; multiline draft A restored",
+    "Native Stop action reached fake provider interrupt; sidebar returned idle",
+    "Existing Codex SVG and installed Lucide RN icon geometry reused; default dark tokens generated from authored theme",
+    "80 OS-driven Agent switches after warm-up completed; short Linux software-rendering memory sample recorded without claiming an Electron improvement"
+  ],
+  "focusedTests": {
+    "editing": 3,
+    "composer": 4,
+    "model": 4
+  },
+  "remainingVisualDifferences": [
+    "Font rasterization/weight and line metrics",
+    "Empty conversation placement",
+    "Header/window controls, sidebar bindings/menus, timestamps and full tab lifecycle",
+    "Provider/model/mode/voice/attachment controls",
+    "All themes, custom fonts, resizing, hovered/pressed/disabled/menu states",
+    "Real macOS, Linux Electron and Windows reference captures"
+  ],
+  "notVerified": [
+    "Hardware GPU performance",
+    "Memory improvement versus Electron under identical workload",
+    "Real OS IME composition (pure UTF16/grapheme/preedit tests passed)",
+    "Durable drafts across application restart",
+    "Full conversation rich content/tools/permissions/attachments",
+    "Desktop replacement deployment"
+  ],
+  "androidSourcesChanged": false
+}

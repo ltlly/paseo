@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use anyhow::{Context as _, Result};
-use gpui::{Context, Entity, MouseButton, Render, Window, div, prelude::*, px, rgb};
+use gpui::{Context, Entity, Focusable, MouseButton, Render, Window, div, prelude::*, px, rgb};
 use serde_json::{Value, json};
 
 use crate::terminal_view::TerminalView;
@@ -20,6 +20,7 @@ pub struct Paseo {
     error: Option<String>,
     selected_agent: Option<String>,
     conversation: Option<Entity<crate::conversation::Conversation>>,
+    composers: BTreeMap<String, Entity<crate::composer_view::Composer>>,
 }
 
 impl Paseo {
@@ -34,6 +35,7 @@ impl Paseo {
             error: None,
             selected_agent: None,
             conversation: None,
+            composers: BTreeMap::new(),
         };
         match target.and_then(Connection::start) {
             Ok(connection) => {
@@ -78,6 +80,9 @@ impl Paseo {
             }
             Event::Disconnected(error) => {
                 self.terminal = None;
+                for composer in self.composers.values() {
+                    composer.update(cx, |view, cx| view.disconnected(cx));
+                }
                 self.error = Some(error);
                 Ok(())
             }
@@ -101,6 +106,21 @@ impl Paseo {
     }
 
     fn apply_session(&mut self, kind: &str, payload: Value, cx: &mut Context<Self>) -> Result<()> {
+        if matches!(
+            kind,
+            "send_agent_message_response" | "cancel_agent_response" | "rpc_error"
+        ) {
+            let mut handled = false;
+            for composer in self.composers.values() {
+                handled |= composer.update(cx, |view, cx| view.receive(kind, &payload, cx));
+            }
+            self.composers.retain(|id, view| {
+                self.selected_agent.as_ref() == Some(id) || !view.read(cx).is_disposable()
+            });
+            if handled {
+                return Ok(());
+            }
+        }
         if let Some(conversation) = &self.conversation {
             conversation.update(cx, |view, cx| view.receive(kind, &payload, cx))?;
         }
@@ -160,11 +180,19 @@ impl Paseo {
             }
             _ => {}
         }
-        self.directory.apply(kind, payload)
+        self.directory.apply(kind, payload)?;
+        for (id, composer) in &self.composers {
+            if let Some(agent) = self.directory.agents.get(id) {
+                composer.update(cx, |view, cx| {
+                    view.set_running(agent.status == "running", cx)
+                });
+            }
+        }
+        Ok(())
     }
 
     fn select_workspace(&mut self, id: String, cx: &mut Context<Self>) {
-        self.clear_conversation();
+        self.clear_conversation(cx);
         self.terminal = None;
         self.selected_terminal = None;
         self.selected_workspace = Some(id);
@@ -176,9 +204,18 @@ impl Paseo {
         cx.notify();
     }
 
-    fn clear_conversation(&mut self) {
+    fn clear_conversation(&mut self, cx: &mut Context<Self>) {
+        if let Some(composer) = self
+            .selected_agent
+            .as_ref()
+            .and_then(|id| self.composers.get(id))
+        {
+            composer.update(cx, |view, _| view.release_layout());
+        }
         self.selected_agent = None;
         self.conversation = None;
+        self.composers
+            .retain(|_, view| !view.read(cx).is_disposable());
         if let Some(connection) = &self.connection {
             let _ = connection.request(
                 "agent.timeline.set_subscription.request",
@@ -208,6 +245,21 @@ impl Paseo {
                         Ok(_) => {
                             let connection = connection.clone();
                             let agent_id = id.clone();
+                            let composer = self
+                                .composers
+                                .entry(id.clone())
+                                .or_insert_with(|| {
+                                    cx.new(|cx| {
+                                        crate::composer_view::Composer::new(
+                                            id.clone(),
+                                            connection.clone(),
+                                            agent.status == "running",
+                                            cx,
+                                        )
+                                    })
+                                })
+                                .clone();
+                            composer.read(cx).focus_handle(cx).focus(window, cx);
                             let whole_turns = self
                                 .info
                                 .as_ref()
@@ -218,6 +270,7 @@ impl Paseo {
                                     agent_id,
                                     connection,
                                     whole_turns,
+                                    composer,
                                 )
                             }));
                         }
@@ -231,7 +284,7 @@ impl Paseo {
     }
 
     fn select_terminal(&mut self, id: String, window: &mut Window, cx: &mut Context<Self>) {
-        self.clear_conversation();
+        self.clear_conversation(cx);
         let Some(connection) = &self.connection else {
             return;
         };
@@ -254,6 +307,10 @@ impl Paseo {
 
 impl Render for Paseo {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        use crate::{
+            chrome::{Tooltip, icon, provider_icon},
+            theme::{colors as c, font_size, radius},
+        };
         let mut projects = self
             .directory
             .projects
@@ -263,20 +320,51 @@ impl Render for Paseo {
         projects.sort_by(|a, b| a.project_display_name.cmp(&b.project_display_name));
         let sidebar = div()
             .id("workspace-sidebar")
-            .w(px(280.))
+            .w(px(320.))
             .h_full()
             .flex_shrink_0()
             .flex()
             .flex_col()
-            .bg(rgb(0x121414))
+            .border_r_1()
+            .border_color(rgb(c::BORDER))
+            .bg(rgb(c::SURFACE_SIDEBAR))
             .child(
                 div()
-                    .h(px(48.))
-                    .px_4()
+                    .h(px(36.))
+                    .flex_shrink_0()
                     .flex()
                     .items_center()
-                    .text_color(rgb(0xd8dee9))
-                    .child("Paseo"),
+                    .px_3()
+                    .child(icon("panel-left", 16.)),
+            )
+            .child(
+                div()
+                    .px_2()
+                    .pb(px(6.))
+                    .flex()
+                    .flex_col()
+                    .gap(px(2.))
+                    .border_b_1()
+                    .border_color(rgb(c::BORDER))
+                    .children(
+                        [
+                            ("plus", "New workspace"),
+                            ("history", "History"),
+                            ("search", "Search"),
+                            ("calendar-clock", "Schedules"),
+                        ]
+                        .map(|(glyph, label)| {
+                            div()
+                                .h(px(28.))
+                                .px_2()
+                                .flex()
+                                .items_center()
+                                .gap_2()
+                                .text_color(rgb(c::FOREGROUND_MUTED))
+                                .child(icon(glyph, 16.))
+                                .child(label)
+                        }),
+                    ),
             )
             .child(
                 div()
@@ -284,6 +372,18 @@ impl Render for Paseo {
                     .flex_1()
                     .overflow_y_scroll()
                     .px_2()
+                    .child(
+                        div()
+                            .h(px(38.))
+                            .px_2()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .text_size(px(font_size::SM))
+                            .text_color(rgb(c::FOREGROUND_MUTED))
+                            .child("Workspaces")
+                            .child(icon("sliders-horizontal", 14.)),
+                    )
                     .children(projects.into_iter().map(|project| {
                         let mut workspaces = self
                             .directory
@@ -293,123 +393,237 @@ impl Render for Paseo {
                             .cloned()
                             .collect::<Vec<_>>();
                         workspaces.sort_by(|a, b| a.name.cmp(&b.name));
+                        let initial = project
+                            .project_display_name
+                            .chars()
+                            .next()
+                            .unwrap_or(' ')
+                            .to_uppercase()
+                            .to_string();
                         div()
                             .mb_3()
                             .child(
                                 div()
+                                    .h(px(40.))
+                                    .mb_1()
                                     .px_2()
-                                    .py_2()
-                                    .text_sm()
-                                    .text_color(rgb(0x969e9e))
+                                    .flex()
+                                    .items_center()
+                                    .gap_2()
+                                    .text_color(rgb(c::FOREGROUND_MUTED))
+                                    .child(
+                                        div()
+                                            .size(px(16.))
+                                            .rounded(px(radius::BASE))
+                                            .bg(rgb(crate::chrome::project_color(&format!(
+                                                "host:{}:{}",
+                                                self.info
+                                                    .as_ref()
+                                                    .map(|info| info.server_id.as_str())
+                                                    .unwrap_or_default(),
+                                                project.project_root_path
+                                            ))))
+                                            .text_size(px(9.))
+                                            .text_color(rgb(c::FOREGROUND))
+                                            .flex()
+                                            .items_center()
+                                            .justify_center()
+                                            .child(initial),
+                                    )
                                     .child(project.project_display_name),
                             )
                             .children(workspaces.into_iter().map(|workspace| {
-                                let agents = self
+                                let mut agents = self
                                     .directory
                                     .agents
                                     .values()
                                     .filter(|a| a.workspace_id.as_deref() == Some(&workspace.id))
                                     .cloned()
                                     .collect::<Vec<_>>();
+                                agents.sort_by(|a, b| {
+                                    a.created_at.cmp(&b.created_at).then(a.id.cmp(&b.id))
+                                });
+                                let focused = self
+                                    .selected_agent
+                                    .as_ref()
+                                    .and_then(|id| self.directory.agents.get(id))
+                                    .filter(|a| a.workspace_id.as_deref() == Some(&workspace.id));
+                                let label = focused
+                                    .and_then(|a| a.title.clone())
+                                    .unwrap_or_else(|| workspace.name.clone());
                                 let id = workspace.id.clone();
                                 let selected = self.selected_workspace.as_ref() == Some(&id);
                                 div()
                                     .id(gpui::SharedString::from(id.clone()))
-                                    .rounded_md()
-                                    .px_3()
+                                    .rounded(px(radius::LG))
                                     .py_2()
+                                    .pl_2()
+                                    .pr_3()
+                                    .mb(px(2.))
                                     .cursor_pointer()
-                                    .when(selected, |row| row.bg(rgb(0x292d2d)))
-                                    .hover(|row| row.bg(rgb(0x222626)))
+                                    .when(selected, |row| row.bg(rgb(c::SURFACE_SIDEBAR_SELECTED)))
+                                    .hover(move |row| {
+                                        row.bg(rgb(if selected {
+                                            c::SURFACE_SIDEBAR_SELECTED
+                                        } else {
+                                            c::SURFACE_SIDEBAR_HOVER
+                                        }))
+                                    })
                                     .on_mouse_down(
                                         MouseButton::Left,
                                         cx.listener(move |this, _, _, cx| {
                                             this.select_workspace(id.clone(), cx)
                                         }),
                                     )
-                                    .child(div().text_sm().child(workspace.name))
-                                    .child(div().flex().flex_wrap().gap_1().children(
-                                        agents.into_iter().map(|agent| {
-                                            let id = agent.id.clone();
-                                            let title = agent
-                                                .title
-                                                .clone()
-                                                .unwrap_or_else(|| agent.provider.clone());
-                                            div()
-                                                .id(gpui::SharedString::from(format!("agent-{id}")))
-                                                .rounded_md()
-                                                .px_2()
-                                                .py_1()
-                                                .text_xs()
-                                                .cursor_pointer()
-                                                .bg(rgb(if agent.status == "running" {
-                                                    0x304334
-                                                } else {
-                                                    0x222626
-                                                }))
-                                                .child(format!(
-                                                    "{} · {} · {}",
-                                                    agent.provider, agent.status, title
-                                                ))
-                                                .on_mouse_down(
-                                                    MouseButton::Left,
-                                                    cx.listener(move |this, _, window, cx| {
-                                                        cx.stop_propagation();
-                                                        this.select_agent(id.clone(), window, cx);
-                                                    }),
-                                                )
-                                        }),
-                                    ))
                                     .child(
                                         div()
-                                            .text_xs()
-                                            .text_color(rgb(0x808989))
-                                            .child(workspace.status),
+                                            .flex()
+                                            .gap_2()
+                                            .items_start()
+                                            .child(
+                                                div()
+                                                    .w(px(16.))
+                                                    .h(px(20.))
+                                                    .flex()
+                                                    .items_center()
+                                                    .justify_center()
+                                                    .child(
+                                                        div()
+                                                            .size(px(6.))
+                                                            .rounded_full()
+                                                            .bg(gpui::rgba(0x7175744d)),
+                                                    ),
+                                            )
+                                            .child(
+                                                div()
+                                                    .min_w_0()
+                                                    .flex_1()
+                                                    .line_height(px(20.))
+                                                    .text_color(gpui::rgba(0xfafafac2))
+                                                    .child(label),
+                                            ),
                                     )
+                                    .when(!agents.is_empty(), |row| {
+                                        row.child(
+                                            div()
+                                                .ml(px(24.))
+                                                .mt_2()
+                                                .flex()
+                                                .flex_wrap()
+                                                .gap_1()
+                                                .children(agents.into_iter().map(|agent| {
+                                                    let id = agent.id.clone();
+                                                    let title = agent
+                                                        .title
+                                                        .clone()
+                                                        .unwrap_or_else(|| agent.provider.clone());
+                                                    div()
+                                                        .id(gpui::SharedString::from(format!(
+                                                            "agent-{id}"
+                                                        )))
+                                                        .size(px(30.))
+                                                        .rounded_full()
+                                                        .flex()
+                                                        .items_center()
+                                                        .justify_center()
+                                                        .when(
+                                                            self.selected_agent.as_ref()
+                                                                == Some(&id),
+                                                            |button| {
+                                                                button.bg(gpui::rgba(0xffffff14))
+                                                            },
+                                                        )
+                                                        .hover(|button| {
+                                                            button.bg(gpui::rgba(0xffffff14))
+                                                        })
+                                                        .cursor_pointer()
+                                                        .tooltip(move |_, cx| {
+                                                            cx.new(|_| Tooltip(title.clone()))
+                                                                .into()
+                                                        })
+                                                        .child(crate::chrome::agent_icon(
+                                                            &agent.provider,
+                                                            agent.status == "running",
+                                                        ))
+                                                        .on_mouse_down(
+                                                            MouseButton::Left,
+                                                            cx.listener(
+                                                                move |this, _, window, cx| {
+                                                                    cx.stop_propagation();
+                                                                    this.select_agent(
+                                                                        id.clone(),
+                                                                        window,
+                                                                        cx,
+                                                                    )
+                                                                },
+                                                            ),
+                                                        )
+                                                })),
+                                        )
+                                    })
                             }))
                     })),
             )
             .child(
                 div()
-                    .px_4()
-                    .py_2()
-                    .text_xs()
-                    .text_color(rgb(0x808989))
-                    .child(
-                        self.info
-                            .as_ref()
-                            .and_then(|info| info.hostname.clone())
-                            .unwrap_or_else(|| "Connecting…".into()),
-                    ),
+                    .h(px(41.))
+                    .flex_shrink_0()
+                    .border_t_1()
+                    .border_color(rgb(c::BORDER))
+                    .px_2()
+                    .py(px(6.))
+                    .flex()
+                    .items_center()
+                    .children(["folder-plus", "gauge", "server"].map(|glyph| {
+                        div()
+                            .size(px(28.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(icon(glyph, 16.))
+                    }))
+                    .child(div().flex_1())
+                    .children(["circle-help", "settings"].map(|glyph| {
+                        div()
+                            .size(px(28.))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(icon(glyph, 16.))
+                    })),
             );
-        let title = self
-            .selected_terminal
+        let workspace = self
+            .selected_workspace
             .as_ref()
-            .and_then(|id| self.directory.terminals.get(id))
-            .map(|t| t.title.clone().unwrap_or_else(|| t.name.clone()))
-            .or_else(|| {
-                self.selected_workspace
-                    .as_ref()
-                    .and_then(|id| self.directory.workspaces.get(id))
-                    .map(|w| w.name.clone())
-            })
+            .and_then(|id| self.directory.workspaces.get(id));
+        let title = workspace
+            .map(|w| w.name.clone())
             .unwrap_or_else(|| "Workspaces".into());
-        let title = self
-            .selected_agent
-            .as_ref()
-            .and_then(|id| self.directory.agents.get(id))
-            .and_then(|agent| agent.title.clone())
-            .unwrap_or(title);
+        let subtitle = workspace
+            .map(|w| w.project_display_name.clone())
+            .unwrap_or_default();
         let tabs = self
             .directory
             .terminals
             .values()
-            .filter(|terminal| {
+            .filter(|t| {
                 self.selected_workspace.is_some()
-                    && terminal.workspace_id.as_ref() == self.selected_workspace.as_ref()
+                    && t.workspace_id.as_ref() == self.selected_workspace.as_ref()
             })
             .cloned()
             .collect::<Vec<_>>();
+        let mut agents = self
+            .directory
+            .agents
+            .values()
+            .filter(|a| {
+                self.selected_workspace.is_some()
+                    && a.workspace_id.as_ref() == self.selected_workspace.as_ref()
+                    && a.execution.is_none()
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        agents.sort_by(|a, b| a.created_at.cmp(&b.created_at).then(a.id.cmp(&b.id)));
         let content = div()
             .flex_1()
             .h_full()
@@ -418,22 +632,26 @@ impl Render for Paseo {
             .flex_col()
             .child(
                 div()
-                    .h(px(48.))
+                    .h(px(36.))
                     .flex_shrink_0()
-                    .px_4()
+                    .px_3()
                     .flex()
                     .items_center()
+                    .gap_2()
                     .border_b_1()
-                    .border_color(rgb(0x2b3030))
-                    .child(title),
+                    .border_color(rgb(c::BORDER))
+                    .child(div().font_weight(gpui::FontWeight::LIGHT).child(title))
+                    .child(div().text_color(rgb(c::FOREGROUND_MUTED)).child(subtitle))
+                    .child(icon("ellipsis", 16.))
+                    .child(div().flex_1())
+                    .child(icon("panel-right", 16.)),
             )
-            .when_some(self.error.clone(), |content, error| {
-                content.child(
+            .when_some(self.error.clone(), |view, error| {
+                view.child(
                     div()
                         .px_4()
                         .py_2()
-                        .text_sm()
-                        .text_color(rgb(0xf07178))
+                        .text_color(rgb(c::STATUS_DANGER))
                         .child(error),
                 )
             })
@@ -444,29 +662,68 @@ impl Render for Paseo {
                     .flex()
                     .items_center()
                     .gap_1()
-                    .px_2()
+                    .px(px(6.))
                     .border_b_1()
-                    .border_color(rgb(0x2b3030))
+                    .border_color(rgb(c::BORDER))
+                    .children(agents.into_iter().map(|agent| {
+                        let id = agent.id.clone();
+                        div()
+                            .id(gpui::SharedString::from(format!("tab-agent-{id}")))
+                            .w(px(160.))
+                            .h(px(28.))
+                            .px_2()
+                            .rounded(px(radius::MD))
+                            .flex()
+                            .items_center()
+                            .gap_1()
+                            .cursor_pointer()
+                            .text_color(rgb(if self.selected_agent.as_ref() == Some(&id) {
+                                c::FOREGROUND
+                            } else {
+                                c::FOREGROUND_MUTED
+                            }))
+                            .when(self.selected_agent.as_ref() == Some(&id), |tab| {
+                                tab.bg(rgb(c::SURFACE2))
+                            })
+                            .hover(|tab| tab.bg(rgb(c::SURFACE2)))
+                            .child(provider_icon(&agent.provider, 14.))
+                            .child(
+                                div()
+                                    .min_w_0()
+                                    .flex_1()
+                                    .truncate()
+                                    .child(agent.title.unwrap_or(agent.provider)),
+                            )
+                            .on_mouse_down(
+                                MouseButton::Left,
+                                cx.listener(move |this, _, window, cx| {
+                                    this.select_agent(id.clone(), window, cx)
+                                }),
+                            )
+                    }))
                     .children(tabs.into_iter().map(|terminal| {
                         let id = terminal.id.clone();
                         div()
                             .id(gpui::SharedString::from(id.clone()))
-                            .px_3()
-                            .py_1()
-                            .rounded_sm()
-                            .text_sm()
+                            .h(px(28.))
+                            .px_2()
+                            .rounded(px(radius::MD))
+                            .flex()
+                            .items_center()
+                            .gap_1()
                             .cursor_pointer()
                             .when(self.selected_terminal.as_ref() == Some(&id), |tab| {
-                                tab.bg(rgb(0x292d2d))
+                                tab.bg(rgb(c::SURFACE2))
                             })
-                            .hover(|tab| tab.bg(rgb(0x222626)))
+                            .hover(|tab| tab.bg(rgb(c::SURFACE2)))
+                            .child(icon("square-terminal", 14.))
+                            .child(terminal.name)
                             .on_mouse_down(
                                 MouseButton::Left,
                                 cx.listener(move |this, _, window, cx| {
                                     this.select_terminal(id.clone(), window, cx)
                                 }),
                             )
-                            .child(terminal.name)
                     })),
             )
             .child(
@@ -481,23 +738,30 @@ impl Render for Paseo {
                     .when(
                         self.terminal.is_none() && self.conversation.is_none(),
                         |pane| {
-                            pane.child(div().p_6().text_color(rgb(0x808989)).child(
-                                if self.selected_workspace.is_some() {
-                                    "Select a terminal tab"
-                                } else {
-                                    "Select a workspace"
-                                },
-                            ))
+                            pane.child(
+                                div()
+                                    .size_full()
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .text_color(rgb(c::FOREGROUND_MUTED))
+                                    .child(if self.selected_workspace.is_some() {
+                                        "Select a tab"
+                                    } else {
+                                        "Select a workspace"
+                                    }),
+                            )
                         },
                     ),
             );
         div()
             .size_full()
             .flex()
-            .font_family(".SystemUIFont")
-            .bg(rgb(0x171919))
-            .text_color(rgb(0xd8dee9))
-            .text_size(px(14.))
+            .font_family(crate::fonts::ui_family())
+            .bg(rgb(c::SURFACE0))
+            .text_color(rgb(c::FOREGROUND))
+            .text_size(px(font_size::BASE))
+            .line_height(px(20.))
             .child(sidebar)
             .child(content)
     }
