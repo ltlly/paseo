@@ -17,9 +17,27 @@ for page in metadata["pages"]:
         def color(x):
             r, g, b = image.getpixel((int(x), int(case["row"] * height + height / 2)))
             return r << 16 | g << 8 | b
-        cases.append({"name": case["name"], "data": case["data"],
-                      "foreground": color(width / 2), "background": color(width * 1.5)})
+        sampled = {"name": case["name"], "data": case["data"], "background": color(width * 1.5)}
+        if case.get("sampleForeground", True):
+            sampled["foreground"] = color(width / 2)
+        if case.get("selected", False):
+            sampled["selected"] = True
+        if case["name"].startswith("dim-"):
+            # Alpha compositing is a renderer result, not the model's RGB projection.
+            sampled["rasterOnly"] = True
+            sampled["opacity"] = 128
+        if case["name"] == "hidden-block":
+            sampled["hidden"] = True
+        cases.append(sampled)
 sources = [
+    "packages/app/src/utils/to-xterm-theme.ts",
+    "packages/app/node_modules/@xterm/xterm/src/common/Color.ts",
+    "packages/app/node_modules/@xterm/xterm/src/browser/services/ThemeService.ts",
+    "packages/app/node_modules/@xterm/xterm/src/browser/renderer/shared/RendererUtils.ts",
+    "packages/app/node_modules/@xterm/xterm/css/xterm.css",
+    "docs/qa-evidence/gpui-native-terminal-theme/bundle-reference.mts",
+    "docs/qa-evidence/gpui-native-terminal-theme/capture-palette.mts",
+    "docs/qa-evidence/gpui-native-terminal-theme/extract-palette.py",
     "packages/app/src/styles/theme.ts",
     "packages/app/src/terminal/runtime/terminal-font.ts",
     "packages/app/src/terminal/runtime/terminal-emulator-runtime.ts",

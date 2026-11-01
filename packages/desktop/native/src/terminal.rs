@@ -40,6 +40,9 @@ pub struct Cell<'a> {
     pub italic: bool,
     pub underline: bool,
     pub selected: bool,
+    pub opacity: u8,
+    pub hidden: bool,
+    pub strikethrough: bool,
 }
 
 pub struct Screen<'a> {
@@ -79,12 +82,51 @@ impl<'a> Iterator for ScreenCells<'a> {
             } else {
                 (cell.fg, cell.bg)
             };
-            let foreground = resolve_color(
+            let selected = self.content.selection.is_some_and(|selection| {
+                selection.contains(indexed.point)
+                    || (cell.flags.contains(Flags::WIDE_CHAR)
+                        && selection
+                            .contains(Point::new(indexed.point.line, indexed.point.column + 1)))
+            });
+            let mut foreground = resolve_color(
                 foreground,
                 self.content.colors,
                 cell.flags.contains(Flags::BOLD),
             );
-            let background = resolve_color(background, self.content.colors, false);
+            let mut background = resolve_color(background, self.content.colors, false);
+            if selected {
+                let selection = blend_rgb(
+                    crate::theme::terminal::BACKGROUND,
+                    crate::theme::terminal_selection::BACKGROUND >> 8,
+                    crate::theme::terminal_selection::BACKGROUND as u8,
+                );
+                background = if cell.flags.contains(Flags::INVERSE)
+                    || cell.bg != Color::Named(NamedColor::Background)
+                {
+                    blend_rgb(background, selection, 128)
+                } else {
+                    selection
+                };
+                foreground = crate::theme::terminal_selection::FOREGROUND;
+                if matches!(cell.c as u32, 0x2500..=0x259f | 0xe0a4..=0xe0d6) {
+                    foreground = if cell.flags.contains(Flags::INVERSE)
+                        && cell.bg == Color::Named(NamedColor::Background)
+                    {
+                        selection
+                    } else {
+                        let color = if cell.flags.contains(Flags::INVERSE) {
+                            cell.bg
+                        } else {
+                            cell.fg
+                        };
+                        blend_rgb(
+                            resolve_color(color, self.content.colors, false),
+                            selection,
+                            128,
+                        )
+                    };
+                }
+            }
             return Some(Cell {
                 row: row as usize,
                 col: indexed.point.column.0,
@@ -100,12 +142,14 @@ impl<'a> Iterator for ScreenCells<'a> {
                 bold: cell.flags.contains(Flags::BOLD),
                 italic: cell.flags.contains(Flags::ITALIC),
                 underline: cell.flags.intersects(Flags::ALL_UNDERLINES),
-                selected: self.content.selection.is_some_and(|selection| {
-                    selection.contains(indexed.point)
-                        || (cell.flags.contains(Flags::WIDE_CHAR)
-                            && selection
-                                .contains(Point::new(indexed.point.line, indexed.point.column + 1)))
-                }),
+                selected,
+                opacity: if cell.flags.contains(Flags::DIM) && !selected {
+                    128
+                } else {
+                    255
+                },
+                hidden: cell.flags.contains(Flags::HIDDEN),
+                strikethrough: cell.flags.contains(Flags::STRIKEOUT),
             });
         }
         None
@@ -333,6 +377,19 @@ impl TerminalBuffer {
     }
 }
 
+fn blend_rgb(background: u32, foreground: u32, alpha: u8) -> u32 {
+    let mut result = 0;
+    for shift in [16, 8, 0] {
+        let background = ((background >> shift) & 255) as i32;
+        let foreground = ((foreground >> shift) & 255) as i32;
+        // Match JS Math.round for descending channels as well as ascending ones.
+        let channel =
+            background + ((foreground - background) * i32::from(alpha) + 127).div_euclid(255);
+        result |= (channel as u32) << shift;
+    }
+    result
+}
+
 fn resolve_color(
     color: Color,
     colors: &alacritty_terminal::term::color::Colors,
@@ -382,19 +439,83 @@ mod tests {
     use super::*;
 
     #[test]
+    fn dim_hidden_and_strike_preserve_the_grid_and_selection_disables_dim() {
+        let mut buffer = TerminalBuffer::new(GridSize { rows: 2, cols: 8 }, 0);
+        buffer.feed(b"\x1b[2;8;9;4;48;2;40;50;60mX\x1b[22;28;29mY");
+        let screen = buffer.screen();
+        let cells: Vec<_> = screen
+            .cells
+            .take(2)
+            .map(|cell| {
+                (
+                    cell.character,
+                    cell.opacity,
+                    cell.hidden,
+                    cell.strikethrough,
+                    cell.underline,
+                    cell.background,
+                )
+            })
+            .collect();
+        assert_eq!(
+            cells,
+            [
+                ('X', 128, true, true, true, 0x28323c),
+                ('Y', 255, false, false, true, 0x28323c)
+            ]
+        );
+        buffer.begin_selection(0, 0, false);
+        buffer.extend_selection(0, 1);
+        let cell = buffer.screen().cells.next().unwrap();
+        assert_eq!(cell.opacity, 255);
+        assert!(cell.hidden);
+        assert_eq!(buffer.selected_text().as_deref(), Some("X"));
+    }
+
+    #[test]
+    fn selection_colors_preserve_explicit_backgrounds_inverse_and_decorative_glyphs() {
+        for (data, background, foreground) in [
+            ("X", 0x464948, 0xfafafa),
+            ("\x1b]11;#28323c\x07X", 0x464948, 0xfafafa),
+            ("\x1b[48;2;40;50;60mX", 0x373e42, 0xfafafa),
+            ("\x1b[7mX", 0xa0a1a1, 0xfafafa),
+            ("\x1b[1;31;7mX", 0x935c5c, 0xfafafa),
+            ("█", 0x464948, 0xa0a1a1),
+            ("\x1b[7m█", 0xa0a1a1, 0x464948),
+        ] {
+            let mut buffer = TerminalBuffer::new(GridSize { rows: 2, cols: 8 }, 0);
+            buffer.feed(data.as_bytes());
+            buffer.begin_selection(0, 0, false);
+            buffer.extend_selection(0, 1);
+            let cell = buffer.screen().cells.next().unwrap();
+            assert!(cell.selected);
+            assert_eq!(cell.background, background, "{data:?} background");
+            assert_eq!(cell.foreground, foreground, "{data:?} foreground");
+        }
+    }
+
+    #[test]
     fn palette_matches_actual_electron_terminal_pixels_including_osc_and_inverse_bold() {
         let oracle: serde_json::Value =
             serde_json::from_str(include_str!("testdata/terminal-palette.json")).unwrap();
         for case in oracle["cases"].as_array().unwrap() {
             let mut buffer = TerminalBuffer::new(GridSize { rows: 2, cols: 8 }, 0);
             buffer.feed(case["data"].as_str().unwrap().as_bytes());
+            if case["selected"].as_bool() == Some(true) {
+                buffer.begin_selection(0, 0, false);
+                buffer.extend_selection(0, 2);
+            }
             let cell = buffer.screen().cells.next().unwrap();
-            assert_eq!(
-                cell.foreground,
-                case["foreground"].as_u64().unwrap() as u32,
-                "{} foreground",
-                case["name"]
-            );
+            if case["rasterOnly"].as_bool() == Some(true) {
+                assert_eq!(cell.opacity, case["opacity"].as_u64().unwrap() as u8);
+            } else if let Some(foreground) = case["foreground"].as_u64() {
+                let projected = if case["hidden"].as_bool() == Some(true) {
+                    cell.background
+                } else {
+                    blend_rgb(cell.background, cell.foreground, cell.opacity)
+                };
+                assert_eq!(projected, foreground as u32, "{} foreground", case["name"]);
+            }
             assert_eq!(
                 cell.background,
                 case["background"].as_u64().unwrap() as u32,

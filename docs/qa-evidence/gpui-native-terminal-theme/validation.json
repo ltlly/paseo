@@ -71,6 +71,19 @@
     "display": "Revalidated private Openbox executable and DISPLAY=:94 and Xvfb executable/argv, stopped only those processes and observed their exit. Private daemon41983 and proxy43079 listeners are absent.",
     "production": "Production6767, installed clients, real sessions and preserved Agent-footer stash untouched. Full migration and pixel acceptance remain NOT_PASSED."
   },
+  "attributeFollowUp": {
+    "date": "2026-11-01",
+    "baseCommit": "31c6570e54834ba8745329c6ee5fb9efc3864d7b",
+    "sourceArchiveSha256": "599952e76c0ea84c7e441a69203a833a50e8771602cf567fd6d7f55fe4fa4ecf",
+    "changes": "Project selected default/explicit/inverse backgrounds and decorative glyph foregrounds using installed xterm rules. OSC11 does not change the authored opaque selection baseline. Render DIM alpha, hide invisible glyphs while retaining backgrounds/copy, and draw strike/decorated spaces. Block cursors override these attributes. Glyph keys retain opacity and strike; obsolete selection-foreground argument removed.",
+    "oracle": "Recaptured 306 real Electron WebGL cases from the original runtime, including 11 selected/dim/hidden cases. Existing Rust palette suite consumes background and applicable block foreground samples. DIM raster-only cases retain measured pixels but model tests assert alpha rather than infer exact canvas compositing from RGB arithmetic.",
+    "freshness": "New corpus fingerprints converter, ThemeService, Color, decorative classification, CSS and producer/extractor files, in addition to original source inputs. Hashes describe extraction-time files; no claim of a complete transitive bundle fingerprint.",
+    "nativePixels": "Ten new cases were exercised with real OS drag selection in a private native window. Selected backgrounds and block foreground samples matched corresponding Electron pixels. DIM-default glyph overhang reached the adjacent blank sample; its background was checked in the next untouched cell, not masked or treated as full glyph parity.",
+    "checks": "Linux new selection/DIM tests and 306-case palette suite passed; real GPUI glyph-cache metadata/budgets passed with an added DIM/strike workload. Fresh Mac/runtime-shaders and Windows/MSVC checks and focused selection/palette tests passed on the final archive; earlier unchanged DIM test passed on both. Asset freshness, cargo fmt, npm format/lint/typecheck passed.",
+    "artifacts": "Local ~/.cache/paseo-native-qa/attributes-reference, attributes-native-*.png, attributes-native-pixels.json, attributes-cleanup-readback.json; /tmp/paseo-gpui-attributes-*.txt and /tmp/paseo-gpui-attr-*.txt. These local artifacts are not a portable evidence bundle.",
+    "cleanup": "Verified private executable and closed window; SDK confirmed all six PTYs remained. Explicitly removed extra Attributes QA terminal, confirmed original A-E remained, then owning fixture804490 teardown removed worker/PTYS/home. Verified Openbox804489 and Xvfb801008 stopped; ports42435/41631 absent. Final reference-only Xvfb818252 also stopped. No production6767, installed client or real-session change.",
+    "limits": "Full Electron pixel parity remains NOT_PASSED. Rich underline geometry/colors, custom glyph/box rendering, same-cell overhang, full themes, real hardware performance and Mac/Windows GUI remain unverified or incomplete. Original before/after scene counts above belong to the earlier theme snapshot, not this follow-up. Final OSC11 correction is covered by the new real reference/model oracle and platform tests, not a repeated native-window capture."
+  },
   "reproduce": {
     "runFrom": "checkout root, with an isolated Xvfb display :94",
     "commands": [

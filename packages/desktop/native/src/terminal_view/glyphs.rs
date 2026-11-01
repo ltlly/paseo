@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::VecDeque};
 
-use gpui::{Font, Pixels, ShapedLine, SharedString, TextRun, WindowTextSystem, px, rgb};
+use gpui::{Font, Pixels, ShapedLine, SharedString, TextRun, WindowTextSystem, px, rgba};
 use hashbrown::HashMap;
 use paseo_desktop::terminal::Cell;
 
@@ -15,6 +15,8 @@ struct Key {
     bold: bool,
     italic: bool,
     underline: bool,
+    opacity: u8,
+    strikethrough: bool,
 }
 
 /// Reuse complete shaped cells, including their decorations. This avoids the
@@ -45,16 +47,14 @@ impl Glyphs {
         &'a mut self,
         cell: &Cell<'_>,
         text_system: &WindowTextSystem,
-        selection_foreground: u32,
     ) -> Cow<'a, ShapedLine> {
-        self.line_with_cursor(cell, text_system, selection_foreground, false)
+        self.line_with_cursor(cell, text_system, false)
     }
 
     pub fn line_with_cursor<'a>(
         &'a mut self,
         cell: &Cell<'_>,
         text_system: &WindowTextSystem,
-        selection_foreground: u32,
         block_cursor: bool,
     ) -> Cow<'a, ShapedLine> {
         let key = Key {
@@ -65,14 +65,14 @@ impl Glyphs {
             },
             foreground: if block_cursor {
                 crate::theme::terminal::CURSOR_ACCENT
-            } else if cell.selected {
-                selection_foreground
             } else {
                 cell.foreground
             },
             bold: cell.bold && !block_cursor,
             italic: cell.italic && !block_cursor,
             underline: cell.underline && !block_cursor,
+            opacity: if block_cursor { 255 } else { cell.opacity },
+            strikethrough: cell.strikethrough && !block_cursor,
         };
         let (base_font, size) = self
             .font
@@ -113,14 +113,17 @@ fn shape(key: &Key, base_font: &Font, size: Pixels, text_system: &WindowTextSyst
     let run = TextRun {
         len: key.text.len(),
         font,
-        color: rgb(key.foreground).into(),
+        color: rgba((key.foreground << 8) | u32::from(key.opacity)).into(),
         background_color: None,
         underline: key.underline.then_some(gpui::UnderlineStyle {
             thickness: px(1.),
-            color: Some(rgb(key.foreground).into()),
+            color: Some(rgba((key.foreground << 8) | u32::from(key.opacity)).into()),
             wavy: false,
         }),
-        strikethrough: None,
+        strikethrough: key.strikethrough.then_some(gpui::StrikethroughStyle {
+            thickness: px(1.),
+            color: Some(rgba((key.foreground << 8) | u32::from(key.opacity)).into()),
+        }),
     };
     text_system.shape_line(key.text.clone(), size, &[run], None)
 }

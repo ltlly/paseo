@@ -7,7 +7,7 @@ use anyhow::{Result, ensure};
 use gpui::{
     App, Bounds, Context, ElementInputHandler, EntityInputHandler, FocusHandle, Focusable,
     KeyDownEvent, MouseButton, Pixels, Point, Render, ScrollEvent, TextRun, UTF16Selection, Window,
-    canvas, div, fill, point, prelude::*, px, rgb, rgba, size,
+    canvas, div, fill, point, prelude::*, px, rgb, size,
 };
 use serde_json::{Value, json};
 
@@ -819,34 +819,24 @@ impl Render for TerminalView {
                                                 rgb(background),
                                             ));
                                         }
-                                        if cell.selected && !block_cursor {
-                                            window.paint_quad(fill(
-                                                Bounds::new(
-                                                    origin,
-                                                    size(
-                                                        width * cell.columns as f32,
-                                                        px(view.row_height),
-                                                    ),
-                                                ),
-                                                rgba(crate::theme::terminal_selection::BACKGROUND),
-                                            ));
-                                        }
-                                        if cell.character == ' ' && cell.zerowidth.is_empty() {
+                                        // Selection colors are resolved on the authoritative cell,
+                                        // including the original explicit-background/inverse modes.
+                                        let empty =
+                                            cell.character == ' ' && cell.zerowidth.is_empty();
+                                        let decorated = cell.underline || cell.strikethrough;
+                                        if (cell.hidden && !block_cursor)
+                                            || (empty && (!decorated || block_cursor))
+                                        {
                                             continue;
                                         }
                                         let line = if block_cursor {
                                             view.glyphs.line_with_cursor(
                                                 &cell,
                                                 window.text_system(),
-                                                crate::theme::terminal_selection::FOREGROUND,
                                                 true,
                                             )
                                         } else {
-                                            view.glyphs.line(
-                                                &cell,
-                                                window.text_system(),
-                                                crate::theme::terminal_selection::FOREGROUND,
-                                            )
+                                            view.glyphs.line(&cell, window.text_system())
                                         };
                                         let _ = line.paint(
                                             origin,

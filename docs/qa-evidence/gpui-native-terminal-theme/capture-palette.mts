@@ -71,6 +71,20 @@ try {
     ["osc-background", "\x1b]11;#28323c\x07\x1b[0m"],
   ])
     pages.push([{ name, data: seq + "█ " }]);
+  for (const [name, data, selected, sampleForeground] of [
+    ["selected-osc-background", "\x1b]11;#28323c\x07X ", true, false],
+    ["selected-default-text", "X ", true, false],
+    ["selected-rgb-background", "\x1b[48;2;40;50;60mX ", true, false],
+    ["selected-inverse-text", "\x1b[7mX ", true, false],
+    ["selected-inverse-bold", "\x1b[1;31;7mX ", true, false],
+    ["selected-default-block", "█ ", true, true],
+    ["selected-inverse-block", "\x1b[7m█ ", true, true],
+    ["selected-dim-block", "\x1b[2m█ ", true, true],
+    ["dim-default-block", "\x1b[2m█ ", false, true],
+    ["dim-rgb-block", "\x1b[2;38;2;10;20;30;48;2;40;50;60m█ ", false, true],
+    ["hidden-block", "\x1b[8;48;2;40;50;60m█ ", false, true],
+  ])
+    pages.push([{ name, data, selected, sampleForeground }]);
   let index = 0;
   for (const pageRows of pages) {
     await page.evaluate(async (rows) => {
@@ -86,6 +100,10 @@ try {
           onCommitted: r,
         }),
       );
+    }, pageRows);
+    await page.evaluate((rows) => {
+      const selected = rows.findIndex((c) => c.selected);
+      if (selected >= 0) runtime.terminal.select(0, selected, 2);
     }, pageRows);
     await page.waitForTimeout(80);
     const image = q + "/style-palette-" + index + ".png";
