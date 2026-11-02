@@ -437,6 +437,7 @@ const tabSymbols = [
   "TAB_CLOSE_BUTTON_RESERVED_WIDTH",
   "TAB_LABEL_LAYOUT_ALLOWANCE",
   "TAB_MODIFIED_DOT_SIZE",
+  "PANE_SPLIT_ACTIONS_HORIZONTAL_PADDING",
 ];
 const tabStyles = await authoredStyles(tabFile, [
   "tabsContainer",
@@ -444,6 +445,8 @@ const tabStyles = await authoredStyles(tabFile, [
   "tabSlot",
   "tabCloseButton",
   "tabModifiedDot",
+  "inlineAddButton",
+  "inlineNewTabButton",
 ]);
 const tabContext = { theme, exports: {} };
 const tabGeometry = `
@@ -453,7 +456,7 @@ ${(await Promise.all(tabSymbols.map((symbol) => authoredNode(tabFile, symbol))))
 ${await authoredNode("packages/app/src/components/ui/trailing-action-scrim.tsx", "SCRIM_WIDTH")}
 ${await authoredNode("packages/app/src/components/ui/trailing-action-scrim.tsx", "SCRIM_SOLID_OFFSET")}
 const styles=({${tabStyles}});
-globalThis.values={ROW_HEIGHT:styles.tabsContainer.height,CHIP_HEIGHT:styles.tab.height,CHIP_PADDING_X:styles.tab.paddingHorizontal,CHIP_RADIUS:styles.tab.borderRadius,CHIP_GAP:TAB_CHIP_GAP,ROW_PADDING_X:TAB_ROW_PADDING_HORIZONTAL,ICON_SIZE:TAB_ICON_WIDTH,CONTENT_GAP:TAB_CONTENT_GAP,MIN_WIDTH:TAB_MIN_WIDTH,MAX_WIDTH:TAB_MAX_WIDTH,CLOSE_RESERVED:TAB_CLOSE_BUTTON_RESERVED_WIDTH,LABEL_ALLOWANCE:TAB_LABEL_LAYOUT_ALLOWANCE,MODIFIED_SIZE:styles.tabModifiedDot.width,CLOSE_SIZE:styles.tabCloseButton.width,CLOSE_RIGHT:styles.tabCloseButton.right,CLOSE_RADIUS:styles.tabCloseButton.borderRadius,SCRIM_WIDTH,SCRIM_SOLID:parseFloat(SCRIM_SOLID_OFFSET)/100};`;
+globalThis.values={ADD_INLINE_SIZE:styles.inlineNewTabButton.width,ADD_INLINE_PADDING:styles.inlineAddButton.paddingHorizontal,ADD_TOOLBAR_PADDING:PANE_SPLIT_ACTIONS_HORIZONTAL_PADDING,ROW_HEIGHT:styles.tabsContainer.height,CHIP_HEIGHT:styles.tab.height,CHIP_PADDING_X:styles.tab.paddingHorizontal,CHIP_RADIUS:styles.tab.borderRadius,CHIP_GAP:TAB_CHIP_GAP,ROW_PADDING_X:TAB_ROW_PADDING_HORIZONTAL,ICON_SIZE:TAB_ICON_WIDTH,CONTENT_GAP:TAB_CONTENT_GAP,MIN_WIDTH:TAB_MIN_WIDTH,MAX_WIDTH:TAB_MAX_WIDTH,CLOSE_RESERVED:TAB_CLOSE_BUTTON_RESERVED_WIDTH,LABEL_ALLOWANCE:TAB_LABEL_LAYOUT_ALLOWANCE,MODIFIED_SIZE:styles.tabModifiedDot.width,CLOSE_SIZE:styles.tabCloseButton.width,CLOSE_RIGHT:styles.tabCloseButton.right,CLOSE_RADIUS:styles.tabCloseButton.borderRadius,SCRIM_WIDTH,SCRIM_SOLID:parseFloat(SCRIM_SOLID_OFFSET)/100};`;
 runInNewContext(
   ts.transpileModule(tabGeometry, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
@@ -461,6 +464,19 @@ runInNewContext(
   tabContext,
   { timeout: 1000 },
 );
+Object.assign(tabContext.values, {
+  ADD_TOOLBAR_SIZE: explorerPresentationContext.values.CONTROL_SIZE,
+  ADD_GLYPH_SIZE: explorerPresentationContext.values.GLYPH_SIZE,
+  ADD_TOOLBAR_MARGIN:
+    explorerPresentationContext.values.TRAILING_PADDING - tabContext.values.ADD_TOOLBAR_PADDING,
+});
+const explorerRailContext = { theme, exports: {} };
+runInNewContext(
+  `const styles=({${await authoredStyles("packages/app/src/screens/workspace/explorer-sidebar.tsx", ["headerAction"])}});globalThis.margin=styles.headerAction.marginRight;`,
+  explorerRailContext,
+  { timeout: 1000 },
+);
+tabContext.values.EXPLORER_ACTION_MARGIN = explorerRailContext.margin;
 await output(
   "packages/desktop/native/src/workspace_tab_presentation.rs",
   `// Generated from the authored workspace tab rail. Do not edit.\n${Object.entries(

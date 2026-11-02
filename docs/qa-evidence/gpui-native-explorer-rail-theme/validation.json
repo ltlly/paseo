@@ -1,0 +1,81 @@
+{
+  "scope": "Explorer/main rail surface ladder, authored inline/overflow New Tab button geometry, interaction fill and Explorer header-action margin. No Android/app/server/protocol product edits.",
+  "goal": {
+    "objective": "我们迁移到GPUI吧 安卓仍然保持不变",
+    "status": "active",
+    "installedClientSwitch": false
+  },
+  "source": {
+    "manifest": "source-identity.json",
+    "archiveSha256": "344203bd5cf43ba082c59df118c333c93128b3b040f484e33a13a8c6cd5ccb90",
+    "fileCount": 297,
+    "checkoutInputsMatch": true
+  },
+  "binaries": {
+    "beforeLinux": "13fc0ddee83652484569002bdd5831a01f3d6da80a04232155a03dfbd538c994",
+    "afterLinux": "742139fa0ae0d442658ae04435ec313974569347e759e9e482d6588d83815a9e",
+    "macOS": "81076665bda53b380bbcb2029aa5c58499681f2abff41543f088469f879677eb",
+    "windows": "90099e9df265f6f333c1bcde0c213df9e4b707ed569f8fa9ec19da93e70467c4"
+  },
+  "checks": {
+    "finalNativeAppBuilds": ["Linux", "macOS runtime-shaders", "Windows MSVC"],
+    "existingFocusedLayoutTestPerOS": 1,
+    "unchangedCoreSuitesRepeated": false,
+    "nativeCaptureStates": 14,
+    "nativeBeforeAndAfterFrames": 28,
+    "electronReferenceFrames": 14,
+    "exactFlatFillSamples": 8,
+    "retainedPTYsAfterEveryNativeClose": 3,
+    "zeroPTYInputBytes": true,
+    "npmLint": true,
+    "npmTypecheck": true,
+    "nativeGeneratedFreshness": true
+  },
+  "visual": {
+    "status": "NOT_PASSED",
+    "metrics": "pixel-metrics.json",
+    "states": [
+      "fit-idle",
+      "fit-tab-hover",
+      "fit-plus-hover",
+      "fit-menu",
+      "overflow-idle",
+      "overflow-plus-hover",
+      "overflow-menu"
+    ],
+    "themes": ["dark", "light"],
+    "viewport": [1280, 800],
+    "themeSizes": {
+      "ui": 14,
+      "content": 15,
+      "code": 12
+    },
+    "fixture": "Same isolated daemon, workspaces and three real Node PTYs. Pi/Grok are QA labels, no real models invoked.",
+    "referenceRenderer": "xterm DOM fallback; no hardware/WebGL acceptance.",
+    "composites": "Rows are dark seven states, then light seven states, each cropped x800..1280,y0..36 from raw captures. Overflow rows also include main header at x800..960 for visual context; numerical differences use actual Explorer x960..1280 only. Difference composite pads that excluded space black. No pixels masked in compared rectangles.",
+    "darkFitIdleDifferentPixels": {
+      "before": 14780,
+      "after": 1626,
+      "pixels": 17280
+    },
+    "lightFitIdleDifferentPixels": {
+      "before": 16640,
+      "after": 1620,
+      "pixels": 17280
+    }
+  },
+  "remaining": [
+    "Text and glyph rasterization, fractional layout, selected close scrim and scroll-boundary shades still differ.",
+    "Main split/maximize toolbar, full tab menus and plugin/Agent contributions remain incomplete.",
+    "Window-control theme handling and menu placement still differ, especially light overflow menu.",
+    "Whole desktop pixel fidelity, hardware latency/CPU/RSS, macOS/Windows GUI, terminal completeness and packaging/deployment acceptance remain incomplete."
+  ],
+  "safety": {
+    "cleanup": "cleanup.json",
+    "clientCloseProof": "client-close-proof.json",
+    "production6767Restarted": false,
+    "installedClientsChanged": false,
+    "androidChanged": false
+  },
+  "ci": "Not yet queried for final commit; no green CI claim."
+}

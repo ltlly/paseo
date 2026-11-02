@@ -1,0 +1,34 @@
+{
+  "binary": {
+    "pid": 3586528,
+    "args": ["/home/ltlly/.cache/paseo-native-qa/rail-20261102/after"],
+    "sha256": "742139fa0ae0d442658ae04435ec313974569347e759e9e482d6588d83815a9e"
+  },
+  "theme": "dark",
+  "sameTerminalIdsAfterClientClose": true,
+  "layout": {
+    "root": {
+      "kind": "pane",
+      "pane": {
+        "id": "main",
+        "tabs": ["9e0955c7-f531-49f6-ac64-21c90aa8811d"],
+        "focusedTab": "9e0955c7-f531-49f6-ac64-21c90aa8811d"
+      }
+    },
+    "focusedPaneId": "main",
+    "explorer": {
+      "visible": true,
+      "width": 319.99755859375,
+      "pane": {
+        "id": "explorer",
+        "tabs": [
+          "files",
+          "changes_tree",
+          "77749d14-1f46-4a4a-aa6c-565a1749c0f7",
+          "4c5fb5f7-3643-4ecc-91d4-59d03c505afb"
+        ],
+        "focusedTab": "77749d14-1f46-4a4a-aa6c-565a1749c0f7"
+      }
+    }
+  }
+}

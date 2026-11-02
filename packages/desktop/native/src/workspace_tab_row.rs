@@ -99,6 +99,31 @@ impl Paseo {
         let family = crate::fonts::ui_family_for(&settings.ui_font_family);
         let line = crate::fonts::strut_for(window, font_size, &family);
         let explorer = pane.id == paseo_desktop::explorer_layout::EXPLORER_PANE_ID;
+        // Each rail climbs its own surface ladder, including in light themes.
+        // See workspace-tab-chip-backdrop.ts; sidebar selected/hover tokens are
+        // deliberately different from surface2/surface1 there.
+        let (resting, filled, selected) = if explorer {
+            (
+                palette.surface_sidebar,
+                palette.surface_sidebar_hover,
+                palette.surface_sidebar_selected,
+            )
+        } else {
+            (palette.surface0, palette.surface1, palette.surface2)
+        };
+        let highlight = paseo_desktop::appearance::interaction_background(
+            if palette.is_dark {
+                crate::action_menu_presentation::DARK_HEADER_HIGHLIGHT_COLOR
+            } else {
+                crate::action_menu_presentation::LIGHT_HEADER_HIGHLIGHT_COLOR
+            },
+            resting,
+            if palette.is_dark {
+                crate::action_menu_presentation::DARK_HEADER_HIGHLIGHT_OPACITY
+            } else {
+                crate::action_menu_presentation::LIGHT_HEADER_HIGHLIGHT_OPACITY
+            },
+        );
         let owns_controls = explorer && !cfg!(target_os = "macos") && !window.is_fullscreen();
         let controls_width = if owns_controls {
             3. * if cfg!(target_os = "windows") {
@@ -148,8 +173,19 @@ impl Paseo {
             .map_or(window.viewport_size().width, |bounds| bounds.size.width)
             .to_f64() as f32;
         // The authored row reserves the 36px add-button slot before shrinking labels.
-        let layout =
-            workspace_tab_layout::layout((width - controls_width).max(0.), &labels, 36., false);
+        // Explorer's header-action wrapper keeps its trailing margin even
+        // when the toggle renders in the main header (and its child is empty).
+        let action_margin = if explorer {
+            p::EXPLORER_ACTION_MARGIN
+        } else {
+            0.
+        };
+        let layout = workspace_tab_layout::layout(
+            (width - controls_width - action_margin).max(0.),
+            &labels,
+            p::ADD_INLINE_SIZE + p::ADD_INLINE_PADDING * 2.,
+            false,
+        );
         let scroll = self.tab_rail.scrolls.entry(pane.id.clone()).or_default();
         if !layout.overflow {
             scroll.handle.set_offset(gpui::point(px(0.), px(0.)));
@@ -168,17 +204,13 @@ impl Paseo {
             let active = pane.focused_tab.as_ref() == Some(&id);
             let highlighted = active && pane_focused;
             let base = if highlighted {
-                palette.surface2
+                selected
             } else if active {
-                palette.surface1
+                filled
             } else {
-                palette.surface0
+                resting
             };
-            let hover = if highlighted {
-                palette.surface2
-            } else {
-                palette.surface1
-            };
+            let hover = if highlighted { selected } else { filled };
             let foreground = if highlighted {
                 palette.foreground
             } else {
@@ -355,26 +387,45 @@ impl Paseo {
         let owner = pane.id.clone();
         let measure = cx.entity();
         let measured = owner.clone();
+        let control_size = if layout.overflow {
+            p::ADD_TOOLBAR_SIZE
+        } else {
+            p::ADD_INLINE_SIZE
+        };
         let add = div()
-            .w(px(36.))
+            .w(px(if layout.overflow {
+                p::ADD_TOOLBAR_SIZE + p::ADD_TOOLBAR_PADDING * 2. + p::ADD_TOOLBAR_MARGIN
+            } else {
+                p::ADD_INLINE_SIZE + p::ADD_INLINE_PADDING * 2.
+            }))
             .h_full()
             .flex_shrink_0()
-            .ml(px(-2.))
+            .when(!layout.overflow, |v| v.ml(px(-p::CHIP_GAP / 2.)))
             .flex()
             .items_center()
-            .p_1()
+            .pl(px(if layout.overflow {
+                p::ADD_TOOLBAR_PADDING
+            } else {
+                p::ADD_INLINE_PADDING
+            }))
             .child(
                 div()
                     .id(SharedString::from(format!("pane-add-{owner}")))
                     .relative()
-                    .size(px(28.))
-                    .rounded(px(8.))
+                    .size(px(control_size))
+                    .rounded(px(p::CHIP_RADIUS))
                     .flex()
                     .items_center()
                     .justify_center()
                     .cursor_pointer()
-                    .hover(|v| v.bg(rgb(palette.surface2)))
-                    .child(chrome::icon("plus", 16.).text_color(rgb(palette.foreground_muted)))
+                    .when(self.new_tab_menu_owns_pane(&owner), |v| {
+                        v.bg(rgb(highlight))
+                    })
+                    .hover(|v| v.bg(rgb(highlight)))
+                    .child(
+                        chrome::icon("plus", p::ADD_GLYPH_SIZE)
+                            .text_color(rgb(palette.foreground_extra_muted)),
+                    )
                     .child(
                         gpui::canvas(
                             move |bounds, _, cx| {
@@ -411,7 +462,7 @@ impl Paseo {
             .items_center()
             .border_b_1()
             .border_color(rgb(palette.border))
-            .bg(rgb(palette.surface0))
+            .bg(rgb(resting))
             .when(drop_target, |v| v.bg(rgb(palette.surface2)))
             .child(
                 div()
@@ -428,6 +479,9 @@ impl Paseo {
                     .children(chips),
             )
             .when_some(fixed, |row, add| row.child(add))
+            .when(explorer, |row| {
+                row.child(div().w(px(action_margin)).flex_shrink_0())
+            })
             .when(explorer, |row| {
                 row.on_mouse_down(MouseButton::Left, |_, window, cx| {
                     cx.stop_propagation();

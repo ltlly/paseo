@@ -1,0 +1,212 @@
+{
+  "status": "NOT_PASSED",
+  "masks": [],
+  "metrics": [
+    {
+      "theme": "dark",
+      "case": "fit-idle",
+      "box": [800, 0, 1280, 36],
+      "differentPixels": {
+        "before": 14780,
+        "after": 1626
+      },
+      "pixels": 17280
+    },
+    {
+      "theme": "dark",
+      "case": "fit-tab-hover",
+      "box": [800, 0, 1280, 36],
+      "differentPixels": {
+        "before": 13369,
+        "after": 1797
+      },
+      "pixels": 17280
+    },
+    {
+      "theme": "dark",
+      "case": "fit-plus-hover",
+      "box": [800, 0, 1280, 36],
+      "differentPixels": {
+        "before": 14775,
+        "after": 1718
+      },
+      "pixels": 17280
+    },
+    {
+      "theme": "dark",
+      "case": "fit-menu",
+      "box": [800, 0, 1280, 36],
+      "differentPixels": {
+        "before": 14984,
+        "after": 2514
+      },
+      "pixels": 17280
+    },
+    {
+      "theme": "dark",
+      "case": "overflow-idle",
+      "box": [960, 0, 1280, 36],
+      "differentPixels": {
+        "before": 11174,
+        "after": 1621
+      },
+      "pixels": 11520
+    },
+    {
+      "theme": "dark",
+      "case": "overflow-plus-hover",
+      "box": [960, 0, 1280, 36],
+      "differentPixels": {
+        "before": 11174,
+        "after": 1697
+      },
+      "pixels": 11520
+    },
+    {
+      "theme": "dark",
+      "case": "overflow-menu",
+      "box": [960, 0, 1280, 36],
+      "differentPixels": {
+        "before": 11382,
+        "after": 2588
+      },
+      "pixels": 11520
+    },
+    {
+      "theme": "light",
+      "case": "fit-idle",
+      "box": [800, 0, 1280, 36],
+      "differentPixels": {
+        "before": 16640,
+        "after": 1620
+      },
+      "pixels": 17280
+    },
+    {
+      "theme": "light",
+      "case": "fit-tab-hover",
+      "box": [800, 0, 1280, 36],
+      "differentPixels": {
+        "before": 16645,
+        "after": 1795
+      },
+      "pixels": 17280
+    },
+    {
+      "theme": "light",
+      "case": "fit-plus-hover",
+      "box": [800, 0, 1280, 36],
+      "differentPixels": {
+        "before": 16547,
+        "after": 1712
+      },
+      "pixels": 17280
+    },
+    {
+      "theme": "light",
+      "case": "fit-menu",
+      "box": [800, 0, 1280, 36],
+      "differentPixels": {
+        "before": 16851,
+        "after": 2834
+      },
+      "pixels": 17280
+    },
+    {
+      "theme": "light",
+      "case": "overflow-idle",
+      "box": [960, 0, 1280, 36],
+      "differentPixels": {
+        "before": 11167,
+        "after": 1448
+      },
+      "pixels": 11520
+    },
+    {
+      "theme": "light",
+      "case": "overflow-plus-hover",
+      "box": [960, 0, 1280, 36],
+      "differentPixels": {
+        "before": 10859,
+        "after": 1524
+      },
+      "pixels": 11520
+    },
+    {
+      "theme": "light",
+      "case": "overflow-menu",
+      "box": [960, 0, 1280, 36],
+      "differentPixels": {
+        "before": 11395,
+        "after": 5708
+      },
+      "pixels": 11520
+    }
+  ],
+  "flatFillSamples": [
+    {
+      "theme": "dark",
+      "case": "fit-idle",
+      "position": [810, 32],
+      "reference": [20, 23, 22],
+      "native": [20, 23, 22],
+      "equal": true
+    },
+    {
+      "theme": "dark",
+      "case": "fit-tab-hover",
+      "position": [810, 15],
+      "reference": [30, 33, 32],
+      "native": [30, 33, 32],
+      "equal": true
+    },
+    {
+      "theme": "dark",
+      "case": "fit-plus-hover",
+      "position": [1138, 15],
+      "reference": [38, 41, 40],
+      "native": [38, 41, 40],
+      "equal": true
+    },
+    {
+      "theme": "dark",
+      "case": "overflow-plus-hover",
+      "position": [1145, 15],
+      "reference": [38, 41, 40],
+      "native": [38, 41, 40],
+      "equal": true
+    },
+    {
+      "theme": "light",
+      "case": "fit-idle",
+      "position": [810, 32],
+      "reference": [244, 244, 245],
+      "native": [244, 244, 245],
+      "equal": true
+    },
+    {
+      "theme": "light",
+      "case": "fit-tab-hover",
+      "position": [810, 15],
+      "reference": [228, 228, 231],
+      "native": [228, 228, 231],
+      "equal": true
+    },
+    {
+      "theme": "light",
+      "case": "fit-plus-hover",
+      "position": [1138, 15],
+      "reference": [229, 229, 230],
+      "native": [229, 229, 230],
+      "equal": true
+    },
+    {
+      "theme": "light",
+      "case": "overflow-plus-hover",
+      "position": [1145, 15],
+      "reference": [229, 229, 230],
+      "native": [229, 229, 230],
+      "equal": true
+    }
+  ]
+}

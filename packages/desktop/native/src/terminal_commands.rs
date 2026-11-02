@@ -457,6 +457,12 @@ impl Paseo {
         }
         rows
     }
+    pub(super) fn new_tab_menu_owns_pane(&self, pane: &str) -> bool {
+        self.terminal_commands.menu.as_ref().is_some_and(|menu| {
+            self.selected_workspace.as_ref() == Some(&menu.destination.workspace)
+                && menu.destination.pane == pane
+        })
+    }
     pub(super) fn close_new_tab_menu(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(menu) = self.terminal_commands.menu.take() {
             if let Some(focus) = menu.previous {

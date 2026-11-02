@@ -1,0 +1,18 @@
+{
+  "terminals": [
+    {
+      "id": "9e0955c7-f531-49f6-ac64-21c90aa8811d",
+      "ready": true
+    },
+    {
+      "id": "77749d14-1f46-4a4a-aa6c-565a1749c0f7",
+      "ready": true
+    },
+    {
+      "id": "4c5fb5f7-3643-4ecc-91d4-59d03c505afb",
+      "ready": true
+    }
+  ],
+  "zeroPTYInputBytes": true,
+  "lastNativeClientExited": true
+}

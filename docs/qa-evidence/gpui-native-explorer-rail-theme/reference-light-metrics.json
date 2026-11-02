@@ -1,0 +1,467 @@
+[
+  {
+    "name": "fit-idle",
+    "items": [
+      {
+        "id": "workspace-tabs-row",
+        "box": {
+          "x": 320,
+          "y": 36,
+          "width": 480,
+          "height": 36
+        },
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_9e0955c7-f531-49f6-ac64-21c90aa8811d",
+        "box": {
+          "x": 326,
+          "y": 39.5,
+          "width": 120,
+          "height": 28
+        },
+        "background": "rgb(244, 244, 245)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-new-tab-button",
+        "box": {
+          "x": 452,
+          "y": 39.5,
+          "width": 28,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tabs-row",
+        "box": {
+          "x": 800,
+          "y": 0,
+          "width": 368,
+          "height": 36
+        },
+        "background": "rgb(244, 244, 245)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-files",
+        "box": {
+          "x": 806,
+          "y": 3.5,
+          "width": 65,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_77749d14-1f46-4a4a-aa6c-565a1749c0f7",
+        "box": {
+          "x": 951,
+          "y": 3.5,
+          "width": 87,
+          "height": 28
+        },
+        "background": "rgb(212, 212, 216)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_4c5fb5f7-3643-4ecc-91d4-59d03c505afb",
+        "box": {
+          "x": 1042,
+          "y": 3.5,
+          "width": 88,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-new-tab-button",
+        "box": {
+          "x": 1136,
+          "y": 3.5,
+          "width": 28,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      }
+    ]
+  },
+  {
+    "name": "fit-tab-hover",
+    "items": [
+      {
+        "id": "workspace-tabs-row",
+        "box": {
+          "x": 320,
+          "y": 36,
+          "width": 480,
+          "height": 36
+        },
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_9e0955c7-f531-49f6-ac64-21c90aa8811d",
+        "box": {
+          "x": 326,
+          "y": 39.5,
+          "width": 120,
+          "height": 28
+        },
+        "background": "rgb(244, 244, 245)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-new-tab-button",
+        "box": {
+          "x": 452,
+          "y": 39.5,
+          "width": 28,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tabs-row",
+        "box": {
+          "x": 800,
+          "y": 0,
+          "width": 368,
+          "height": 36
+        },
+        "background": "rgb(244, 244, 245)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-files",
+        "box": {
+          "x": 806,
+          "y": 3.5,
+          "width": 65,
+          "height": 28
+        },
+        "background": "rgb(228, 228, 231)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_77749d14-1f46-4a4a-aa6c-565a1749c0f7",
+        "box": {
+          "x": 951,
+          "y": 3.5,
+          "width": 87,
+          "height": 28
+        },
+        "background": "rgb(212, 212, 216)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_4c5fb5f7-3643-4ecc-91d4-59d03c505afb",
+        "box": {
+          "x": 1042,
+          "y": 3.5,
+          "width": 88,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-new-tab-button",
+        "box": {
+          "x": 1136,
+          "y": 3.5,
+          "width": 28,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      }
+    ]
+  },
+  {
+    "name": "fit-plus-hover",
+    "items": [
+      {
+        "id": "workspace-tabs-row",
+        "box": {
+          "x": 320,
+          "y": 36,
+          "width": 480,
+          "height": 36
+        },
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_9e0955c7-f531-49f6-ac64-21c90aa8811d",
+        "box": {
+          "x": 326,
+          "y": 39.5,
+          "width": 120,
+          "height": 28
+        },
+        "background": "rgb(244, 244, 245)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-new-tab-button",
+        "box": {
+          "x": 452,
+          "y": 39.5,
+          "width": 28,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tabs-row",
+        "box": {
+          "x": 800,
+          "y": 0,
+          "width": 368,
+          "height": 36
+        },
+        "background": "rgb(244, 244, 245)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-files",
+        "box": {
+          "x": 806,
+          "y": 3.5,
+          "width": 65,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_77749d14-1f46-4a4a-aa6c-565a1749c0f7",
+        "box": {
+          "x": 951,
+          "y": 3.5,
+          "width": 87,
+          "height": 28
+        },
+        "background": "rgb(212, 212, 216)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_4c5fb5f7-3643-4ecc-91d4-59d03c505afb",
+        "box": {
+          "x": 1042,
+          "y": 3.5,
+          "width": 88,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-new-tab-button",
+        "box": {
+          "x": 1136,
+          "y": 3.5,
+          "width": 28,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0.06)",
+        "color": "rgb(0, 0, 0)"
+      }
+    ]
+  },
+  {
+    "name": "overflow-idle",
+    "items": [
+      {
+        "id": "workspace-tabs-row",
+        "box": {
+          "x": 320,
+          "y": 36,
+          "width": 640,
+          "height": 36
+        },
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_9e0955c7-f531-49f6-ac64-21c90aa8811d",
+        "box": {
+          "x": 326,
+          "y": 39.5,
+          "width": 120,
+          "height": 28
+        },
+        "background": "rgb(244, 244, 245)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-new-tab-button",
+        "box": {
+          "x": 452,
+          "y": 39.5,
+          "width": 28,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tabs-row",
+        "box": {
+          "x": 960,
+          "y": 0,
+          "width": 208,
+          "height": 36
+        },
+        "background": "rgb(244, 244, 245)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-files",
+        "box": {
+          "x": 966,
+          "y": 3.5,
+          "width": 67,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_77749d14-1f46-4a4a-aa6c-565a1749c0f7",
+        "box": {
+          "x": 1136,
+          "y": 3.5,
+          "width": 157,
+          "height": 28
+        },
+        "background": "rgb(212, 212, 216)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_4c5fb5f7-3643-4ecc-91d4-59d03c505afb",
+        "box": {
+          "x": 1297,
+          "y": 3.5,
+          "width": 160,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-new-tab-button",
+        "box": {
+          "x": 1143,
+          "y": 7.5,
+          "width": 20,
+          "height": 20
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      }
+    ]
+  },
+  {
+    "name": "overflow-plus-hover",
+    "items": [
+      {
+        "id": "workspace-tabs-row",
+        "box": {
+          "x": 320,
+          "y": 36,
+          "width": 640,
+          "height": 36
+        },
+        "background": "rgb(255, 255, 255)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_9e0955c7-f531-49f6-ac64-21c90aa8811d",
+        "box": {
+          "x": 326,
+          "y": 39.5,
+          "width": 120,
+          "height": 28
+        },
+        "background": "rgb(244, 244, 245)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-new-tab-button",
+        "box": {
+          "x": 452,
+          "y": 39.5,
+          "width": 28,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tabs-row",
+        "box": {
+          "x": 960,
+          "y": 0,
+          "width": 208,
+          "height": 36
+        },
+        "background": "rgb(244, 244, 245)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-files",
+        "box": {
+          "x": 966,
+          "y": 3.5,
+          "width": 67,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_77749d14-1f46-4a4a-aa6c-565a1749c0f7",
+        "box": {
+          "x": 1136,
+          "y": 3.5,
+          "width": 157,
+          "height": 28
+        },
+        "background": "rgb(212, 212, 216)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-tab-terminal_4c5fb5f7-3643-4ecc-91d4-59d03c505afb",
+        "box": {
+          "x": 1297,
+          "y": 3.5,
+          "width": 160,
+          "height": 28
+        },
+        "background": "rgba(0, 0, 0, 0)",
+        "color": "rgb(0, 0, 0)"
+      },
+      {
+        "id": "workspace-new-tab-button",
+        "box": {
+          "x": 1143,
+          "y": 7.5,
+          "width": 20,
+          "height": 20
+        },
+        "background": "rgba(0, 0, 0, 0.06)",
+        "color": "rgb(0, 0, 0)"
+      }
+    ]
+  }
+]
