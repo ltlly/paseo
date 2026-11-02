@@ -1,0 +1,104 @@
+{
+  "status": "PARTIAL_NOT_MIGRATION_ACCEPTED",
+  "date": "2026-11-02T09:59:40.770209+08:00",
+  "baseCommit": "a22c52991",
+  "scope": "Native terminal search and query input only. Installed desktop and Android sources unchanged.",
+  "sourceSnapshot": {
+    "sha256": "92fdb37ca50e388d00e77e8557c48292dca7dd1670c90bdf751072a4094cc303",
+    "archive": "/home/ltlly/.cache/paseo-native-qa/find-20261102/native-find-source.tar.gz",
+    "fileCount": 202
+  },
+  "linuxBinarySha256": "5164b058192ff3046e0aa9252782b0703681a16baeb1463a19cf98d4a318a620",
+  "oracle": {
+    "path": "packages/desktop/native/src/testdata/terminal-find.json",
+    "cases": 23,
+    "runtime": "Real installed Electron xterm, Unicode11 active, search options regex=false and caseSensitive=false; no terminal/daemon doubles in the oracle",
+    "covers": [
+      "logical soft wraps vs hard line breaks",
+      "overlapping hits and addon row-edge advancement",
+      "explicit trailing spaces",
+      "wide CJK and emoji wrap fillers",
+      "combining characters and UTF-16 column conversion",
+      "Greek contextual lowercasing and expanding case fold",
+      "scrollback positions",
+      "EL0/EL1/EL2 incoming wrap boundaries",
+      "one decoration per crossed row"
+    ],
+    "producer": "DISPLAY=:<private-Xvfb> node docs/qa-evidence/gpui-native-terminal-find/capture-oracle.mjs"
+  },
+  "checks": {
+    "Linux": {
+      "nativeCheck": "passed",
+      "findTests": 7,
+      "clipboardRegressions": 45,
+      "lint": "passed",
+      "typecheck": "passed"
+    },
+    "macOS": {
+      "nativeCheck": "passed with runtime-shaders",
+      "findTests": 7,
+      "clipboardRegressions": 45,
+      "sourceArchiveHashVerified": true
+    },
+    "Windows": {
+      "nativeCheck": "passed with stable MSVC",
+      "findTests": 7,
+      "clipboardRegressions": 45,
+      "sourceArchiveHashVerified": true
+    }
+  },
+  "linuxInteraction": {
+    "display": ":95 private Xvfb / software rendering",
+    "fixture": "fixture.mts, isolated daemon on random port 35621, real PTY, fake unused provider clients, no production data",
+    "viewport": [1280, 800],
+    "typedQuery": "d/path/to",
+    "wrappedResultCount": "1/1",
+    "overlappingQuery": "aa",
+    "afterEnter": "2/6",
+    "combiningPaste": "e\\u0301 -> 1/2",
+    "ptyQueriesLeaked": false,
+    "exitSearchThenType": "qa-ping123\\r, exact PTY readback including hyphen",
+    "closeClientRetainsTerminal": true,
+    "artifacts": [
+      "wrapped-find-pass.png",
+      "overlap-next.png",
+      "combining-paste.png",
+      "input-readback.json"
+    ]
+  },
+  "cleanup": {
+    "xvfb": true,
+    "openbox": true,
+    "fixture": true,
+    "native": true,
+    "privatePortClosed": true,
+    "production6767Listening": true,
+    "originalOtherQaClientAlive": true
+  },
+  "limitations": [
+    "No matched Electron/native screenshot comparison; whole-window pixel parity remains NOT_PASSED.",
+    "No macOS/Windows native GUI, IME or clipboard acceptance.",
+    "No hardware CPU/RSS/input-latency improvement claim.",
+    "Search result corpus is focused, not complete xterm conformance. Initial active-result choice, selection/viewport anchoring while output arrives, IME editing, find-widget layout and ruler parity still need comparison.",
+    "No deployment, installed-client switch, production daemon restart, or real agent prompt."
+  ],
+  "logs": {
+    "linux-find.txt": "aad517b9e948ef1e0b3c0879d65416e4dca627155ba3104e560683b697be40c0",
+    "linux-copy.txt": "1ddcdb8516812a181d2f508445c68c1d411a7337acb4e9d598fcdf8127759fd2",
+    "linux-native-check.txt": "b316ee9af9b6ffdecb6f8fb9e4825b3cf059276021a1eb6a54958309d5cbe4d7",
+    "typecheck.txt": "04c90f71a65f92810c11c17a0a28b47f27040961834369cbb411712ae948ad77",
+    "lint.txt": "29cdabcc1180df2b8a11f4353143b7eadd72b047b251ded29ee6ff2669392d25",
+    "mac-check.txt": "d8602a040a46e75c228e60352f40bff0de645cd8832ae131fb6cf141f61e3ca6",
+    "windows-check.txt": "a3e257bcd15a063d0dc3e872e489fc340e22e35f91cc5ccf5f495f28a75d7e6b"
+  },
+  "originalLogSha256": {
+    "linux-find.txt": "53c10f05650c1bd859272a6281508a503906649f6b8164ae0c8995aa0a4ffd79",
+    "linux-copy.txt": "f220aedac6805e5782f876349faba31adc48becad4d8f967b341ea3557bef4a5",
+    "linux-native-check.txt": "b316ee9af9b6ffdecb6f8fb9e4825b3cf059276021a1eb6a54958309d5cbe4d7",
+    "typecheck.txt": "04c90f71a65f92810c11c17a0a28b47f27040961834369cbb411712ae948ad77",
+    "lint.txt": "29cdabcc1180df2b8a11f4353143b7eadd72b047b251ded29ee6ff2669392d25",
+    "mac-check.txt": "d8602a040a46e75c228e60352f40bff0de645cd8832ae131fb6cf141f61e3ca6",
+    "windows-check.txt": "2e525b5d6c4c66a08f973005cdb92987d4ba7715b881b9fcb9e1d1706d412e77"
+  },
+  "logNormalization": "Stored text logs normalize CRLF/trailing whitespace; original capture digests are retained separately."
+}

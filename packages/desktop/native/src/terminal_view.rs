@@ -648,14 +648,27 @@ impl TerminalView {
             return;
         }
         if self.find.is_some() {
+            if clipboard_shortcut && key.key.eq_ignore_ascii_case("v") {
+                if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
+                    self.find_input(&text, cx);
+                }
+                cx.stop_propagation();
+                return;
+            }
             match key.key.as_str() {
                 "escape" => self.close_find(cx),
                 "enter" => self.step_find(!key.modifiers.shift, cx),
                 "backspace" => self.find_backspace(cx),
+                // GPUI dispatches committed text only after an unconsumed key
+                // event. Stopping every event leaves an open, untypeable bar.
+                // The input handler routes that text to find_input, not the PTY.
+                _ if key.key_char.is_some()
+                    || (!key.modifiers.control && !key.modifiers.platform) =>
+                {
+                    return;
+                }
                 _ => {}
             }
-            // The query owns the keyboard while the bar is open; typed characters
-            // arrive through the input handler and must not reach the program.
             cx.stop_propagation();
             return;
         }
@@ -1110,23 +1123,27 @@ impl TerminalView {
         let Some(find) = &self.find else {
             return;
         };
-        let offset = self.buffer.display_offset() as i32;
-        let rows = i32::from(self.buffer.size.rows);
         for (index, hit) in find.matches.iter().enumerate() {
-            let row = hit.line + offset;
-            if row < 0 || row >= rows {
-                continue;
-            }
             let color = if find.active == Some(index) {
                 palette.ansi[4]
             } else {
                 palette.ansi[3]
             };
-            let origin =
-                bounds.origin + point(width * hit.column as f32, px(row_height * row as f32));
-            let target = Bounds::new(origin, size(width * hit.columns as f32, px(row_height)));
-            for edge in border_quads(target) {
-                window.paint_quad(fill(edge, rgb(color)));
+            for segment in hit.segments(
+                usize::from(self.buffer.size.cols),
+                usize::from(self.buffer.size.rows),
+                self.buffer.display_offset(),
+            ) {
+                let origin = bounds.origin
+                    + point(
+                        width * segment.column as f32,
+                        px(row_height * segment.line as f32),
+                    );
+                let target =
+                    Bounds::new(origin, size(width * segment.columns as f32, px(row_height)));
+                for edge in border_quads(target) {
+                    window.paint_quad(fill(edge, rgb(color)));
+                }
             }
         }
     }

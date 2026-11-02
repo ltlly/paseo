@@ -865,29 +865,15 @@ impl TerminalBuffer {
         self.term.grid()[line].line_length().0
     }
 
-    /// Text cells of any grid line, with their columns and cell widths.
-    pub fn line_chars(&self, line: i32) -> Option<Vec<(usize, char, usize)>> {
-        if line < -(self.history_size() as i32) || line >= i32::from(self.size.rows) {
+    /// Borrow one authoritative cell, including combining marks and spacer flags.
+    pub fn line_cell(&self, line: i32, column: usize) -> Option<&GridCell> {
+        if line < -(self.history_size() as i32)
+            || line >= i32::from(self.size.rows)
+            || column >= usize::from(self.size.cols)
+        {
             return None;
         }
-        let row = &self.term.grid()[Line(line)];
-        let mut chars = Vec::with_capacity(usize::from(self.size.cols));
-        for column in 0..usize::from(self.size.cols) {
-            let cell = &row[Column(column)];
-            if cell
-                .flags
-                .intersects(Flags::WIDE_CHAR_SPACER | Flags::LEADING_WIDE_CHAR_SPACER)
-            {
-                continue;
-            }
-            let columns = if cell.flags.contains(Flags::WIDE_CHAR) {
-                2
-            } else {
-                1
-            };
-            chars.push((column, cell.c, columns));
-        }
-        Some(chars)
+        Some(&self.term.grid()[Line(line)][Column(column)])
     }
 
     pub fn line_trimmed_length(&self, line: i32) -> usize {

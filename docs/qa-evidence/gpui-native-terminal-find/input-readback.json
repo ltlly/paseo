@@ -1,0 +1,12 @@
+{
+  "beforeTerminalTyping": {
+    "inputFileExists": false,
+    "queries": ["d/path/to", "aa", "e\u0301"],
+    "navigation": ["Enter", "Shift+Enter", "Escape"]
+  },
+  "afterTerminalTyping": {
+    "base64": "cWEtcGluZzEyMw0=",
+    "utf8": "qa-ping123\r",
+    "matchesExpected": true
+  }
+}

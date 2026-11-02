@@ -1,0 +1,291 @@
+{
+  "source": "Installed Electron xterm search addon, real browser buffer and decorations",
+  "sources": {
+    "packages/app/node_modules/@xterm/addon-search/src/SearchAddon.ts": "6bbee75d1c52303c590e6c93231552890730c416bed4503048d4b2aa4a7511ca",
+    "packages/app/node_modules/@xterm/addon-search/src/SearchEngine.ts": "b13d06084d719e3bd936eaae46b2792a919560bbb91e5e583ae4fd5f7f7098ef",
+    "packages/app/node_modules/@xterm/addon-search/src/SearchLineCache.ts": "6107488a3d58a0a8572d8c872433be285a0d0175427a388f0dd5de9e84b46c9d",
+    "packages/app/node_modules/@xterm/addon-search/src/DecorationManager.ts": "7cba13fdfe529f70e9001f8ca9444928326fca0f0308828b7966db5115e47b82",
+    "packages/app/src/terminal/runtime/terminal-emulator-runtime.ts": "133c7360923619632338b3f123133c84f54405a0f77bb4bdfd4e7a08e77edb25",
+    "packages/app/node_modules/@xterm/addon-unicode11/lib/addon-unicode11.js": "72455a9c03b86da4225228203eea4f21cf81430e224890ab47dd2db0cee050a6"
+  },
+  "cases": [
+    {
+      "name": "wrapped-command",
+      "cols": 8,
+      "rows": 4,
+      "input": "abcd/path/to/project",
+      "query": "d/path/to",
+      "matches": [[0, 3, 9]],
+      "decorations": [
+        [0, 3, 5],
+        [1, 0, 4]
+      ]
+    },
+    {
+      "name": "wrapped-only",
+      "cols": 8,
+      "rows": 4,
+      "input": "abcd/path/to/project",
+      "query": "to/project",
+      "matches": [[1, 2, 10]],
+      "decorations": [
+        [1, 2, 6],
+        [2, 0, 4]
+      ]
+    },
+    {
+      "name": "three-rows",
+      "cols": 5,
+      "rows": 4,
+      "input": "abcdefghijklmnop",
+      "query": "cdefghijklmn",
+      "matches": [[0, 2, 12]],
+      "decorations": [
+        [0, 2, 3],
+        [1, 0, 5],
+        [2, 0, 4]
+      ]
+    },
+    {
+      "name": "hard-break",
+      "cols": 8,
+      "rows": 4,
+      "input": "abcd\r\nefgh",
+      "query": "def",
+      "matches": [],
+      "decorations": []
+    },
+    {
+      "name": "wrapped-blank",
+      "cols": 5,
+      "rows": 4,
+      "input": "abc  def",
+      "query": "c  d",
+      "matches": [[0, 2, 4]],
+      "decorations": [
+        [0, 2, 3],
+        [1, 0, 1]
+      ]
+    },
+    {
+      "name": "trailing-blanks",
+      "cols": 8,
+      "rows": 4,
+      "input": "abc   ",
+      "query": "c  ",
+      "matches": [[0, 2, 3]],
+      "decorations": [[0, 2, 3]]
+    },
+    {
+      "name": "combining",
+      "cols": 12,
+      "rows": 4,
+      "input": "café café",
+      "query": "é",
+      "matches": [
+        [0, 3, 1],
+        [0, 8, 1]
+      ],
+      "decorations": [
+        [0, 3, 1],
+        [0, 8, 1]
+      ]
+    },
+    {
+      "name": "combining-only",
+      "cols": 12,
+      "rows": 4,
+      "input": "café",
+      "query": "́",
+      "matches": [[0, 3, 1]],
+      "decorations": [[0, 3, 1]]
+    },
+    {
+      "name": "combining-wrap",
+      "cols": 5,
+      "rows": 4,
+      "input": "abcdéfgh",
+      "query": "éfg",
+      "matches": [[0, 4, 3]],
+      "decorations": [
+        [0, 4, 1],
+        [1, 0, 2]
+      ]
+    },
+    {
+      "name": "wide-wrap",
+      "cols": 5,
+      "rows": 4,
+      "input": "abcd中ef",
+      "query": "d中e",
+      "matches": [[0, 3, 5]],
+      "decorations": [
+        [0, 3, 2],
+        [1, 0, 3]
+      ]
+    },
+    {
+      "name": "wide-characters",
+      "cols": 10,
+      "rows": 4,
+      "input": "a中b中c",
+      "query": "中b中",
+      "matches": [[0, 1, 5]],
+      "decorations": [[0, 1, 5]]
+    },
+    {
+      "name": "emoji-wrap",
+      "cols": 5,
+      "rows": 4,
+      "input": "abcd😀ef",
+      "query": "d😀e",
+      "matches": [[0, 3, 5]],
+      "decorations": [
+        [0, 3, 2],
+        [1, 0, 3]
+      ]
+    },
+    {
+      "name": "case-fold",
+      "cols": 12,
+      "rows": 4,
+      "input": "Paseo PASEO",
+      "query": "pAsEo",
+      "matches": [
+        [0, 0, 5],
+        [0, 6, 5]
+      ],
+      "decorations": [
+        [0, 0, 5],
+        [0, 6, 5]
+      ]
+    },
+    {
+      "name": "greek-case-fold",
+      "cols": 12,
+      "rows": 4,
+      "input": "ΟΣ ος ΟΣ",
+      "query": "ος",
+      "matches": [
+        [0, 0, 2],
+        [0, 3, 2],
+        [0, 6, 2]
+      ],
+      "decorations": [
+        [0, 0, 2],
+        [0, 3, 2],
+        [0, 6, 2]
+      ]
+    },
+    {
+      "name": "expanded-case-fold",
+      "cols": 12,
+      "rows": 4,
+      "input": "İstanbul",
+      "query": "i̇s",
+      "matches": [[0, 0, 3]],
+      "decorations": [[0, 0, 3]]
+    },
+    {
+      "name": "emoji-in-row",
+      "cols": 12,
+      "rows": 4,
+      "input": "a😀b😀c",
+      "query": "😀b😀",
+      "matches": [[0, 1, 5]],
+      "decorations": [[0, 1, 5]]
+    },
+    {
+      "name": "wide-trailing-wrap",
+      "cols": 5,
+      "rows": 4,
+      "input": "abc中def",
+      "query": "中d",
+      "matches": [[0, 3, 3]],
+      "decorations": [
+        [0, 3, 2],
+        [1, 0, 1]
+      ]
+    },
+    {
+      "name": "multiple-wide-wraps",
+      "cols": 3,
+      "rows": 4,
+      "input": "中中中中",
+      "query": "中中",
+      "matches": [
+        [0, 0, 6],
+        [1, 0, 6]
+      ],
+      "decorations": [
+        [0, 0, 3],
+        [1, 0, 3],
+        [1, 0, 3],
+        [2, 0, 3]
+      ]
+    },
+    {
+      "name": "overlap",
+      "cols": 5,
+      "rows": 4,
+      "input": "aaaaaaa",
+      "query": "aa",
+      "matches": [
+        [0, 0, 2],
+        [0, 1, 2],
+        [0, 2, 2],
+        [0, 3, 2],
+        [1, 0, 2]
+      ],
+      "decorations": [
+        [0, 0, 2],
+        [0, 1, 2],
+        [0, 2, 2],
+        [0, 3, 2],
+        [1, 0, 2]
+      ]
+    },
+    {
+      "name": "history",
+      "cols": 5,
+      "rows": 4,
+      "input": "abcdefghi\r\nsecond\r\nthird\r\nfourth",
+      "query": "defgh",
+      "matches": [[-3, 3, 5]],
+      "decorations": [
+        [-3, 3, 2],
+        [-2, 0, 3]
+      ]
+    },
+    {
+      "name": "erased-wrap",
+      "cols": 5,
+      "rows": 4,
+      "input": "abcdefghi\r\u001b[2Kxy",
+      "query": "dex",
+      "matches": [],
+      "decorations": []
+    },
+    {
+      "name": "erase-right-at-start-clears-wrap",
+      "cols": 5,
+      "rows": 4,
+      "input": "abcdefghi\r\u001b[Kxy",
+      "query": "dex",
+      "matches": [],
+      "decorations": []
+    },
+    {
+      "name": "erase-left-preserves-wrap",
+      "cols": 5,
+      "rows": 4,
+      "input": "abcdefghi\r\u001b[1Kxy",
+      "query": "dex",
+      "matches": [[0, 3, 3]],
+      "decorations": [
+        [0, 3, 2],
+        [1, 0, 1]
+      ]
+    }
+  ]
+}

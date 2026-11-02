@@ -5,8 +5,9 @@
 //! content (`BufferLine.getTrimmedLength` tests `Content.HAS_CONTENT_MASK`), so
 //! a copy keeps explicitly printed trailing spaces and drops unwritten cells.
 //! That difference is only observable while the parser runs, so every
-//! `vte::ansi::Handler` call below is forwarded to the `Term` unchanged and the
-//! writes are recorded on the side.
+//! `vte::ansi::Handler` call below is forwarded to the `Term` and the writes are
+//! recorded on the side. Erasing a wrapped row also normalizes its incoming
+//! wrap boundary to the reference client's semantics.
 //!
 //! Occupancy is tracked per cell, one bit per column, because a single "last
 //! written column" cannot tell untouched cells from erased ones: `ECH`, `EL`
@@ -971,7 +972,15 @@ impl<'a, T: EventListener> TerminalHandler<'a, T> {
         let columns = self.columns();
         let all = matches!(mode, LineClearMode::All);
         let left = matches!(mode, LineClearMode::Left);
+        let clears_wrap = all || (matches!(mode, LineClearMode::Right) && point.column.0 == 0);
         self.term.clear_line(mode);
+        // xterm EL2 and EL0 from column zero clear this row's isWrapped.
+        // Alacritty stores that boundary on the preceding row instead.
+        if clears_wrap && point.line > self.term.grid().topmost_line() {
+            self.term.grid_mut()[Line(point.line.0 - 1)][Column(columns - 1)]
+                .flags
+                .remove(Flags::WRAPLINE);
+        }
         // `EL` to the right is a no-op while the cursor is parked.
         if all {
             self.table().erase(point.line.0, 0, columns);

@@ -1,0 +1,141 @@
+archive=/Users/nmsl/.cache/paseo-gpui-current-92fdb37ca50e.tar.gz
+expected_sha256=92fdb37ca50e388d00e77e8557c48292dca7dd1670c90bdf751072a4094cc303
+actual_sha256=92fdb37ca50e388d00e77e8557c48292dca7dd1670c90bdf751072a4094cc303
+extracted=/Users/nmsl/.cache/paseo-gpui-src-92fdb37ca50e
+cargo=cargo 1.99.0 (5f94df478 2026-08-27)
+rustc=rustc 1.99.0 (b940084d7 2026-09-28)
+STEP=cargo_clean
+     Removed 1097 files, 350.7MiB total
+STEP=cargo_check
+   Compiling paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-src-92fdb37ca50e/packages/desktop/native)
+warning: unused import: `std::ffi::c_ulong`
+  --> packages/desktop/native/src/browser_webview.rs:73:9
+   |
+73 |     use std::ffi::c_ulong;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::sync::OnceLock`
+  --> packages/desktop/native/src/browser_webview.rs:74:9
+   |
+74 |     use std::sync::OnceLock;
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `anyhow`
+  --> packages/desktop/native/src/browser_webview.rs:76:26
+   |
+76 |     use anyhow::{Result, anyhow};
+   |                          ^^^^^^
+
+warning: unused imports: `HandleError`, `HasWindowHandle`, `RawWindowHandle`, `WindowHandle`, and `XlibWindowHandle`
+  --> packages/desktop/native/src/browser_webview.rs:80:9
+   |
+80 |         HandleError, HasWindowHandle, RawWindowHandle, WindowHandle, XlibWindowHandle,
+   |         ^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: variant `Wayland` is never constructed
+  --> packages/desktop/native/src/browser_webview.rs:27:5
+   |
+25 | pub enum UnsupportedReason {
+   |          ----------------- variant in this enum
+26 |     /// GPUI is running on Wayland; wry's child webview is X11-only.
+27 |     Wayland,
+   |     ^^^^^^^
+   |
+   = note: `UnsupportedReason` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variant `X11` is never constructed
+  --> packages/desktop/native/src/browser_webview.rs:35:5
+   |
+34 | pub enum PlatformSupport {
+   |          --------------- variant in this enum
+35 |     X11,
+   |     ^^^
+   |
+   = note: `PlatformSupport` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `set_active_turn` is never used
+   --> packages/desktop/native/src/conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: `paseo-desktop` (bin "paseo-desktop") generated 7 warnings (run `cargo fix --bin "paseo-desktop" -p paseo-desktop` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.60s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+TEST_FILTER=terminal_find::tests
+   Compiling paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-src-92fdb37ca50e/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.48s
+     Running unittests src/lib.rs (/Users/nmsl/.cache/paseo-gpui-target/debug/deps/paseo_desktop-674c320860fd4d2c)
+
+running 7 tests
+test terminal_find::tests::history_lines_are_searchable_and_map_to_visible_rows ... ok
+test terminal_find::tests::installed_xterm_search_oracle ... ok
+test terminal_find::tests::rescanning_keeps_the_active_match ... ok
+test terminal_find::tests::result_limits_and_navigation_wrap ... ok
+test terminal_find::tests::search_is_case_insensitive_and_keeps_hard_breaks_separate ... ok
+test terminal_find::tests::trailing_blanks_and_wide_spacers_keep_match_geometry ... ok
+test terminal_find::tests::wrapped_decorations_clip_both_edges_of_the_viewport ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 368 filtered out; finished in 0.01s
+
+TEST_FILTER=terminal_copy::tests
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+     Running unittests src/lib.rs (/Users/nmsl/.cache/paseo-gpui-target/debug/deps/paseo_desktop-674c320860fd4d2c)
+
+running 45 tests
+test terminal_copy::tests::a_mark_attaches_to_the_blank_cell_before_the_cursor ... ok
+test terminal_copy::tests::a_parked_write_below_the_scroll_region_wraps_in_place ... ok
+test terminal_copy::tests::a_wrapped_wide_glyph_lands_on_the_fresh_row_the_scroll_created ... ok
+test terminal_copy::tests::actual_resize_keeps_trimmed_overflow_and_cursor_dependent_height_cut ... ok
+test terminal_copy::tests::alt_resizes_keep_the_primary_table_and_repeated_1049h_keeps_the_alt_table ... ok
+test terminal_copy::tests::alternate_screen_erases_do_not_touch_the_primary_screen ... ok
+test terminal_copy::tests::alternate_screen_writes_are_recorded_separately ... ok
+test terminal_copy::tests::an_empty_selection_keeps_its_anchor_across_control_output ... ok
+test terminal_copy::tests::block_selection_starting_at_a_wide_spacer_copies_a_space ... ok
+test terminal_copy::tests::charset_state_survives_a_feed_boundary ... ok
+test terminal_copy::tests::copy_matches_the_reference_selection_text ... ok
+test terminal_copy::tests::cropped_authority_endpoints_do_not_invent_a_newline ... ok
+test terminal_copy::tests::decaln_marks_every_screen_cell_written ... ok
+test terminal_copy::tests::erasing_the_last_written_cell_drops_unwritten_neighbors ... ok
+test terminal_copy::tests::every_row_identity_change_takes_a_new_layout_epoch ... ok
+test terminal_copy::tests::excluded_endpoint_row_joins_soft_wrapped_lines_without_an_extra_newline ... ok
+test terminal_copy::tests::full_history_with_a_partial_scroll_region_still_tracks_scrolls ... ok
+test terminal_copy::tests::height_resize_moves_copy_anchors_with_the_authoritative_selection ... ok
+test terminal_copy::tests::history_cap_keeps_copies_and_the_table_bounded ... ok
+test terminal_copy::tests::inactive_primary_history_limit_prunes_the_occupancy_immediately ... ok
+test terminal_copy::tests::insert_blank_pushing_content_out_empties_the_row ... ok
+test terminal_copy::tests::insert_mode_decides_the_wide_spill_before_it_shifts ... ok
+test terminal_copy::tests::insert_mode_rotates_the_row_tail_into_the_written_cells ... ok
+test terminal_copy::tests::insert_mode_shifts_the_spacer_off_the_cursor_cell ... ok
+test terminal_copy::tests::insert_mode_shifts_written_cells_right ... ok
+test terminal_copy::tests::middle_rows_are_trimmed_and_column_mode_never_joins ... ok
+test terminal_copy::tests::partial_scroll_region_moves_only_the_region ... ok
+test terminal_copy::tests::printed_spaces_before_a_wrap_survive_the_copy ... ok
+test terminal_copy::tests::reflow_drops_the_wrap_spacer_and_keeps_a_merged_group ... ok
+test terminal_copy::tests::resize_capture_uses_configured_history_capacity_and_alt_roundtrips_do_not_restore_stale_masks ... ok
+test terminal_copy::tests::resize_migrates_written_cells_and_later_writes_extend_them ... ok
+test terminal_copy::tests::resize_streams_logical_lines_in_content_order ... ok
+test terminal_copy::tests::restored_cursor_charset_slots_drive_copy_after_a_feed_boundary ... ok
+test terminal_copy::tests::reverse_index_keeps_history_identity ... ok
+test terminal_copy::tests::same_size_resize_keeps_written_cells ... ok
+test terminal_copy::tests::scrolled_gesture_anchors_preserve_excluded_newline_endpoint ... ok
+test terminal_copy::tests::selection_ending_left_of_the_next_row_copies_a_trailing_newline ... ok
+test terminal_copy::tests::spacer_overwrites_retire_content_before_its_flag_is_removed ... ok
+test terminal_copy::tests::spill_placeholder_overwrites_a_last_column_head_and_clears_the_previous_cell ... ok
+test terminal_copy::tests::the_primary_screen_is_captured_before_the_swap ... ok
+test terminal_copy::tests::top_region_scroll_rebases_the_fixed_rows_from_the_bottom ... ok
+test terminal_copy::tests::unwritten_cells_are_dropped_but_printed_ones_are_not ... ok
+test terminal_copy::tests::wrap_at_the_scrollback_bottom_keeps_row_identity ... ok
+test terminal_copy::tests::writes_record_wide_heads_at_the_last_column_and_mapped_charset_cells ... ok
+test terminal_copy::tests::zero_width_and_disabled_wrap_never_scroll_and_bottom_wide_spill_does ... ok
+
+test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 330 filtered out; finished in 0.01s
+
+RESULT=0

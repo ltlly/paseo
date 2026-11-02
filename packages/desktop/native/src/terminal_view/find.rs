@@ -1,14 +1,15 @@
 //! Terminal search.
 //!
 //! The reference client searches with `@xterm/addon-search` 0.17.0-beta.213 as
-//! `{ regex: false, caseSensitive: false }` (`terminal-emulator-runtime.ts`), so
-//! this scan is per buffer row, case-insensitive and does not match across a
-//! wrap. Every row is trimmed on the right exactly like the addon's line cache,
-//! and a match records the absolute grid line so it survives scrolling.
+//! `{ regex: false, caseSensitive: false }` (`terminal-emulator-runtime.ts`).
+//! Search logical lines across soft wraps, keeping hard line breaks separate.
+//! The addon uses UTF-16 string offsets; preserve its conversion to grid columns
+//! even for combining marks, wide cells and supplementary-plane characters.
 //! Decoration geometry and colours follow `DecorationManager.ts` (one-pixel
 //! border, match vs active colour) with the ANSI yellow/blue the runtime passes.
 
 use crate::terminal::TerminalBuffer;
+use alacritty_terminal::term::cell::Flags;
 
 /// Decoration limit. The addon defaults to 1000, but the app constructs it as
 /// `new SearchAddon({ highlightLimit: FIND_HIGHLIGHT_LIMIT })` with 20_000
@@ -35,66 +36,190 @@ impl Match {
         let row = self.line + display_offset as i32;
         (row >= 0).then_some(row as usize)
     }
-}
 
-fn lower(c: char) -> impl Iterator<Item = char> {
-    c.to_lowercase()
-}
-
-fn matches_at(
-    query: &[char],
-    text: &[(usize, char, usize)],
-    start: usize,
-) -> Option<(usize, usize)> {
-    if start + query.len() > text.len() {
-        return None;
+    /// Visible pieces of a wrapped decoration, clipped before painting.
+    pub fn segments(
+        self,
+        cols: usize,
+        rows: usize,
+        display_offset: usize,
+    ) -> impl Iterator<Item = Self> {
+        let cols = cols as i64;
+        let start = (i64::from(self.line) + display_offset as i64) * cols + self.column as i64;
+        let end = start + self.columns as i64;
+        let first = start.div_euclid(cols).clamp(0, rows as i64);
+        let last = (end + cols - 1).div_euclid(cols).clamp(first, rows as i64);
+        (first..last).map(move |row| {
+            let from = start.max(row * cols);
+            let to = end.min((row + 1) * cols);
+            Self {
+                line: row as i32,
+                column: (from - row * cols) as usize,
+                columns: (to - from) as usize,
+            }
+        })
     }
-    for (offset, expected) in query.iter().enumerate() {
-        let actual = text[start + offset].1;
-        if !lower(*expected).eq(lower(actual)) {
-            return None;
+}
+
+fn cell_units(buffer: &TerminalBuffer, line: i32, column: usize) -> usize {
+    let Some(cell) = buffer.line_cell(line, column) else {
+        return 1;
+    };
+    if cell.flags.contains(Flags::WIDE_CHAR_SPACER) {
+        return 0;
+    }
+    cell.c.len_utf16()
+        + cell
+            .zerowidth()
+            .unwrap_or_default()
+            .iter()
+            .map(|c| c.len_utf16())
+            .sum::<usize>()
+}
+
+/// SearchEngine._stringLengthToBufferSize mutates its UTF-16 endpoint while
+/// traversing cells. Rounding endpoints independently by glyph width differs
+/// from the installed addon for endpoints inside an emoji or combining cell.
+fn column_at(buffer: &TerminalBuffer, line: i32, offset: usize) -> usize {
+    let mut offset = offset as i64;
+    let mut column = 0;
+    while (column as i64) < offset && column < usize::from(buffer.size.cols) {
+        let units = cell_units(buffer, line, column);
+        if units > 1 {
+            offset -= units as i64 - 1;
         }
+        if buffer
+            .line_cell(line, column + 1)
+            .is_some_and(|cell| cell.flags.contains(Flags::WIDE_CHAR_SPACER))
+        {
+            offset += 1;
+        }
+        column += 1;
     }
-    let last = &text[start + query.len() - 1];
-    Some((text[start].0, last.0 + last.2 - text[start].0))
+    offset.max(0) as usize
 }
 
 /// Every match of `query`, oldest line first.
 pub fn find(buffer: &TerminalBuffer, query: &str, limit: usize) -> (Vec<Match>, bool) {
-    let query: Vec<char> = query.chars().collect();
     if query.is_empty() {
         return (Vec::new(), false);
     }
+    let query_units = query.encode_utf16().count();
+    let folded_query = query.to_lowercase();
+    let finder = memchr::memmem::Finder::new(folded_query.as_bytes());
     let mut found = Vec::new();
-    let mut limited = false;
-    for line in -(buffer.history_size() as i32)..i32::from(buffer.size.rows) {
-        let Some(text) = buffer.line_chars(line) else {
-            continue;
-        };
-        let trimmed = buffer.line_trimmed_length(line);
-        let text: Vec<_> = text
-            .into_iter()
-            .filter(|(column, _, _)| *column < trimmed)
-            .collect();
-        let mut start = 0;
-        while start + query.len() <= text.len() {
-            let Some((column, columns)) = matches_at(&query, &text, start) else {
-                start += 1;
-                continue;
+    let cols = usize::from(buffer.size.cols);
+    let mut line = -(buffer.history_size() as i32);
+    let mut text = String::new();
+    let mut folded = String::new();
+    let mut offsets = Vec::new();
+    let mut cell_offsets = Vec::new();
+    while line < i32::from(buffer.size.rows) {
+        text.clear();
+        offsets.clear();
+        cell_offsets.clear();
+        let first = line;
+        let mut units = 0;
+        let mut cell_units_before = 0;
+        loop {
+            offsets.push(units);
+            cell_offsets.push(cell_units_before);
+            cell_units_before += (0..cols)
+                .map(|col| cell_units(buffer, line, col))
+                .sum::<usize>();
+            let wraps = buffer.line_continues(line) && line + 1 < i32::from(buffer.size.rows);
+            let end = if wraps {
+                cols
+            } else {
+                buffer
+                    .line_written_trimmed(line)
+                    .unwrap_or_else(|| buffer.line_trimmed_length(line))
             };
+            // SearchLineCache omits the null filler before a wide glyph wraps.
+            let end = if wraps
+                && buffer
+                    .line_cell(line, end.saturating_sub(1))
+                    .is_some_and(|cell| cell.flags.contains(Flags::LEADING_WIDE_CHAR_SPACER))
+            {
+                end.saturating_sub(1)
+            } else {
+                end
+            };
+            let before = text.len();
+            buffer.push_row_text(line, 0, end, &mut text);
+            units += text[before..].encode_utf16().count();
+            line += 1;
+            if !wraps {
+                break;
+            }
+        }
+        folded.clear();
+        if text.is_ascii() {
+            folded.push_str(&text);
+            folded.make_ascii_lowercase();
+        } else {
+            folded.push_str(&text.to_lowercase());
+        }
+        let mut start = 0;
+        let mut start_units = 0;
+        while let Some(relative) = finder.find(&folded.as_bytes()[start..]) {
+            let index = start + relative;
+            let index_units = start_units + folded[start..index].encode_utf16().count();
+            let first_row = offsets
+                .partition_point(|offset| *offset <= index_units)
+                .saturating_sub(1);
+            let end_units = index_units + query_units;
+            let last_row = offsets
+                .partition_point(|offset| *offset <= end_units)
+                .saturating_sub(1);
+            let column = column_at(
+                buffer,
+                first + first_row as i32,
+                index_units - offsets[first_row],
+            );
+            let end_column = column_at(
+                buffer,
+                first + last_row as i32,
+                end_units - offsets[last_row],
+            );
             if found.len() >= limit.min(MATCH_LIMIT) {
-                limited = true;
-                return (found, limited);
+                return (found, true);
             }
             found.push(Match {
-                line,
+                line: first + first_row as i32,
                 column,
-                columns,
+                columns: (end_column + cols * (last_row - first_row)).saturating_sub(column),
             });
-            start += query.len();
+            // The addon highlights overlapping hits, then starts at the next
+            // row when col + the original UTF-16 query length reaches its edge.
+            let (next_row, next_column) = if column + query_units >= cols {
+                (first_row + 1, 0)
+            } else {
+                (first_row, column + 1)
+            };
+            if next_row >= offsets.len() {
+                break;
+            }
+            let minimum: usize = cell_offsets[next_row]
+                + (0..next_column)
+                    .map(|col| cell_units(buffer, first + next_row as i32, col))
+                    .sum::<usize>();
+            if minimum <= index_units {
+                break;
+            }
+            start = index;
+            start_units = index_units;
+            while start < folded.len() && start_units < minimum {
+                let c = folded[start..]
+                    .chars()
+                    .next()
+                    .expect("valid string boundary");
+                start += c.len_utf8();
+                start_units += c.len_utf16();
+            }
         }
     }
-    (found, limited)
+    (found, false)
 }
 
 /// Index of the next match after `active`, wrapping. When nothing is active the
@@ -141,7 +266,50 @@ mod tests {
     }
 
     #[test]
-    fn search_is_case_insensitive_per_row_and_records_columns() {
+    fn installed_xterm_search_oracle() {
+        let oracle: serde_json::Value =
+            serde_json::from_str(include_str!("../testdata/terminal-find.json")).unwrap();
+        for case in oracle["cases"].as_array().unwrap() {
+            let buffer = terminal(
+                case["rows"].as_u64().unwrap() as u16,
+                case["cols"].as_u64().unwrap() as u16,
+                case["input"].as_str().unwrap(),
+            );
+            let (matches, limited) = find(&buffer, case["query"].as_str().unwrap(), MATCH_LIMIT);
+            let actual: Vec<_> = matches
+                .iter()
+                .map(|hit| [hit.line, hit.column as i32, hit.columns as i32])
+                .collect();
+            assert_eq!(
+                serde_json::json!(actual),
+                case["matches"],
+                "{}",
+                case["name"]
+            );
+            let expected: Vec<[i32; 3]> =
+                serde_json::from_value(case["decorations"].clone()).unwrap();
+            let expected: Vec<_> = expected
+                .into_iter()
+                .filter(|piece| piece[0] >= 0 && piece[0] < i32::from(buffer.size.rows))
+                .collect();
+            let actual: Vec<_> = matches
+                .iter()
+                .flat_map(|hit| {
+                    hit.segments(
+                        usize::from(buffer.size.cols),
+                        usize::from(buffer.size.rows),
+                        0,
+                    )
+                })
+                .map(|piece| [piece.line, piece.column as i32, piece.columns as i32])
+                .collect();
+            assert_eq!(actual, expected, "{} decoration segments", case["name"]);
+            assert!(!limited);
+        }
+    }
+
+    #[test]
+    fn search_is_case_insensitive_and_keeps_hard_breaks_separate() {
         let buffer = terminal(3, 20, "Paseo paseo\r\nPASEO\r\npaseo");
         let (found, limited) = find(&buffer, "paseo", MATCH_LIMIT);
         assert!(!limited);
@@ -187,9 +355,14 @@ mod tests {
             }]
         );
         let (found, _) = find(&buffer, "b  ", MATCH_LIMIT);
-        assert!(
-            found.is_empty(),
-            "trailing blanks are trimmed like the addon"
+        assert_eq!(
+            found,
+            [Match {
+                line: 0,
+                column: 3,
+                columns: 3
+            }],
+            "explicitly printed spaces are retained by the addon"
         );
     }
 
@@ -226,5 +399,54 @@ mod tests {
         assert_eq!(reanchored(Some(9), 5), Some(4), "clamped to the last match");
         assert_eq!(reanchored(None, 5), None);
         assert_eq!(reanchored(Some(0), 0), None, "query stopped matching");
+    }
+
+    #[test]
+    fn wrapped_decorations_clip_both_edges_of_the_viewport() {
+        let hit = Match {
+            line: -2,
+            column: 3,
+            columns: 20,
+        };
+        assert_eq!(
+            hit.segments(5, 2, 0).collect::<Vec<_>>(),
+            [
+                Match {
+                    line: 0,
+                    column: 0,
+                    columns: 5
+                },
+                Match {
+                    line: 1,
+                    column: 0,
+                    columns: 5
+                },
+            ]
+        );
+        assert_eq!(
+            hit.segments(5, 2, 2).collect::<Vec<_>>(),
+            [
+                Match {
+                    line: 0,
+                    column: 3,
+                    columns: 2
+                },
+                Match {
+                    line: 1,
+                    column: 0,
+                    columns: 5
+                },
+            ]
+        );
+        assert_eq!(
+            Match {
+                line: 2,
+                column: 0,
+                columns: 4
+            }
+            .segments(5, 2, 0)
+            .count(),
+            0
+        );
     }
 }

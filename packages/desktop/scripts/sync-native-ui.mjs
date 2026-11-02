@@ -117,6 +117,20 @@ const paletteOracle = JSON.parse(
     "utf8",
   ),
 );
+const findOracle = JSON.parse(
+  await fs.readFile(
+    path.join(root, "packages/desktop/native/src/testdata/terminal-find.json"),
+    "utf8",
+  ),
+);
+for (const [source, expected] of Object.entries(findOracle.sources)) {
+  const bytes = await fs.readFile(path.join(root, source));
+  if (createHash("sha256").update(bytes).digest("hex") !== expected) {
+    throw new Error(
+      `Xterm search changed: ${source}. Recapture the native terminal search oracle.`,
+    );
+  }
+}
 for (const [source, expected] of Object.entries(paletteOracle.sources)) {
   const bytes = await fs.readFile(path.join(root, source));
   if (createHash("sha256").update(bytes).digest("hex") !== expected) {
