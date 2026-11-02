@@ -1,0 +1,9 @@
+{
+  "fixture": true,
+  "xvfb": true,
+  "native": true,
+  "ownedWorkerAndPtyAbsent": true,
+  "privatePortClosed": true,
+  "privateHomeRemoved": true,
+  "production6767Listening": true
+}

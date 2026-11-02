@@ -708,12 +708,19 @@ impl TerminalView {
             return;
         }
         let modifiers = paseo_desktop::keyboard::Modifiers {
-            shift: key.modifiers.shift,
+            // GPUI folds Shift into punctuation (e.g. Shift+- becomes `_`
+            // without the bit). Terminal encodings need the physical state.
+            shift: key.modifiers.shift || window.modifiers().shift,
             alt: key.modifiers.alt,
             control: key.modifiers.control,
             platform: key.modifiers.platform,
         };
-        if key.key == "enter" && self.marked.is_empty() {
+        // AltGr and native composition belong to the text input handler. Their
+        // modifier bits describe text entry rather than terminal shortcuts.
+        if event.prefer_character_input || !self.marked.is_empty() {
+            return;
+        }
+        if key.key == "enter" {
             let kitty = self.buffer.kitty_input();
             if let Some(text) =
                 paseo_desktop::keyboard::enhanced_enter(modifiers, kitty, self.buffer.win32_input())
@@ -724,15 +731,34 @@ impl TerminalView {
                 return;
             }
         }
-        if !self.marked.is_empty() {
-            return;
-        }
         let app = self.buffer.modes().contains(TermMode::APP_CURSOR);
-        let text = paseo_desktop::keyboard::encode(&key.key, modifiers, app);
-        if let Some(text) = text {
-            self.focus.focus(window, cx);
-            self.send_input(&text, cx);
-            cx.stop_propagation();
+        match paseo_desktop::keyboard::legacy_action(
+            &key.key,
+            modifiers,
+            app,
+            cfg!(target_os = "macos"),
+        ) {
+            paseo_desktop::keyboard::Action::Send(text) => {
+                self.focus.focus(window, cx);
+                self.send_input(&text, cx);
+                cx.stop_propagation();
+            }
+            paseo_desktop::keyboard::Action::Page(direction) => {
+                self.buffer
+                    .scroll(direction * i32::from(self.buffer.size.rows.saturating_sub(1)));
+                self.generation += 1;
+                self.hover_cell = None;
+                self.reveal_scrollbar(cx);
+                cx.notify();
+                cx.stop_propagation();
+            }
+            paseo_desktop::keyboard::Action::SelectAll => {
+                self.buffer.select_all();
+                cx.notify();
+                cx.stop_propagation();
+            }
+            paseo_desktop::keyboard::Action::Ignore => cx.stop_propagation(),
+            paseo_desktop::keyboard::Action::CommitText => {}
         }
     }
 

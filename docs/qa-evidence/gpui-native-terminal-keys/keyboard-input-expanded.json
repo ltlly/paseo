@@ -1,0 +1,79 @@
+{
+  "cases": [
+    {
+      "key": "Alt+Tab",
+      "expectedHex": "09",
+      "actualHex": "09"
+    },
+    {
+      "key": "Alt+Shift+Tab",
+      "expectedHex": "1b5b5a",
+      "actualHex": "1b5b5a"
+    },
+    {
+      "key": "Alt+Insert",
+      "expectedHex": "1b5b327e",
+      "actualHex": "1b5b327e"
+    },
+    {
+      "key": "Ctrl+/",
+      "expectedHex": "1f",
+      "actualHex": "1f"
+    },
+    {
+      "key": "Ctrl+Shift+A",
+      "expectedHex": "",
+      "actualHex": ""
+    },
+    {
+      "key": "Alt+Shift+X",
+      "expectedHex": "1b58",
+      "actualHex": "1b58"
+    },
+    {
+      "key": "Super+Home",
+      "expectedHex": "1b5b313b3948",
+      "actualHex": "1b5b313b3948"
+    },
+    {
+      "key": "Ctrl+2",
+      "expectedHex": "",
+      "actualHex": ""
+    },
+    {
+      "key": "Ctrl+8",
+      "expectedHex": "7f",
+      "actualHex": "7f"
+    },
+    {
+      "key": "Ctrl+Shift+Minus",
+      "expectedHex": "1f",
+      "actualHex": "1f"
+    },
+    {
+      "key": "Ctrl+Shift+2",
+      "expectedHex": "00",
+      "actualHex": "00"
+    },
+    {
+      "key": "Application cursor Up",
+      "expectedHex": "1b4f41",
+      "actualHex": "1b4f41"
+    },
+    {
+      "key": "Ctrl+Up",
+      "expectedHex": "1b5b313b3541",
+      "actualHex": "1b5b313b3541"
+    },
+    {
+      "key": "Kitty enhanced Shift+Enter",
+      "expectedHex": "1b5b31333b3275",
+      "actualHex": "1b5b31333b3275"
+    },
+    {
+      "key": "Win32 enhanced Shift+Enter",
+      "expectedHex": "1b5b31333b32383b31333b313b31363b315f",
+      "actualHex": "1b5b31333b32383b31333b313b31363b315f"
+    }
+  ]
+}

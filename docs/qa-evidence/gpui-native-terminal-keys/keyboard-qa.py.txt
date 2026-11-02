@@ -1,0 +1,56 @@
+# Run against the fixture and the only native window on private Xvfb :97.
+# Copy x11-input.py.txt to $PASEO_NATIVE_QA/input.py first.
+import base64
+import json
+import os
+from pathlib import Path
+import subprocess
+import time
+
+q = Path(os.environ['PASEO_NATIVE_QA'])
+m = json.loads((q / 'fixture.json').read_text())
+
+def raw():
+    return b''.join(base64.b64decode(json.loads(line)['base64'])
+                    for line in Path(m['input']).read_text().splitlines())
+
+records = []
+def key(label, keys, expected):
+    before = raw()
+    subprocess.run(['python3', str(q / 'input.py'), 'key', *keys], check=True)
+    deadline = time.monotonic() + 2
+    while len(raw()) < len(before) + len(expected) and time.monotonic() < deadline:
+        time.sleep(.02)
+    time.sleep(.1)
+    current = raw()
+    assert current.startswith(before), 'Input log changed before its recorded offset'
+    actual = current[len(before):]
+    assert actual == expected, (label, expected, actual)
+    records.append(dict(key=label, expectedHex=expected.hex(), actualHex=actual.hex()))
+
+def mode(value):
+    Path(m['mode']).write_text(value)
+    time.sleep(.3)
+
+mode('\x1b[?1l\x1b[<u\x1b[?9001l')
+key('Alt+Tab', ['Alt_L', 'Tab'], b'\t')
+key('Alt+Shift+Tab', ['Alt_L', 'Shift_L', 'Tab'], b'\x1b[Z')
+key('Alt+Insert', ['Alt_L', 'Insert'], b'\x1b[2~')
+key('Ctrl+/', ['Control_L', 'slash'], b'\x1f')
+key('Ctrl+Shift+A', ['Control_L', 'Shift_L', 'a'], b'')
+key('Alt+Shift+X', ['Alt_L', 'Shift_L', 'x'], b'\x1bX')
+key('Super+Home', ['Super_L', 'Home'], b'\x1b[1;9H')
+key('Ctrl+2', ['Control_L', '2'], b'')
+key('Ctrl+8', ['Control_L', '8'], b'\x7f')
+key('Ctrl+Shift+Minus', ['Control_L', 'Shift_L', 'minus'], b'\x1f')
+key('Ctrl+Shift+2', ['Control_L', 'Shift_L', '2'], b'\0')
+mode('\x1b[?1h')
+key('Application cursor Up', ['Up'], b'\x1bOA')
+key('Ctrl+Up', ['Control_L', 'Up'], b'\x1b[1;5A')
+mode('\x1b[>7u')
+key('Kitty enhanced Shift+Enter', ['Shift_L', 'Return'], b'\x1b[13;2u')
+mode('\x1b[<u\x1b[?9001h')
+key('Win32 enhanced Shift+Enter', ['Shift_L', 'Return'], b'\x1b[13;28;13;1;16;1_')
+mode('\x1b[?9001l')
+(q / 'keyboard-input-expanded.json').write_text(json.dumps(dict(cases=records), indent=2) + '\n')
+print(f'Passed {len(records)} real OS key -> PTY byte checks')

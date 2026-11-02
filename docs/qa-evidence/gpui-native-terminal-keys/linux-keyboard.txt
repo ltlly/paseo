@@ -1,0 +1,15 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.73s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 8 tests
+test keyboard::tests::application_cursor_and_modifier_sequences_remain_distinct ... ok
+test keyboard::tests::control_punctuation_is_explicit_and_never_corrupts_unicode ... ok
+test keyboard::tests::function_keys_and_tilde_keys_encode_modifiers ... ok
+test keyboard::tests::enhanced_enter_matches_shared_kitty_and_win32_encoding_without_claiming_all_key_events ... ok
+test keyboard::tests::copied_terminal_text_normalizes_nonbreaking_spaces_and_windows_line_endings ... ok
+test keyboard::tests::clipboard_paste_matches_xterm_line_endings_and_visible_escape_sanitization ... ok
+test keyboard::tests::ime_and_platform_shortcuts_are_not_duplicated_as_terminal_text ... ok
+test keyboard::tests::legacy_keys_match_the_installed_xterm_and_authored_mac_shortcuts ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 372 filtered out; finished in 0.01s

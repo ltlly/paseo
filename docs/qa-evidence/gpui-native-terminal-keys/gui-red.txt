@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/home/ltlly/Code/paseo/docs/qa-evidence/gpui-native-terminal-keys/keyboard-qa.py.txt", line 45, in <module>
+    key('Ctrl+Shift+Minus', ['Control_L', 'Shift_L', 'minus'], b'\x1f')
+  File "/home/ltlly/Code/paseo/docs/qa-evidence/gpui-native-terminal-keys/keyboard-qa.py.txt", line 28, in key
+    assert actual == expected, (label, expected, actual)
+           ^^^^^^^^^^^^^^^^^^
+AssertionError: ('Ctrl+Shift+Minus', b'\x1f', b'')

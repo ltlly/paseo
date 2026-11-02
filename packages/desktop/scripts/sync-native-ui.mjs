@@ -144,6 +144,20 @@ const findOracle = JSON.parse(
     "utf8",
   ),
 );
+const keyboardOracle = JSON.parse(
+  await fs.readFile(
+    path.join(root, "packages/desktop/native/src/testdata/terminal-keyboard.json"),
+    "utf8",
+  ),
+);
+for (const [source, expected] of Object.entries(keyboardOracle.sources)) {
+  const bytes = await fs.readFile(path.join(root, source));
+  if (createHash("sha256").update(bytes).digest("hex") !== expected) {
+    throw new Error(
+      `Terminal keyboard reference changed: ${source}. Recapture the native keyboard oracle.`,
+    );
+  }
+}
 for (const [source, expected] of Object.entries(findOracle.sources)) {
   const bytes = await fs.readFile(path.join(root, source));
   if (createHash("sha256").update(bytes).digest("hex") !== expected) {

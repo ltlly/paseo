@@ -1,0 +1,26 @@
+   Compiling vte v0.15.0 (/home/ltlly/Code/paseo/packages/desktop/native/vendor/vte)
+   Compiling alacritty_terminal v0.26.0
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.10s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 1 test
+test keyboard::tests::legacy_keys_match_the_installed_xterm_and_authored_mac_shortcuts ... FAILED
+
+failures:
+
+---- keyboard::tests::legacy_keys_match_the_installed_xterm_and_authored_mac_shortcuts stdout ----
+
+thread 'keyboard::tests::legacy_keys_match_the_installed_xterm_and_authored_mac_shortcuts' (2404696) panicked at packages/desktop/native/src/keyboard.rs:178:13:
+assertion `left == right` failed: ["left",2,false,true,0,"\u001bb","ArrowLeft"]
+  left: (0, String("\u{1b}[1;3D"))
+ right: (0, String("\u{1b}b"))
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    keyboard::tests::legacy_keys_match_the_installed_xterm_and_authored_mac_shortcuts
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 379 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p paseo-desktop --lib`

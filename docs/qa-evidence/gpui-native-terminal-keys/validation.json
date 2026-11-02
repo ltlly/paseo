@@ -1,0 +1,132 @@
+{
+  "status": "LEGACY_KEYBOARD_CHECKPOINT_VERIFIED_MIGRATION_PENDING",
+  "date": "2026-11-02T10:55:19.074411+08:00",
+  "baseCommit": "76031c12f8af7d30ca57e79ef24bbe3fcf825cd6",
+  "scope": "Native desktop keyboard dispatch and local history paging. Android, daemon, providers, protocol, installed clients and production6767 unchanged.",
+  "sourceSnapshot": {
+    "sha256": "3609eea1bbdfdd3021979cf04051ff6e7f095cce3d6b96a01afe68f37af9db37",
+    "archive": "/home/ltlly/.cache/paseo-native-qa/keys-20261102/native-source-final.tar.gz",
+    "fileCount": 216
+  },
+  "sourceFreshness": "All 216 files match the final source archive after npm formatting. Both remote checks verify archive SHA256 and clean the native package before building.",
+  "linuxBinarySha256": "8df5562b4dbbac131ec2a4889e5ebeabdf0eeef3cf06f4479be9c0b72eeaca35",
+  "oracle": {
+    "cases": 4736,
+    "keys": 74,
+    "modifierCombinations": 16,
+    "applicationCursorModes": 2,
+    "platformRules": ["mac", "other"],
+    "source": "Installed xterm evaluateKeyboardEvent and authored resolveMacTerminalEditingShortcut, with macOptionIsMeta=true. Ordinary printable keys include subsequent text commit. Not browser-dispatched events.",
+    "producer": "node docs/qa-evidence/gpui-native-terminal-keys/capture-oracle.mjs",
+    "freshness": "Native asset check verifies four source-file digests.",
+    "path": "packages/desktop/native/src/testdata/terminal-keyboard.json"
+  },
+  "regressions": [
+    {
+      "before": "Mac Option+Left sends ESC[1;3D",
+      "after": "ESC b, matching the authored Mac editing shortcut",
+      "evidence": "red.txt"
+    },
+    {
+      "before": "Shift+PageUp/PageDown sends control sequences to the program",
+      "after": "Local history scroll by rows-1; PTY input log unchanged",
+      "evidence": "page-input.json"
+    },
+    {
+      "before": "GPUI folds Shift into punctuation, so Ctrl+Shift+Minus produces no PTY input despite a passing pure encoder case",
+      "after": "Restore physical Shift from Window modifiers: byte 1f. Ctrl+Shift+2 likewise sends 00.",
+      "evidence": ["gui-red.txt", "keyboard-input-expanded.json"]
+    }
+  ],
+  "checks": {
+    "Linux": {
+      "nativeCheck": "passed",
+      "keyboardTests": 8,
+      "lint": "passed",
+      "typecheck": "passed"
+    },
+    "macOS": {
+      "nativeCheck": "passed with runtime-shaders",
+      "nativeApplicationBuild": "passed with runtime-shaders",
+      "keyboardTests": 8,
+      "archiveHashVerified": true
+    },
+    "Windows": {
+      "nativeCheck": "passed with stable MSVC",
+      "keyboardTests": 8,
+      "archiveHashVerified": true
+    }
+  },
+  "linuxInteraction": {
+    "display": ":97 private Xvfb, software rendering",
+    "viewport": [1280, 800],
+    "fixture": "fixture.mts: isolated random-port daemon and real raw-input Node PTY. Provider test clients are unused. No real agent prompts.",
+    "osToPtyCases": 15,
+    "bytes": "keyboard-input-expanded.json",
+    "paging": {
+      "rows": 43,
+      "firstVisibleBefore": 199,
+      "firstVisibleAfterPageUp": 157,
+      "firstVisibleAfterPageDown": 199,
+      "leakedInput": false,
+      "screenshots": ["final-bottom.png", "final-page-up.png", "final-page-down.png"]
+    },
+    "lifecycle": "Both original and final native clients closed without terminating the test PTY; SDK inventory checked after each close. Fixture then explicitly terminated its own PTY during cleanup.",
+    "producer": "Set PASEO_NATIVE_QA to a private directory. Start fixture.mts with node --import tsx, Xvfb :97 and the built native client using fixture.json endpoint/home and isolated XDG_CONFIG_HOME. Copy x11-input.py.txt to that directory as input.py, focus the terminal, then run python3 keyboard-qa.py.txt. Helper asserts a single Paseo Native window on :97. Recorded captures use ffmpeg x11grab :97+162,100 at 1280x800."
+  },
+  "macInteraction": {
+    "attempted": "Read-only permission preflight after successful native build; no native QA window launched and no injected events.",
+    "accessibility": false,
+    "postEvents": false,
+    "screenCapture": false,
+    "result": "GUI acceptance remains pending; existing user window and sessions untouched."
+  },
+  "cleanup": {
+    "fixture": true,
+    "xvfb": true,
+    "native": true,
+    "ownedWorkerAndPtyAbsent": true,
+    "privatePortClosed": true,
+    "privateHomeRemoved": true,
+    "production6767Listening": true
+  },
+  "limitations": [
+    "US logical-key corpus does not establish non-US physical-layout, AltGr or operating-system IME correctness. Existing marked-text/character-input ownership is preserved.",
+    "Enhanced modified Enter alone is covered for Kitty and Win32 modes; full press/repeat/release, modifier-only events and protocol negotiation remain pending.",
+    "No Mac or Windows native GUI acceptance. Mac remote testing lacks accessibility/event/screen permissions.",
+    "No hardware input-latency, CPU/RSS or Electron pixel-parity improvement claim. Paging screenshots document behavior, not matched reference rendering.",
+    "No full local suite, release, installed-client switch, production restart or real provider invocation. Full native migration acceptance remains pending."
+  ],
+  "commands": [
+    "cargo test --locked -p paseo-desktop --no-default-features --lib keyboard::tests -- --test-threads=1",
+    "npm run check:desktop:native",
+    "npm run format",
+    "npm run lint",
+    "npm run typecheck"
+  ],
+  "logs": {
+    "red.txt": "43fdc5b1f4f2558b7d62feaccd85173fdded9ba18d1978c3b80b38d12cb511b3",
+    "linux-keyboard.txt": "808198e7e77a7d2339af9c738d6e6811d097820a99e66b121686604f4ab332c9",
+    "linux-native-check.txt": "cff014d88ec9ad7e68e8269ecf60ab23de24bda690219fcea643a5b1f6df913d",
+    "mac-check.txt": "d43f5c061a61d07d41fbd1cadbf26ac0d535d84cd38a1810488aec743448793c",
+    "windows-check.txt": "12b9a832671a282a2f88291b6cf344262ce04d5d5597a97c7e27b6f5dc6fd26d",
+    "lint.txt": "3a1b9dd1caf05ba90b1dc76a39a7e6d3605d851166c64064d9908c35ef398803",
+    "typecheck.txt": "7471ba59306f3652e30c3efc582b4d81e6122a611cc34f2ce8ce5711c1d8eb2a",
+    "gui-red.txt": "f25faa36807d5aa51155473bd9456ddad2da7598ebda899d7c151f67cc482717",
+    "gui-green.txt": "eddbdf2b7699642911a8c29087507c88135917138dad2e44c3b1ebde8b1c540f",
+    "mac-permissions.txt": "63e56e74e63d5ec36757aa4bd3f54b09e7b246c5a912558487bae19547c758e0"
+  },
+  "originalLogSha256": {
+    "red.txt": "43fdc5b1f4f2558b7d62feaccd85173fdded9ba18d1978c3b80b38d12cb511b3",
+    "linux-keyboard.txt": "4da760991dfc9f77df39c85c3bf563bb05747d249dbec82ba4933e20209f1cfa",
+    "linux-native-check.txt": "cff014d88ec9ad7e68e8269ecf60ab23de24bda690219fcea643a5b1f6df913d",
+    "mac-check.txt": "d43f5c061a61d07d41fbd1cadbf26ac0d535d84cd38a1810488aec743448793c",
+    "windows-check.txt": "1b189925cd912871618591b2d266730beb1b11cba70226a3cafb9f6a6ab5cc53",
+    "lint.txt": "3a1b9dd1caf05ba90b1dc76a39a7e6d3605d851166c64064d9908c35ef398803",
+    "typecheck.txt": "7471ba59306f3652e30c3efc582b4d81e6122a611cc34f2ce8ce5711c1d8eb2a",
+    "gui-red.txt": "f25faa36807d5aa51155473bd9456ddad2da7598ebda899d7c151f67cc482717",
+    "gui-green.txt": "eddbdf2b7699642911a8c29087507c88135917138dad2e44c3b1ebde8b1c540f",
+    "mac-permissions.txt": "63e56e74e63d5ec36757aa4bd3f54b09e7b246c5a912558487bae19547c758e0"
+  },
+  "logNormalization": "Stored text normalizes CRLF, trailing whitespace and final newline; original digests retained."
+}
