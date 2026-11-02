@@ -1,0 +1,19 @@
+[package]
+name = "paseo-feed-bench"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+paseo-desktop = { path = "../../../../packages/desktop/native", default-features = false }
+alacritty_terminal = { version = "=0.26.0", default-features = false }
+serde_json = "1.0"
+
+[[bin]]
+name = "paseo-feed-bench"
+path = "../benchmark.rs"
+
+[profile.release]
+opt-level = 2

@@ -562,49 +562,55 @@ mod tests {
         let oracle: serde_json::Value =
             serde_json::from_str(include_str!("testdata/terminal-copy.json")).unwrap();
         for case in oracle["cases"].as_array().unwrap() {
-            let cols = case["cols"].as_u64().unwrap() as u16;
-            let rows = case["rows"].as_u64().unwrap() as u16;
-            let scrollback = case["scrollback"].as_u64().unwrap_or(10) as usize;
-            let check = |buffer: &TerminalBuffer, selection: &serde_json::Value| {
-                let line = |key: &str| selection[key].as_i64().unwrap() as i32;
-                let column = |key: &str| selection[key].as_u64().unwrap() as usize;
-                assert_eq!(
-                    text(
-                        buffer,
-                        line("startLine"),
-                        column("startColumn"),
-                        line("endLine"),
-                        column("endColumn"),
-                        selection["block"].as_bool().unwrap(),
-                        false,
-                    ),
-                    selection["text"].as_str().unwrap(),
-                    "{} / {}",
-                    case["name"].as_str().unwrap(),
-                    selection["name"].as_str().unwrap(),
-                );
-            };
-            if let Some(steps) = case["steps"].as_array() {
-                let mut buffer = TerminalBuffer::new(GridSize { rows, cols }, scrollback);
-                for step in steps {
-                    if let Some(write) = step["write"].as_str() {
-                        buffer.feed(write.as_bytes());
-                    } else if let Some(resize) = step["resize"].as_object() {
-                        buffer.resize(GridSize {
-                            rows: resize["rows"].as_u64().unwrap() as u16,
-                            cols: resize["cols"].as_u64().unwrap() as u16,
-                        });
-                    } else if step.get("select").is_some() {
-                        check(&buffer, &step["select"]);
+            for chunk_size in [1, 7, usize::MAX] {
+                let cols = case["cols"].as_u64().unwrap() as u16;
+                let rows = case["rows"].as_u64().unwrap() as u16;
+                let scrollback = case["scrollback"].as_u64().unwrap_or(10) as usize;
+                let check = |buffer: &TerminalBuffer, selection: &serde_json::Value| {
+                    let line = |key: &str| selection[key].as_i64().unwrap() as i32;
+                    let column = |key: &str| selection[key].as_u64().unwrap() as usize;
+                    assert_eq!(
+                        text(
+                            buffer,
+                            line("startLine"),
+                            column("startColumn"),
+                            line("endLine"),
+                            column("endColumn"),
+                            selection["block"].as_bool().unwrap(),
+                            false,
+                        ),
+                        selection["text"].as_str().unwrap(),
+                        "{} / {}",
+                        case["name"].as_str().unwrap(),
+                        selection["name"].as_str().unwrap(),
+                    );
+                };
+                if let Some(steps) = case["steps"].as_array() {
+                    let mut buffer = TerminalBuffer::new(GridSize { rows, cols }, scrollback);
+                    for step in steps {
+                        if let Some(write) = step["write"].as_str() {
+                            for bytes in write.as_bytes().chunks(chunk_size) {
+                                buffer.feed(bytes);
+                            }
+                        } else if let Some(resize) = step["resize"].as_object() {
+                            buffer.resize(GridSize {
+                                rows: resize["rows"].as_u64().unwrap() as u16,
+                                cols: resize["cols"].as_u64().unwrap() as u16,
+                            });
+                        } else if step.get("select").is_some() {
+                            check(&buffer, &step["select"]);
+                        }
                     }
-                }
-            } else {
-                let mut buffer = TerminalBuffer::new(GridSize { rows, cols }, scrollback);
-                for write in case["writes"].as_array().unwrap() {
-                    buffer.feed(write.as_str().unwrap().as_bytes());
-                }
-                for selection in case["selections"].as_array().unwrap() {
-                    check(&buffer, selection);
+                } else {
+                    let mut buffer = TerminalBuffer::new(GridSize { rows, cols }, scrollback);
+                    for write in case["writes"].as_array().unwrap() {
+                        for bytes in write.as_str().unwrap().as_bytes().chunks(chunk_size) {
+                            buffer.feed(bytes);
+                        }
+                    }
+                    for selection in case["selections"].as_array().unwrap() {
+                        check(&buffer, selection);
+                    }
                 }
             }
         }

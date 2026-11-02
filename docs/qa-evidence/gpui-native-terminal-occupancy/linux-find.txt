@@ -1,0 +1,14 @@
+    Blocking waiting for file lock on build directory
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.26s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-145fdb85ecda4a70)
+
+running 7 tests
+test terminal_find::tests::rescanning_keeps_the_active_match ... ok
+test terminal_find::tests::wrapped_decorations_clip_both_edges_of_the_viewport ... ok
+test terminal_find::tests::search_is_case_insensitive_and_keeps_hard_breaks_separate ... ok
+test terminal_find::tests::trailing_blanks_and_wide_spacers_keep_match_geometry ... ok
+test terminal_find::tests::result_limits_and_navigation_wrap ... ok
+test terminal_find::tests::history_lines_are_searchable_and_map_to_visible_rows ... ok
+test terminal_find::tests::installed_xterm_search_oracle ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 370 filtered out; finished in 0.00s

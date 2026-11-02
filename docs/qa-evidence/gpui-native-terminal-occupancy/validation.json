@@ -1,0 +1,119 @@
+{
+  "status": "PARTIAL_NOT_MIGRATION_ACCEPTED",
+  "date": "2026-11-02T10:14:58.322855+08:00",
+  "baseCommit": "1e3904f293e1c74551fb98bf43c7e457601abec6",
+  "scope": "Native terminal parser occupancy bookkeeping. No app/Android, daemon, wire, VT parser, terminal rendering or installed-client change.",
+  "changes": [
+    "Keep the most recently written occupancy row out of the tree lookup path, retaining an empty keyed placeholder to avoid BTreeMap node churn on TUI refresh. All row moves flush it; reads, edits, clears and history pruning include it.",
+    "Pack occupancy into u64 words instead of one bool byte per column. Preserve logical columns and the same history cap."
+  ],
+  "sourceSnapshot": {
+    "sha256": "2881198292b6a937e556f9f091b323c0abfee8ee647db9516a4f7034ed6154dd",
+    "archive": "/home/ltlly/.cache/paseo-native-qa/occupancy-20261102/native-source.tar.gz",
+    "fileCount": 202
+  },
+  "benchmark": {
+    "summary": "paired-summary.json",
+    "producer": "benchmark.rs",
+    "reproduce": "cargo run --locked --release --manifest-path docs/qa-evidence/gpui-native-terminal-occupancy/benchmark/Cargo.toml --bin paseo-feed-bench",
+    "profile": "opt-level=2, counting System allocator; core parser only, no window/daemon/PTY/GPU/network; observer adds cost equally to both variants",
+    "workloads": "160 columns, 40 screen rows, 10,000 retained history rows. ASCII scrollback (2,235,000 bytes), TUI overwrite (1,300,800 bytes), Unicode (1,520,000 bytes). Each at 256-byte and 8192-byte feed sizes.",
+    "sampling": "Immutable before/after binaries; AB, BA, AB process order, each process runs three samples per workload/feed size: nine samples per variant/case. Median reported. No compiler or GUI workload during these paired runs.",
+    "nativeBeforeSha256": "ff2804637459b561883c551bdf65efab6b3dc33356489972d23383c8cc0f26ed",
+    "nativeAfterSha256": "92b90ab23e62b5e5c201d44a4c0e4f3b14eb6de0b5c4a1314ba2928bcf25dcc5",
+    "lockSha256": "03a172b061251fbfe046cc79f64eb9ec3871526c3d3467a4481ddbf29abbff66",
+    "copyChecksums": "Before/after match exactly for every corresponding workload/feed size; do not compare different feed sizes as a conformance claim (see knownRemainingBug).",
+    "memory": "Requested live allocation delta during feed, not process RSS. ASCII retained bytes 41,175,120 -> 39,956,864 (1,218,256 fewer); allocation count unchanged at 27,504. TUI and Unicode counts also unchanged. Bare Term is a diagnostic reference, not a before/after product variant."
+  },
+  "nativeWindow": {
+    "result": "0 changed pixels in each of four complete 1280x800 window pairs: plain, selected, find and typed. No masks. This is native-before/native-after, not Electron parity.",
+    "before": {
+      "pid": 2357627,
+      "binary": "/home/ltlly/.cache/paseo-native-qa/find-20261102/paseo-find-fixed",
+      "sha256": "5164b058192ff3046e0aa9252782b0703681a16baeb1463a19cf98d4a318a620"
+    },
+    "after": {
+      "pid": 2358263,
+      "binary": "/home/ltlly/.cache/paseo-native-qa/occupancy-20261102/paseo-native-after",
+      "sha256": "c656e2271b66cccb624c9a8316febd31cda1563be4f56798ff3b0aac3facf84a"
+    },
+    "fixture": "Existing isolated terminal-find fixture, with input.jsonl created before either client and CSI 3J added after clear on each resize to keep fixture history stable. Same retained real PTY and daemon for both clients; private Xvfb :96 software rendering.",
+    "input": "Find query never reaches PTY; each client sends qa-ping123 + CR exactly. Client close retains PTY.",
+    "discardedAttempts": "First pair created a new file between captures and accumulated resize redraw history; second pair launched before replacement fixture metadata was ready. Neither was accepted or used as a visual regression result."
+  },
+  "checks": {
+    "Linux": {
+      "nativeBuildCheck": "passed",
+      "occupancyTests": 9,
+      "clipboardTests": 45,
+      "searchTests": 7,
+      "clipboardCorpusFeeds": [1, 7, "whole write"],
+      "lint": "passed",
+      "typecheck": "passed"
+    },
+    "macOS": {
+      "nativeCheck": "passed with runtime-shaders",
+      "occupancyTests": 9,
+      "clipboardTests": 45,
+      "searchTests": 7,
+      "sourceArchiveHashVerified": true
+    },
+    "Windows": {
+      "nativeCheck": "passed with stable MSVC",
+      "occupancyTests": 9,
+      "clipboardTests": 45,
+      "searchTests": 7,
+      "sourceArchiveHashVerified": true
+    }
+  },
+  "knownRemainingBug": {
+    "nextAction": "Add a failing native regression and fix the owning vte partial-UTF8 parser before full terminal acceptance.",
+    "dependency": "vte 0.15.0, src/lib.rs advance_partial_utf8 valid_bytes > 0 branch; returns valid_bytes - old_bytes after emitting only the first scalar.",
+    "minimalInput": ["65 cc", "81 20 e4", "b8 ad"],
+    "expected": "e\\u0301 中",
+    "actual": "e\\u0301中",
+    "reproduction": "reproduce-utf8.rs and utf8-minimal.txt use the dependency Processor directly without TerminalBuffer or occupancy tracking. No production code changed to address this bug in this checkpoint.",
+    "reference": "https://github.com/alacritty/vte/blob/master/src/lib.rs",
+    "largerProbe": "Chunk probe shows different copies and raw grid text across feed sizes in the existing implementation. New caching/packing preserves the same results per feed size; it does not solve that separate defect."
+  },
+  "cleanup": {
+    "xvfb": true,
+    "fixture": true,
+    "nativeBeforeAbsent": true,
+    "nativeAfterAbsent": true,
+    "privatePortClosed": true,
+    "production6767Listening": true,
+    "originalOtherQaClientAlive": true
+  },
+  "limitations": [
+    "No whole-application CPU/RSS or hardware input/scroll latency claim.",
+    "No real Pi/Grok interactive workload measurements.",
+    "macOS/Windows native GUI, clipboard/IME, installers and hardware performance remain unverified.",
+    "Full Electron pixel parity, native feature parity and deployment acceptance remain pending."
+  ],
+  "logs": {
+    "linux-handler.txt": "a933a37b017e12c146af8cc863c4a9f5b173b5aad8580abd01786a211c893ad5",
+    "linux-copy.txt": "a19d2ddc37e70b21c5459b4377e7aaff3139f03e642c01079eabaeff49338928",
+    "linux-find.txt": "a6e95868aade6c4b4033f9c993261a2f1b3a23483c94a83cf628aac6f89d02f9",
+    "native-check.txt": "1df0c7305f45082e1c31531102eaf0a7d5117f092ad52b5795bf9750029b53e4",
+    "typecheck.txt": "4f931b3f3b19eda62141346bff7695fdee82ed09617963ee0237efe5a0e0b52c",
+    "lint.txt": "a06b50fd316a41ddd33ce99bfbb532011625ded5ef167f5dbf165ff161804d0f",
+    "mac-check.txt": "d7f895bb83c526c1a7aeada494ef9ae551fb3a1be232656a6147a7a3f0a7c831",
+    "windows-check.txt": "83137df4bbd625be4409134a0f3e70f77b3e6bb45d4d1b5ebacf56575ea600f4",
+    "utf8-minimal.txt": "c5dcdbc56ec4f7f304a4a4cc4b42524cf16caba3ca335f4f911b3221c0544f17",
+    "chunk-probe.txt": "99bea7942fc2e9a3f3ef951096ad03d0711999c1873407d2e95e28bb726a0e2b"
+  },
+  "originalLogSha256": {
+    "linux-handler.txt": "796d0f89030f1e18b0077190a698f9f7524f8593ddada113d03017976ee45e9a",
+    "linux-copy.txt": "56f2ffa3ddde5bf9531980cda9c1fa3b9bcaed631363b7207b1953270d4b18d7",
+    "linux-find.txt": "3331e5220ebf731ed5beae4f347a61c335cc9ea2e4becf676eb2c580209677df",
+    "native-check.txt": "1df0c7305f45082e1c31531102eaf0a7d5117f092ad52b5795bf9750029b53e4",
+    "typecheck.txt": "4f931b3f3b19eda62141346bff7695fdee82ed09617963ee0237efe5a0e0b52c",
+    "lint.txt": "a06b50fd316a41ddd33ce99bfbb532011625ded5ef167f5dbf165ff161804d0f",
+    "mac-check.txt": "d7f895bb83c526c1a7aeada494ef9ae551fb3a1be232656a6147a7a3f0a7c831",
+    "windows-check.txt": "aa4416c247f8dbabca821775b0c2322a158462ca4edc1149bc6c8c9f0525c7ab",
+    "utf8-minimal.txt": "c5dcdbc56ec4f7f304a4a4cc4b42524cf16caba3ca335f4f911b3221c0544f17",
+    "chunk-probe.txt": "99bea7942fc2e9a3f3ef951096ad03d0711999c1873407d2e95e28bb726a0e2b"
+  },
+  "logNormalization": "Stored text logs normalize CRLF/trailing whitespace; original capture digests retained."
+}

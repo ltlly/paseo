@@ -1,0 +1,16 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.55s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-145fdb85ecda4a70)
+
+running 9 tests
+test terminal_handler::tests::partial_region_scrolls_move_only_region_rows ... ok
+test terminal_handler::tests::scrolling_a_whole_region_from_inside_resets_it ... ok
+test terminal_handler::tests::deleting_and_inserting_characters_move_written_cells ... ok
+test terminal_handler::tests::clearing_and_pruning_retire_the_latest_written_row ... ok
+test terminal_handler::tests::erasing_removes_exactly_the_covered_cells ... ok
+test terminal_handler::tests::a_full_screen_scroll_rebases_history_at_the_cap ... ok
+test terminal_handler::tests::pruning_keeps_the_rows_inside_the_scrollback ... ok
+test terminal_handler::tests::writes_are_keyed_by_a_stable_revision ... ok
+test terminal_handler::tests::occupancy_edits_preserve_cells_across_storage_word_boundaries ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 368 filtered out; finished in 0.01s

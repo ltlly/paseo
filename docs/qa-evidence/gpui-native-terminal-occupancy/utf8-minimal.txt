@@ -1,0 +1,4 @@
+   Compiling paseo-feed-bench v0.0.0 (/home/ltlly/.cache/paseo-native-qa/terminal-feed-bench)
+    Finished `release` profile [optimized] target(s) in 0.51s
+     Running `target/release/examples/utf8_minimal`
+expected "e\u{301} 中", actual "e\u{301}中"

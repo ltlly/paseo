@@ -1,0 +1,110 @@
+[
+  {
+    "workload": "ascii_scrollback",
+    "chunk": 256,
+    "before": {
+      "samples": 9,
+      "medianMicros": 79178,
+      "allocations": [27504],
+      "retainedBytesDelta": [41175120]
+    },
+    "after": {
+      "samples": 9,
+      "medianMicros": 36214,
+      "allocations": [27504],
+      "retainedBytesDelta": [39956864]
+    },
+    "copyChecksum": "4931804345266406292",
+    "fasterPercent": 54.3
+  },
+  {
+    "workload": "ascii_scrollback",
+    "chunk": 8192,
+    "before": {
+      "samples": 9,
+      "medianMicros": 74739,
+      "allocations": [27504],
+      "retainedBytesDelta": [41175120]
+    },
+    "after": {
+      "samples": 9,
+      "medianMicros": 34972,
+      "allocations": [27504],
+      "retainedBytesDelta": [39956864]
+    },
+    "copyChecksum": "4931804345266406292",
+    "fasterPercent": 53.2
+  },
+  {
+    "workload": "tui_refresh",
+    "chunk": 256,
+    "before": {
+      "samples": 9,
+      "medianMicros": 19492,
+      "allocations": [47],
+      "retainedBytesDelta": [9072]
+    },
+    "after": {
+      "samples": 9,
+      "medianMicros": 16426,
+      "allocations": [47],
+      "retainedBytesDelta": [4248]
+    },
+    "copyChecksum": "9473484597013726682",
+    "fasterPercent": 15.7
+  },
+  {
+    "workload": "tui_refresh",
+    "chunk": 8192,
+    "before": {
+      "samples": 9,
+      "medianMicros": 18991,
+      "allocations": [47],
+      "retainedBytesDelta": [9072]
+    },
+    "after": {
+      "samples": 9,
+      "medianMicros": 15684,
+      "allocations": [47],
+      "retainedBytesDelta": [4248]
+    },
+    "copyChecksum": "9473484597013726682",
+    "fasterPercent": 17.4
+  },
+  {
+    "workload": "unicode",
+    "chunk": 256,
+    "before": {
+      "samples": 9,
+      "medianMicros": 36925,
+      "allocations": [145337],
+      "retainedBytesDelta": [37381744]
+    },
+    "after": {
+      "samples": 9,
+      "medianMicros": 20167,
+      "allocations": [145337],
+      "retainedBytesDelta": [36411048]
+    },
+    "copyChecksum": "16848357935699770656",
+    "fasterPercent": 45.4
+  },
+  {
+    "workload": "unicode",
+    "chunk": 8192,
+    "before": {
+      "samples": 9,
+      "medianMicros": 36341,
+      "allocations": [145337],
+      "retainedBytesDelta": [37381744]
+    },
+    "after": {
+      "samples": 9,
+      "medianMicros": 19194,
+      "allocations": [145337],
+      "retainedBytesDelta": [36411048]
+    },
+    "copyChecksum": "2460912514914944888",
+    "fasterPercent": 47.2
+  }
+]

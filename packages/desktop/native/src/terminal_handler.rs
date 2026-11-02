@@ -60,47 +60,66 @@ fn next_layout_epoch() -> u64 {
 /// never does, and the trimmed length is derived from the head's grid width.
 #[derive(Clone, Default)]
 pub struct RowMask {
-    cells: Vec<bool>,
+    words: Vec<u64>,
+    columns: usize,
 }
 
 impl RowMask {
     fn new(columns: usize) -> Self {
         Self {
-            cells: vec![false; columns],
+            words: vec![0; columns.div_ceil(64)],
+            columns,
         }
     }
 
     /// Whether the cell at `column` was written with content.
     pub fn written(&self, column: usize) -> bool {
-        self.cells.get(column).copied().unwrap_or(false)
+        column < self.columns && self.words[column / 64] & (1 << (column % 64)) != 0
     }
 
     fn set(&mut self, column: usize) {
-        if let Some(cell) = self.cells.get_mut(column) {
-            *cell = true;
+        self.write(column, true);
+    }
+
+    fn write(&mut self, column: usize, written: bool) {
+        if column >= self.columns {
+            return;
         }
+        let bit = 1 << (column % 64);
+        let word = &mut self.words[column / 64];
+        *word = (*word & !bit) | if written { bit } else { 0 };
     }
 
     fn any_written(&self) -> bool {
-        self.cells.iter().any(|written| *written)
+        self.words.iter().any(|word| *word != 0)
     }
 
     fn erase(&mut self, from: usize, to: usize) {
-        let from = from.min(self.cells.len());
-        let to = to.min(self.cells.len());
-        for cell in &mut self.cells[from..to] {
-            *cell = false;
+        let from = from.min(self.columns);
+        let to = to.min(self.columns);
+        if from >= to {
+            return;
+        }
+        for index in from / 64..to.div_ceil(64) {
+            let left = if index == from / 64 { from % 64 } else { 0 };
+            let right = if index == (to - 1) / 64 {
+                (to - 1) % 64 + 1
+            } else {
+                64
+            };
+            let mask = (u64::MAX << left) & (u64::MAX >> (64 - right));
+            self.words[index] &= !mask;
         }
     }
 
     /// Content at `at..` moves right by `by`; the vacated cells are unwritten.
     fn shift_right(&mut self, at: usize, by: usize) {
-        let len = self.cells.len();
+        let len = self.columns;
         if by == 0 || at >= len {
             return;
         }
         for index in (at..len.saturating_sub(by)).rev() {
-            self.cells[index + by] = self.cells[index];
+            self.write(index + by, self.written(index));
         }
         self.erase(at, at + by);
     }
@@ -109,23 +128,26 @@ impl RowMask {
     /// shifted column down, which moves the tail's cells into the positions
     /// the write is about to overwrite.
     fn rotate(&mut self, at: usize, by: usize) {
-        let len = self.cells.len();
+        let len = self.columns;
         if by == 0 || at + by >= len {
             return;
         }
         for column in (at..len - by).rev() {
-            self.cells.swap(column + by, column);
+            let source = self.written(column);
+            let target = self.written(column + by);
+            self.write(column, target);
+            self.write(column + by, source);
         }
     }
 
     /// Content at `at + by..` moves left by `by`; the tail is unwritten.
     fn shift_left(&mut self, at: usize, by: usize) {
-        let len = self.cells.len();
+        let len = self.columns;
         if by == 0 || at >= len {
             return;
         }
         for index in at..len.saturating_sub(by) {
-            self.cells[index] = self.cells[index + by];
+            self.write(index, self.written(index + by));
         }
         self.erase(len.saturating_sub(by), len);
     }
@@ -137,6 +159,10 @@ struct ScreenTable {
     scrolled: i64,
     /// Written cells per stable line revision.
     rows: BTreeMap<i64, RowMask>,
+    // Plain output writes many cells of one row. Keep its mask here and an
+    // empty placeholder in the tree. Removing/reinserting the key on each row
+    // change churns BTreeMap nodes when a TUI repeatedly paints the screen.
+    cached_row: Option<(i64, RowMask)>,
     columns: usize,
 }
 
@@ -145,6 +171,7 @@ impl ScreenTable {
         Self {
             scrolled: 0,
             rows: BTreeMap::new(),
+            cached_row: None,
             columns,
         }
     }
@@ -154,14 +181,51 @@ impl ScreenTable {
     }
 
     fn row(&self, line: i32) -> Option<&RowMask> {
-        self.rows.get(&self.revision(line))
+        let revision = self.revision(line);
+        if let Some((key, row)) = &self.cached_row
+            && *key == revision
+        {
+            return Some(row);
+        }
+        self.rows.get(&revision)
     }
 
     fn row_entry(&mut self, line: i32) -> &mut RowMask {
         let revision = self.revision(line);
-        self.rows
-            .entry(revision)
-            .or_insert_with(|| RowMask::new(self.columns))
+        if self
+            .cached_row
+            .as_ref()
+            .is_none_or(|(key, _)| *key != revision)
+        {
+            self.flush_cached_row();
+            let row = std::mem::take(
+                self.rows
+                    .entry(revision)
+                    .or_insert_with(|| RowMask::new(self.columns)),
+            );
+            self.cached_row = Some((revision, row));
+        }
+        &mut self.cached_row.as_mut().expect("row was cached").1
+    }
+
+    fn row_mut(&mut self, line: i32) -> Option<&mut RowMask> {
+        let revision = self.revision(line);
+        if let Some((key, row)) = &mut self.cached_row
+            && *key == revision
+        {
+            return Some(row);
+        }
+        self.rows.get_mut(&revision)
+    }
+
+    fn flush_cached_row(&mut self) {
+        if let Some((key, row)) = self.cached_row.take() {
+            self.rows.insert(key, row);
+        }
+    }
+
+    fn row_count(&self) -> usize {
+        self.rows.len()
     }
 
     fn mark(&mut self, line: i32, column: usize) {
@@ -177,7 +241,7 @@ impl ScreenTable {
     }
 
     fn erase(&mut self, line: i32, from: usize, to: usize) {
-        if let Some(row) = self.rows.get_mut(&self.revision(line)) {
+        if let Some(row) = self.row_mut(line) {
             row.erase(from, to);
         }
     }
@@ -189,25 +253,33 @@ impl ScreenTable {
     }
 
     fn shift_right(&mut self, line: i32, at: usize, by: usize) {
-        if let Some(row) = self.rows.get_mut(&self.revision(line)) {
+        if let Some(row) = self.row_mut(line) {
             row.shift_right(at, by);
         }
     }
 
     fn rotate(&mut self, line: i32, at: usize, by: usize) {
-        if let Some(row) = self.rows.get_mut(&self.revision(line)) {
+        if let Some(row) = self.row_mut(line) {
             row.rotate(at, by);
         }
     }
 
     fn shift_left(&mut self, line: i32, at: usize, by: usize) {
-        if let Some(row) = self.rows.get_mut(&self.revision(line)) {
+        if let Some(row) = self.row_mut(line) {
             row.shift_left(at, by);
         }
     }
 
     fn clear_row(&mut self, line: i32) {
-        self.rows.remove(&self.revision(line));
+        let revision = self.revision(line);
+        if self
+            .cached_row
+            .as_ref()
+            .is_some_and(|(key, _)| *key == revision)
+        {
+            self.cached_row = None;
+        }
+        self.rows.remove(&revision);
     }
 
     fn clear_screen_rows(&mut self, from: i32, to: i32) {
@@ -234,6 +306,7 @@ impl ScreenTable {
             self.clear_screen_rows(origin, region_end);
             return true;
         }
+        self.flush_cached_row();
         if origin == 0 {
             // Every row moves up, so the rebase keeps the region rows in place.
             self.scrolled += i64::from(count);
@@ -287,6 +360,7 @@ impl ScreenTable {
             self.clear_screen_rows(origin, region_end);
             return true;
         }
+        self.flush_cached_row();
         for line in (origin + count..region_end).rev() {
             let lower = self.revision(line - count);
             let upper = self.revision(line);
@@ -307,6 +381,13 @@ impl ScreenTable {
     /// most one entry per history or screen row.
     fn prune(&mut self, history: usize) {
         let watermark = self.scrolled - history as i64;
+        if self
+            .cached_row
+            .as_ref()
+            .is_some_and(|(key, _)| *key < watermark)
+        {
+            self.cached_row = None;
+        }
         while let Some(oldest) = self.rows.keys().next().copied() {
             if oldest < watermark {
                 self.rows.pop_first();
@@ -480,7 +561,7 @@ impl WrittenExtents {
     }
 
     pub fn row_count(&self) -> usize {
-        self.primary.rows.len() + self.alternate.rows.len()
+        self.primary.row_count() + self.alternate.row_count()
     }
 
     pub fn scroll_revision(&self, alternate: bool) -> i64 {
@@ -1430,6 +1511,57 @@ mod tests {
     }
 
     #[test]
+    fn occupancy_edits_preserve_cells_across_storage_word_boundaries() {
+        for columns in [1, 63, 64, 65, 127, 128, 129, 160, 257, 1000] {
+            let initial: Vec<bool> = (0..columns).map(|column| column % 5 != 2).collect();
+            let make_mask = || {
+                let mut mask = RowMask::new(columns);
+                for (column, set) in initial.iter().enumerate() {
+                    if *set {
+                        mask.set(column);
+                    }
+                }
+                mask
+            };
+            let assert_cells = |mask: &RowMask, expected: &[bool]| {
+                assert_eq!(
+                    (0..columns)
+                        .map(|column| mask.written(column))
+                        .collect::<Vec<_>>(),
+                    expected,
+                    "width {columns}"
+                );
+                assert!(!mask.written(columns));
+            };
+            for from in [0, 1, 62, 63, 64, 65, columns].map(|column| column.min(columns)) {
+                for count in [0, 1, 2, 63, 64, 65, columns] {
+                    let to = (from + count).min(columns);
+                    let mut mask = make_mask();
+                    let mut expected = initial.clone();
+                    mask.erase(from, to);
+                    expected[from..to].fill(false);
+                    assert_cells(&mask, &expected);
+
+                    let by = count.min(columns - from);
+                    let mut mask = make_mask();
+                    let mut expected = initial.clone();
+                    mask.shift_right(from, by);
+                    expected.copy_within(from..columns - by, from + by);
+                    expected[from..from + by].fill(false);
+                    assert_cells(&mask, &expected);
+
+                    let mut mask = make_mask();
+                    let mut expected = initial.clone();
+                    mask.shift_left(from, by);
+                    expected.copy_within(from + by..columns, from);
+                    expected[columns - by..].fill(false);
+                    assert_cells(&mask, &expected);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn writes_are_keyed_by_a_stable_revision() {
         let mut table = new_table();
         table = marked(table, 0, 0..3);
@@ -1461,6 +1593,33 @@ mod tests {
         assert_eq!(written(&table, 0), vec![1, 2], "erase covered the tail");
         table.erase(0, 0, 6);
         assert!(written(&table, 0).is_empty(), "whole row erased");
+    }
+
+    #[test]
+    fn clearing_and_pruning_retire_the_latest_written_row() {
+        let mut table = marked(new_table(), 0, 0..6);
+        table.clear_row(0);
+        table.mark(1, 2);
+        table.mark(0, 3);
+        assert_eq!(
+            written(&table, 0),
+            vec![3],
+            "rewriting cannot resurrect cleared content"
+        );
+        assert_eq!(written(&table, 1), vec![2]);
+        table.mark(-5, 1);
+        table.prune(2);
+        assert!(
+            table.row(-5).is_none(),
+            "the most recently written history row also obeys the cap"
+        );
+        assert_eq!(table.row_count(), 2);
+        table.mark(0, 4);
+        assert_eq!(written(&table, 0), vec![3, 4]);
+        assert!(
+            table.row(-5).is_none(),
+            "writing another row cannot resurrect pruned history"
+        );
     }
 
     #[test]
@@ -1523,7 +1682,7 @@ mod tests {
             table.scroll_up_relative(0, 1, 0, 2, 2);
         }
         table.prune(1);
-        assert!(table.rows.len() <= 3, "dead rows are evicted at the cap");
+        assert!(table.row_count() <= 3, "dead rows are evicted at the cap");
     }
 
     #[test]
@@ -1533,7 +1692,7 @@ mod tests {
             table.mark(line, 0);
         }
         table.prune(10 << 20);
-        assert_eq!(table.rows.len(), 100, "small history keeps everything");
+        assert_eq!(table.row_count(), 100, "small history keeps everything");
         let mut table = new_table();
         table.scrolled = 50;
         for line in -12..4 {
@@ -1541,7 +1700,7 @@ mod tests {
         }
         table.prune(10);
         assert_eq!(
-            table.rows.len(),
+            table.row_count(),
             14,
             "only the rows beyond the cap are dropped"
         );

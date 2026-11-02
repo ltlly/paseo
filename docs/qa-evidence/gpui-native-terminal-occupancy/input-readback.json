@@ -1,0 +1,5 @@
+{
+  "utf8": "qa-ping123\rqa-ping123\r",
+  "matchesExpected": true,
+  "findQueryLeaked": false
+}

@@ -1,0 +1,8 @@
+   Compiling paseo-feed-bench v0.0.0 (/home/ltlly/.cache/paseo-native-qa/terminal-feed-bench)
+    Finished `release` profile [optimized] target(s) in 0.36s
+     Running `target/release/examples/chunk_probe`
+chunk 1 history 7961 rows 8000 copy 1224000 grid 1704161
+chunk 7 history 7961 rows 8000 copy 1219429 grid 1704161
+chunk 256 history 7961 rows 8000 copy 1223875 grid 1704161
+chunk 8192 history 7961 rows 8000 copy 1223996 grid 1704161
+chunk 1520000 history 7961 rows 8000 copy 1224000 grid 1704161
