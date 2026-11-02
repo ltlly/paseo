@@ -1,0 +1,13 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.30s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 6 tests
+test terminal_profile_settings::tests::a_profile_push_supersedes_an_older_read ... ok
+test terminal_profile_settings::tests::concurrent_unrelated_edits_merge_but_changed_fields_and_deleted_profiles_do_not_get_overwritten ... ok
+test terminal_profile_settings::tests::edited_args_match_the_authored_settings_parser ... ok
+test terminal_profile_settings::tests::editing_one_field_preserves_unknown_keys_and_exact_unedited_argument_boundaries ... ok
+test terminal_profile_settings::tests::empty_catalog_reordering_and_args_follow_persisted_semantics ... ok
+test terminal_profile_settings::tests::timeout_requires_reload_and_late_save_cannot_close_a_new_editor_or_overwrite_a_push ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 401 filtered out; finished in 0.00s
