@@ -1,4 +1,4 @@
-use super::{NewBrowser, NewTab, NewTerminal, Paseo};
+use super::{NewBrowser, NewTab, NewTerminal, Pane, Paseo};
 use crate::launcher_presentation as p;
 use crate::{
     action_menu::{ActionMenu, Chosen, Item},
@@ -518,7 +518,7 @@ impl Paseo {
                 self.launch_text("workspace.tabs.actions.editTerminalProfiles"),
                 "",
             );
-            edit.enabled = false;
+            edit.enabled = true;
             items.push(edit);
         }
         let view = cx.new(|cx| ActionMenu::new(items, self.shared_settings.clone(), cx).launcher());
@@ -526,6 +526,10 @@ impl Paseo {
         let subscription =
             cx.subscribe_in(&view, window, move |this, _, event: &Chosen, window, cx| {
                 this.close_new_tab_menu(window, cx);
+                if event.0.as_deref() == Some("edit-terminal-profiles") {
+                    this.open_pane(Pane::HostTerminals, window, cx);
+                    return;
+                }
                 if let Some(selection) = event.0.as_ref().and_then(|id| selections.get(id)) {
                     this.choose_launcher(target.clone(), selection.clone(), window, cx);
                 }
@@ -571,7 +575,7 @@ impl Paseo {
         }
     }
     pub(super) fn on_new_tab(&mut self, _: &NewTab, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         if !cfg!(target_os = "macos") && self.terminal_view_focused(window, cx) {
@@ -597,7 +601,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         if !cfg!(target_os = "macos") && self.terminal_view_focused(window, cx) {
@@ -622,7 +626,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         if !cfg!(target_os = "macos") && self.terminal_view_focused(window, cx) {
@@ -925,7 +929,26 @@ impl Paseo {
                             .text_size(px(12.))
                             .text_color(rgb(palette.foreground_extra_muted))
                             .child(self.launch_text("workspace.tabs.actions.terminalProfilesMenu"))
-                            .child(chrome::icon("pencil", 12.).opacity(0.5)),
+                            .child(
+                                div()
+                                    .id("edit-profiles-launcher")
+                                    .size(px(20.))
+                                    .m(px(-4.))
+                                    .rounded(px(6.))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .cursor_pointer()
+                                    .hover(|v| v.bg(rgb(palette.surface2)))
+                                    .child(chrome::icon("pencil", 12.).opacity(0.5))
+                                    .on_mouse_down(
+                                        MouseButton::Left,
+                                        cx.listener(|this, _, window, cx| {
+                                            cx.stop_propagation();
+                                            this.open_pane(Pane::HostTerminals, window, cx);
+                                        }),
+                                    ),
+                            ),
                     )
                     .children(profiles),
             );

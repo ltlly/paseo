@@ -1,0 +1,4 @@
+{
+  "packages/desktop/native/src/terminal_profile_settings.rs": true,
+  "packages/desktop/native/src/testdata/terminal-profile-settings.json": true
+}

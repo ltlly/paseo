@@ -1,0 +1,79 @@
+{
+  "scope": "Native host terminal profile settings from New Tab pencil and + / Edit profiles: list, add, edit, reorder, confirmed removal and hook setting write surface. No app/server/protocol/Android product changes.",
+  "goal": {
+    "objective": "我们迁移到GPUI吧 安卓仍然保持不变",
+    "status": "active",
+    "terminalFirst": true,
+    "installedClientSwitch": false
+  },
+  "finalSource": {
+    "manifest": "source-identity.json",
+    "archiveSha256": "5e3dfd54d181fb28ed3eee38d2cb2498356cab967ac2e78d9f586b4931afb628",
+    "fileCount": 294,
+    "compiledInputsByteMatchCheckout": true
+  },
+  "binaries": {
+    "linux": "9d6dbfec4e2e5a6f055d0df81833d94fff0f8970ab538b0a19546888af79da42",
+    "macOS": "11867093f8b46e2eafda9d93669c46456b97adbae78a378fe70e57fea7769920",
+    "windows": "57e93b141f670b81fd143c9edfa71836c0db460972b5193368e9d04c6621b36a"
+  },
+  "checks": {
+    "finalApplicationBuilds": ["Linux", "macOS runtime-shaders", "Windows MSVC"],
+    "focusedModelTestsPerOS": 6,
+    "authoredArgsParserCases": 9,
+    "testedSource": "source-core-tests-identity.json",
+    "testedSourceNote": "macOS/Windows six-test logs use f34ce31ba03f4cc6c48b3d86c31d4a976814903404549756d7b11c2930d06e94. Linux six-test log was produced earlier this turn. The tested model and oracle remain byte-identical; final changes are text-field painting/scroll and close-page focus wiring. All three final applications rebuild; unchanged focused suites are not repeated.",
+    "testedModelMatch": "tested-core-match.json",
+    "npmLint": true,
+    "npmTypecheck": true,
+    "nativeAssetFreshnessCargoCheckFmt": true,
+    "fullSuiteRun": false,
+    "ciRun": false
+  },
+  "linuxGUI": {
+    "caseCount": 14,
+    "checks": "checks-all.json",
+    "fixture": "Real isolated daemon, one real raw Node PTY; configured Pi/Grok labels refer to Node commands. No actual Pi/Grok or model invocation. Hooks remain false.",
+    "display": "Private Xvfb :99, software rendering, 1280x800, dark/en, UI/content/code 14/15/12 and GTK Noto Sans10.",
+    "proof": "XTest OS pointer/keyboard events, direct daemon configuration readback, raw PTY bytes and unmasked screenshots.",
+    "inputRegression": "Shared TextField exposed selection shortcuts but omitted window.handle_input, so typed text never committed. Actual rename/add/Enter checks pass after registration and post-mount autofocus.",
+    "focusRegression": "Settings opened over an already selected PTY returned without focusing that same ID. focus-return-red.json records no received bytes; the fixed path reactivates the retained view and focus-return-bytes.json records exact focusproof bytes.",
+    "clientClose": "client-close-proof.json",
+    "cleanup": "cleanup.json",
+    "phases": [
+      {
+        "cases": 9,
+        "checks": "checks-all.json",
+        "source": "source-core-tests-identity.json",
+        "binarySha256": "03991c378f74f80bdac0c4c3898a7dc4cec8b86611bc90cbf9aad4afbf9b3fbe",
+        "note": "CRUD, validation, confirmation, editor lifecycle and observed concurrent edits, after field registration/autofocus/control geometry fixes."
+      },
+      {
+        "cases": 5,
+        "source": "source-identity.json",
+        "binarySha256": "9d6dbfec4e2e5a6f055d0df81833d94fff0f8970ab538b0a19546888af79da42",
+        "note": "Final binary: Tab/ShiftTab, backdrop cancel, live empty/restore, PTY input isolation and settings-close focus return; final matched modal capture. Final delta is unfocused long-field scroll and close-page focus wiring."
+      }
+    ]
+  },
+  "visual": {
+    "status": "NOT_PASSED",
+    "reference": "Real Electron using cached Electron-targeted Expo export at /home/ltlly/.cache/paseo-native-qa/header-20261102/reference-dist, same host/profile values and viewport/settings. reference.mts blocks HTTP and WebSocket 6767.",
+    "metrics": "pixel-metrics.json",
+    "modalDifferentPixels": 17381,
+    "modalPixels": 221760,
+    "masks": [],
+    "notes": "Native form geometry derives from authored modal/control styles. The 14px normal label line box is calibrated from the matched Electron capture. Settings shell/navigation, text rasterization, half-pixel placement, hover/validation/toggle states and cross-platform GUI remain unaccepted."
+  },
+  "limits": [
+    "Observed live config conflicts are protected, but set_daemon_config_request replaces an array and supplies no compare-and-swap revision; an unseen concurrent host write can still race.",
+    "Hook installer toggle is wired but not enabled in GUI QA because provider hook installation can write outside isolated daemon home. Actual provider hook installation is not accepted by this checkpoint.",
+    "System removal confirmation is tested on Linux/X11 only. Linux/Wayland system dialog and macOS/Windows dialog GUI parity remain pending.",
+    "Full settings navigation/host routing, native localization/accessibility and long profile list keyboard reachability remain pending.",
+    "Remaining terminal fidelity/IME/Kitty, custom shortcuts, shared Explorer panel host, Agent drafts, full three-platform GUI/hardware CPU/RSS/latency acceptance and installed-client migration remain pending."
+  ],
+  "reproduction": {
+    "privateCache": "/home/ltlly/.cache/paseo-native-qa/profiles-20261102",
+    "instructions": "Start an isolated :99 Xvfb and PASEO_NATIVE_QA fixture.mts with node --import tsx. Seed a b and opaque.keep=17 on the Grok-labelled Node profile (original fixture seed has only program args). Copy the helpers into that private directory and create processes.json/launch the private binary. qa.py expects workspace B retained as an empty main launcher and the original three profiles; qa-extra.py expects its retained result and workspace A raw PTY. GUI coordinates are global for a 1280x800 window at 162,100. Reference uses TSX_TSCONFIG_PATH=packages/app/tsconfig.json and requires that cached Expo export. Never point helpers at production or real agents. Temporary fixture paths and IDs in evidence belong to this closed run; recreate them rather than reuse them. Evidence TypeScript copies use repository-relative imports. The executed private copies resolved those imports to this checkout; translate imports if copying them outside the repository, or keep the client beside this evidence and update the Python helper client path. Logs normalize line-end whitespace; raw output remains in the private cache."
+  }
+}

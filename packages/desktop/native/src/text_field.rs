@@ -1,9 +1,9 @@
 use std::ops::Range;
 
 use gpui::{
-    App, Bounds, ClipboardItem, Context, EntityInputHandler, EventEmitter, FocusHandle, Focusable,
-    MouseButton, Pixels, Point, Render, ShapedLine, Subscription, TextRun, UTF16Selection, Window,
-    canvas, div, fill, font, point, prelude::*, px, rgb, size,
+    App, Bounds, ClipboardItem, Context, ElementInputHandler, EntityInputHandler, EventEmitter,
+    FocusHandle, Focusable, MouseButton, Pixels, Point, Render, ShapedLine, Subscription, TextRun,
+    UTF16Selection, Window, canvas, div, fill, font, point, prelude::*, px, rgb, rgba, size,
 };
 use paseo_desktop::{appearance, editing::Editing};
 
@@ -27,6 +27,8 @@ pub struct TextField {
     placeholder: String,
     numeric: bool,
     width: f32,
+    height: f32,
+    fill_width: bool,
     align_right: bool,
     shared: SharedSettings,
     focus: FocusHandle,
@@ -56,6 +58,8 @@ impl TextField {
             placeholder: placeholder.to_owned(),
             numeric,
             width,
+            height: 36.,
+            fill_width: false,
             align_right,
             shared,
             focus: cx.focus_handle(),
@@ -67,6 +71,12 @@ impl TextField {
         }
     }
 
+    pub fn form(mut self) -> Self {
+        self.height = crate::profile_settings_presentation::FIELD_HEIGHT;
+        self.fill_width = true;
+        self.editing.select(self.editing.text.len(), false);
+        self
+    }
     /// Repaint the input chrome after the active theme or interface size changed.
     pub fn settings_changed(&mut self, cx: &mut Context<Self>) {
         cx.notify();
@@ -344,15 +354,36 @@ impl Render for TextField {
         let paint = cx.entity();
         let input = div()
             .id("text-field")
+            .relative()
             .track_focus(&self.focus)
             .min_w(px(self.width))
-            .h(px(36.))
-            .px_3()
+            .h(px(self.height))
+            .when(self.fill_width, |view| view.w_full())
+            .px(px(if self.fill_width {
+                crate::profile_settings_presentation::FIELD_PADDING_X
+            } else {
+                12.
+            }))
             .flex()
             .items_center()
-            .rounded(px(6.))
+            .rounded(px(if self.fill_width {
+                crate::profile_settings_presentation::FIELD_RADIUS
+            } else {
+                6.
+            }))
             .border_1()
-            .border_color(rgb(palette.border))
+            .border_color(if self.fill_width {
+                if self.focus.is_focused(window) {
+                    gpui::Hsla::from(rgb(palette.border_accent))
+                } else {
+                    rgba(0).into()
+                }
+            } else {
+                rgb(palette.border).into()
+            })
+            .when(self.fill_width, |v| {
+                v.hover(|v| v.border_color(rgb(palette.border_accent)))
+            })
             .bg(rgb(palette.input))
             .cursor_text()
             .on_mouse_down(MouseButton::Left, cx.listener(Self::pressed))
@@ -370,6 +401,11 @@ impl Render for TextField {
                     move |bounds, (), window, cx| {
                         let ui_family = ui_family.clone();
                         paint.update(cx, |this, cx| {
+                            window.handle_input(
+                                &this.focus,
+                                ElementInputHandler::new(bounds, paint.clone()),
+                                cx,
+                            );
                             let empty = this.editing.text.is_empty();
                             let text = if empty {
                                 this.placeholder.clone()
@@ -411,9 +447,14 @@ impl Render for TextField {
                                 .as_ref()
                                 .unwrap()
                                 .x_for_index(this.editing.cursor());
-                            this.scroll_x = (cursor_x + offset - bounds.size.width + px(1.))
-                                .max(px(0.))
-                                .min((cursor_x + offset).max(px(0.)));
+                            // An unopened form field shows the start of its
+                            // value. Merely seeding a caret at the end must not
+                            // scroll long arguments before the field is focused.
+                            if !this.fill_width || this.focus.is_focused(window) {
+                                this.scroll_x = (cursor_x + offset - bounds.size.width + px(1.))
+                                    .max(px(0.))
+                                    .min((cursor_x + offset).max(px(0.)));
+                            }
                             window.with_content_mask(
                                 Some(gpui::ContentMask { bounds }),
                                 |window| {
@@ -473,7 +514,30 @@ impl Render for TextField {
                 )
                 .flex_1()
                 .h(px(line_height)),
-            );
+            )
+            .when(self.fill_width && self.focus.is_focused(window), |v| {
+                v.child(
+                    canvas(
+                        |bounds, _, _| bounds,
+                        move |bounds, _, window, _| {
+                            use crate::profile_settings_presentation as p;
+                            window.paint_quad(
+                                fill(
+                                    bounds.dilate(px(p::FOCUS_RING_WIDTH + p::FOCUS_RING_OFFSET)),
+                                    rgba(0),
+                                )
+                                .corner_radii(px(p::FIELD_RADIUS
+                                    + p::FOCUS_RING_WIDTH
+                                    + p::FOCUS_RING_OFFSET))
+                                .border_widths(px(p::FOCUS_RING_WIDTH))
+                                .border_color(rgb(palette.accent)),
+                            );
+                        },
+                    )
+                    .absolute()
+                    .inset_0(),
+                )
+            });
         if self.editing.text.is_empty() && !self.placeholder.is_empty() {
             input
         } else {

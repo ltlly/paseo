@@ -50,3 +50,5 @@ pub mod workspace_lifecycle;
 pub mod workspace_tab_layout;
 
 pub mod terminal_lifecycle;
+
+pub mod terminal_profile_settings;

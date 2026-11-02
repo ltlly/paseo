@@ -361,8 +361,8 @@ async function authoredNode(file, symbolName) {
   throw new Error(`Native UI source is missing: ${file}:${symbolName}`);
 }
 // Select authored style properties without importing the app or its native modules.
-async function authoredStyles(file, keys) {
-  const text = await authoredNode(file, "styles");
+async function authoredStyles(file, keys, symbol = "styles") {
+  const text = await authoredNode(file, symbol);
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const selected = new Map();
   function visit(node) {
@@ -615,6 +615,82 @@ await output(
       "\n",
     )}\npub const MAIN_PANEL_KINDS:&[&str]=&${JSON.stringify(["draft", "terminal", "changes_tree", "working_diff", "files", "browser", "pull_request"].filter((kind) => profileSource.panelSupportsHost(kind, "main")))};\npub const PRIMARY_ORDER:&[&str]=&${JSON.stringify(profileSource.PRIMARY_LAUNCH_ORDER)};\n`,
 );
+
+const profileEditorFile = "packages/app/src/screens/settings/terminal-profile-edit-modal.tsx";
+const profileEditorSource = await fs.readFile(path.join(root, profileEditorFile), "utf8");
+const profileEditorWidth = profileEditorSource.match(/desktopMaxWidth=\{(\d+)\}/);
+if (!profileEditorWidth) throw new Error("Profile editor width changed");
+const profileEditorStyles = await authoredStyles(profileEditorFile, ["body", "actions"]);
+const profileListStyles = await authoredStyles(
+  "packages/app/src/screens/settings/host-page.tsx",
+  ["row", "rowActions", "iconWrapper", "emptyCard"],
+  "terminalProfileStyles",
+);
+const profileSheetStyles = await authoredStyles(
+  "packages/app/src/components/adaptive-modal-sheet.tsx",
+  ["desktopOverlay", "desktopCard", "headerRow", "sheetContent"],
+);
+const profileFormStyles = await authoredStyles("packages/app/src/components/ui/form-field.tsx", [
+  "container",
+  "hintText",
+]);
+const profileControlSource = (
+  await fs.readFile(path.join(root, "packages/app/src/components/ui/control-geometry.ts"), "utf8")
+).replace(/^import[^;]+;\s*/gm, "");
+const profileContext = { theme, exports: {}, StyleSheet: { absoluteFill: {} } };
+runInNewContext(
+  ts.transpileModule(
+    `
+${await authoredNode("packages/app/src/components/adaptive-modal-sheet.tsx", "SHEET_HORIZONTAL_PADDING_SCALE")}
+${await authoredNode("packages/app/src/styles/theme.ts", "ICON_SIZE")}
+${profileControlSource}
+const edit=({${profileEditorStyles}}),list=({${profileListStyles}}),sheet=({${profileSheetStyles}}),field=({${profileFormStyles}});
+const geometry=createControlGeometry(theme);
+globalThis.values={FIELD_HEIGHT:geometry.fieldControlMd.minHeight,FIELD_RADIUS:geometry.fieldControlMd.borderRadius,FIELD_PADDING_X:geometry.fieldControlMd.paddingHorizontal,FOCUS_RING_WIDTH:geometry.controlActive.outlineWidth,FOCUS_RING_OFFSET:geometry.controlActive.outlineOffset,BUTTON_RADIUS:geometry.buttonMd.borderRadius,ICON_BUTTON_WIDTH:geometry.buttonSm.paddingHorizontal*2+buttonIconSize.sm,ICON_BUTTON_HEIGHT:geometry.buttonSm.minHeight,ICON_BUTTON_GLYPH:buttonIconSize.sm,MODAL_WIDTH:${profileEditorWidth[1]},MODAL_RADIUS:sheet.desktopCard.borderRadius,INSET:sheet.sheetContent.padding,HEADER_PADDING_Y:sheet.headerRow.paddingVertical,BODY_GAP:edit.body.gap,BODY_BOTTOM:edit.body.paddingBottom,ACTION_GAP:edit.actions.gap,ACTION_TOP:edit.actions.marginTop,ROW_GAP:list.row.gap,ROW_MIN_HEIGHT:list.row.minHeight,ROW_ICON:list.iconWrapper.width,EMPTY_PADDING:list.emptyCard.padding,FIELD_GAP:field.container.gap,HINT_LINE:field.hintText.lineHeight};`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
+  ).outputText,
+  profileContext,
+  { timeout: 1000 },
+);
+await output(
+  "packages/desktop/native/src/profile_settings_presentation.rs",
+  `// Generated from authored terminal-profile settings and modal presentation. Do not edit.\n#![allow(dead_code)]\n${Object.entries(
+    profileContext.values,
+  )
+    .map(([key, value]) => `pub const ${key}:f32=${Number(value).toFixed(1)};`)
+    .join("\n")}\n`,
+);
+const argsContext = {};
+runInNewContext(
+  ts.transpileModule(
+    `${await authoredNode("packages/app/src/screens/settings/host-page.tsx", "parseArgsString")}globalThis.parse=parseArgsString;`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
+  ).outputText,
+  argsContext,
+  { timeout: 1000 },
+);
+const argsCases = [
+  "",
+  "  ",
+  "a b",
+  "--flag={{{prompt}}}",
+  ' "a b" --x ',
+  "\ufeffa\u00a0b\u0085c",
+  "a\u2028b\u2029c",
+  "a\u2003b\u3000c",
+  "a\tb\nc",
+].map((raw) => ({ raw, args: argsContext.parse(raw) ?? null }));
+const argsOraclePath = path.join(
+  root,
+  "packages/desktop/native/src/testdata/terminal-profile-settings.json",
+);
+if (check) {
+  if (
+    JSON.stringify(JSON.parse(await fs.readFile(argsOraclePath, "utf8"))) !==
+    JSON.stringify(argsCases)
+  )
+    throw new Error("Profile settings argument oracle is stale");
+} else await fs.writeFile(argsOraclePath, JSON.stringify(argsCases, null, 2) + "\n");
 
 const commandFile = "packages/app/src/command-center/command-center.tsx";
 const commandStyle = await authoredStyles(commandFile, [
@@ -1288,6 +1364,9 @@ for (const id of [
   "shield-plus",
   "shield-question-mark",
   "arrow-up",
+  "arrow-down",
+  "arrow-left",
+  "trash-2",
   "square",
   "mic",
   "audio-lines",
@@ -1321,6 +1400,7 @@ for (const id of [
   const sourceId =
     {
       history: "rotate-ccw-clock",
+      "trash-2": "trash",
       "circle-help": "circle-question-mark",
       "check-square": "square-check-big",
     }[id] ?? id;

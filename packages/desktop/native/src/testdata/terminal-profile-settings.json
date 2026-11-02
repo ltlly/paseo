@@ -1,0 +1,38 @@
+[
+  {
+    "raw": "",
+    "args": null
+  },
+  {
+    "raw": "  ",
+    "args": null
+  },
+  {
+    "raw": "a b",
+    "args": ["a", "b"]
+  },
+  {
+    "raw": "--flag={{{prompt}}}",
+    "args": ["--flag={{{prompt}}}"]
+  },
+  {
+    "raw": " \"a b\" --x ",
+    "args": ["\"a", "b\"", "--x"]
+  },
+  {
+    "raw": "﻿a bc",
+    "args": ["a", "bc"]
+  },
+  {
+    "raw": "a b c",
+    "args": ["a", "b", "c"]
+  },
+  {
+    "raw": "a b　c",
+    "args": ["a", "b", "c"]
+  },
+  {
+    "raw": "a\tb\nc",
+    "args": ["a", "b", "c"]
+  }
+]

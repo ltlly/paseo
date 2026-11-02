@@ -1,0 +1,12 @@
+{
+  "fixtureDescendants": [3237872, 3237896, 3238024],
+  "remainingFixtureDescendants": [],
+  "nativeExited": true,
+  "xvfbExited": true,
+  "homeRemoved": true,
+  "privatePortsGone": true,
+  "production6767": [
+    "LISTEN 0      511             127.0.0.1:6767       0.0.0.0:*    users:((\"Paseo Daemon\",pid=999,fd=25))"
+  ],
+  "productionUnchangedPid999": true
+}

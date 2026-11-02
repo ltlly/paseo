@@ -1,0 +1,66 @@
+[
+  {
+    "tag": "DIV",
+    "role": "dialog",
+    "placeholder": null,
+    "box": {
+      "x": 400,
+      "y": 169.5,
+      "width": 480,
+      "height": 461
+    },
+    "font": "16px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "color": "rgb(0, 0, 0)",
+    "background": "rgb(30, 33, 32)",
+    "border": "1px solid rgb(39, 42, 41)",
+    "radius": "12px"
+  },
+  {
+    "tag": "INPUT",
+    "role": null,
+    "placeholder": "Claude Code",
+    "box": {
+      "x": 442,
+      "y": 298.5,
+      "width": 396,
+      "height": 20
+    },
+    "font": "14px / 20px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "color": "rgb(250, 250, 250)",
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "0px solid rgb(0, 0, 0)",
+    "radius": "0px"
+  },
+  {
+    "tag": "INPUT",
+    "role": null,
+    "placeholder": "claude",
+    "box": {
+      "x": 442,
+      "y": 385.5,
+      "width": 396,
+      "height": 20
+    },
+    "font": "14px / 20px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "color": "rgb(250, 250, 250)",
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "0px solid rgb(0, 0, 0)",
+    "radius": "0px"
+  },
+  {
+    "tag": "INPUT",
+    "role": null,
+    "placeholder": "--dangerously-skip-permissions",
+    "box": {
+      "x": 442,
+      "y": 472.5,
+      "width": 396,
+      "height": 20
+    },
+    "font": "14px / 20px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "color": "rgb(250, 250, 250)",
+    "background": "rgba(0, 0, 0, 0)",
+    "border": "0px solid rgb(0, 0, 0)",
+    "radius": "0px"
+  }
+]

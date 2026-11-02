@@ -1,0 +1,16 @@
+{
+  "renamePreservesOpaqueFieldsAndArgumentBoundaries": true,
+  "validationAndCancelDoNotWrite": true,
+  "saveRestoresPageKeyboardFocus": true,
+  "addAndEnterFocusProgression": true,
+  "reorderPreservesAllOtherProfileData": true,
+  "removeRequiresExplicitConfirmation": true,
+  "liveUnrelatedChangesMergeWithoutResettingDraft": true,
+  "observedSameFieldConflictDoesNotOverwriteHost": true,
+  "deletedProfileIsNotResurrected": true,
+  "tabAndShiftTabCancelDoNotSave": true,
+  "backdropCancelsWithoutSaving": true,
+  "settingsKeysNeverReachRetainedPTY": true,
+  "liveEmptyAndRestoredCatalog": true,
+  "closingSettingsRestoresRetainedPTYInput": true
+}

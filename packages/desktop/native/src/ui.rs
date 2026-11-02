@@ -525,6 +525,8 @@ pub struct Paseo {
     settings_store_error: Option<String>,
     pane: Option<Pane>,
     settings_pane: Option<Entity<crate::settings_view::SettingsPane>>,
+    host_terminals: Option<Entity<crate::terminal_profile_settings_view::HostTerminals>>,
+    host_terminals_events: Option<gpui::Subscription>,
     schedules_pane: Option<Entity<crate::schedules_view::SchedulesPane>>,
     schedule_form_pane: Option<Entity<crate::schedule_form_view::ScheduleFormPane>>,
     plugins_pane: Option<Entity<crate::plugins_view::PluginsPane>>,
@@ -549,6 +551,7 @@ pub struct Paseo {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Pane {
     Settings,
+    HostTerminals,
     Schedules,
     ScheduleForm,
     Plugins,
@@ -779,6 +782,8 @@ impl Paseo {
             settings_store_error,
             pane: None,
             settings_pane: None,
+            host_terminals: None,
+            host_terminals_events: None,
             schedules_pane: None,
             schedule_form_pane: None,
             plugins_pane: None,
@@ -1058,6 +1063,9 @@ impl Paseo {
     fn on_disconnected(&mut self, cx: &mut Context<Self>) {
         self.terminal_commands.state.disconnected();
         self.terminal_commands.profiles_subscribed = false;
+        if let Some(view) = &self.host_terminals {
+            view.update(cx, |view, cx| view.disconnected(cx));
+        }
         if let Some(view) = &self.command_center {
             view.update(cx, |view, cx| view.disconnected(cx));
         }
@@ -1188,6 +1196,9 @@ impl Paseo {
             }
         }
         self.receive(Event::Ready(info), cx);
+        if let Some(view) = &self.host_terminals {
+            view.update(cx, |view, cx| view.load(cx));
+        }
         if self.terminal_commands.state.demanded {
             self.load_terminal_profiles(true, cx);
         }
@@ -1672,6 +1683,9 @@ impl Paseo {
         for composer in self.composers.values() {
             composer.update(cx, |view, cx| view.settings_changed(cx));
         }
+        if let Some(pane) = &self.host_terminals {
+            pane.update(cx, |pane, cx| pane.settings_changed(cx));
+        }
         if let Some(pane) = &self.settings_pane {
             pane.update(cx, |_, cx| cx.notify());
         }
@@ -1699,6 +1713,8 @@ impl Paseo {
     fn close_pane(&mut self, cx: &mut Context<Self>) {
         if self.pane.take().is_some() {
             self.settings_pane = None;
+            self.host_terminals = None;
+            self.host_terminals_events = None;
             self.schedules_pane = None;
             self.schedule_form_pane = None;
             self.plugins_pane = None;
@@ -1722,6 +1738,56 @@ impl Paseo {
         self.pending_plugin_logs_id = plugin_logs_id;
         self.pane = Some(pane);
         match pane {
+            Pane::HostTerminals => {
+                if let Some(connection) = self.connection.clone() {
+                    let host = self
+                        .info
+                        .as_ref()
+                        .map(|info| {
+                            self.hosts
+                                .profiles
+                                .iter()
+                                .find(|host| host.server_id == info.server_id)
+                                .map(|host| host.label.clone())
+                                .or_else(|| info.hostname.clone())
+                                .unwrap_or_else(|| info.server_id.clone())
+                        })
+                        .unwrap_or_default();
+                    let shared = self.shared_settings.clone();
+                    let view = cx.new(|cx| {
+                        crate::terminal_profile_settings_view::HostTerminals::new(
+                            connection, host, shared, cx,
+                        )
+                    });
+                    self.host_terminals_events = Some(cx.subscribe_in(
+                        &view,
+                        window,
+                        |this,
+                         sender,
+                         event: &crate::terminal_profile_settings_view::Event,
+                         window,
+                         cx| {
+                            match event {
+                                crate::terminal_profile_settings_view::Event::Close => {
+                                    this.close_pane(cx);
+                                    // Settings took keyboard focus while the PTY
+                                    // ID stayed selected. Re-activate the retained
+                                    // view instead of taking sync's same-ID exit.
+                                    this.selected_terminal = None;
+                                    this.sync_active_tab(window, cx);
+                                }
+                                crate::terminal_profile_settings_view::Event::Focus => {
+                                    sender.read(cx).focus_handle(cx).focus(window, cx);
+                                    window.activate_window();
+                                }
+                            }
+                            cx.notify();
+                        },
+                    ));
+                    view.read(cx).focus_handle(cx).focus(window, cx);
+                    self.host_terminals = Some(view);
+                }
+            }
             Pane::Settings => {
                 let store = self.settings_store.clone();
                 let store_error = self.settings_store_error.clone();
@@ -2275,7 +2341,7 @@ impl Paseo {
         cx.notify();
     }
     fn on_search_files(&mut self, _: &SearchFiles, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         if cfg!(target_os = "macos") || !self.terminal_view_focused(window, cx) {
@@ -2351,7 +2417,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         if cfg!(target_os = "macos") || !self.terminal_view_focused(window, cx) {
@@ -2366,7 +2432,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.toggle_explorer(window, cx);
@@ -2411,6 +2477,13 @@ impl Paseo {
         mut payload: Value,
         cx: &mut Context<Self>,
     ) -> Result<()> {
+        if self
+            .host_terminals
+            .as_ref()
+            .is_some_and(|view| view.update(cx, |view, cx| view.receive(kind, &payload, cx)))
+        {
+            return Ok(());
+        }
         if self.receive_terminal_command(kind, &payload, cx)? {
             return Ok(());
         }
@@ -4582,7 +4655,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.split_focused_pane(SplitPosition::Right, window, cx);
@@ -4594,7 +4667,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.split_focused_pane(SplitPosition::Bottom, window, cx);
@@ -4606,7 +4679,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Left, window, cx);
@@ -4618,14 +4691,14 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Right, window, cx);
     }
 
     fn on_focus_pane_up(&mut self, _: &FocusPaneUp, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Up, window, cx);
@@ -4637,35 +4710,35 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Down, window, cx);
     }
 
     fn on_move_tab_left(&mut self, _: &MoveTabLeft, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.move_focused_tab(FocusDirection::Left, window, cx);
     }
 
     fn on_move_tab_right(&mut self, _: &MoveTabRight, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.move_focused_tab(FocusDirection::Right, window, cx);
     }
 
     fn on_move_tab_up(&mut self, _: &MoveTabUp, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.move_focused_tab(FocusDirection::Up, window, cx);
     }
 
     fn on_move_tab_down(&mut self, _: &MoveTabDown, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.move_focused_tab(FocusDirection::Down, window, cx);
@@ -4676,7 +4749,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.close_focused_pane(window, cx);
@@ -5171,6 +5244,10 @@ impl Render for Paseo {
             .map(|w| w.project_display_name.clone())
             .unwrap_or_default();
         let pane = match self.pane {
+            Some(Pane::HostTerminals) => self
+                .host_terminals
+                .clone()
+                .map(|view| view.into_any_element()),
             Some(Pane::Settings) => self
                 .settings_pane
                 .clone()
@@ -5465,6 +5542,10 @@ impl Render for Paseo {
         )
         .absolute()
         .size_full();
+        let profile_overlay = self
+            .host_terminals
+            .clone()
+            .and_then(|view| view.update(cx, |view, cx| view.overlay(window, cx)));
         div()
             .size_full()
             .relative()
@@ -5599,6 +5680,7 @@ impl Render for Paseo {
                     )
                 },
             )
+            .when_some(profile_overlay, |root, overlay| root.child(overlay))
             .when_some(self.render_new_tab_overlay(cx), |root, overlay| {
                 root.child(overlay)
             })

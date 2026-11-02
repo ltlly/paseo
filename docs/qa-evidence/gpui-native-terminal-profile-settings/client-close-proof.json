@@ -1,0 +1,7 @@
+{
+  "nativePid": 3316513,
+  "nativeExited": true,
+  "beforeTerminalIds": ["0c2b3638-0f10-4af8-bbec-629818f1c80e"],
+  "afterTerminalIds": ["0c2b3638-0f10-4af8-bbec-629818f1c80e"],
+  "sameTerminalIds": true
+}

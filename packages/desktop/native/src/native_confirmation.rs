@@ -3,7 +3,7 @@
 use gpui::{App, Window};
 
 #[cfg(not(target_os = "linux"))]
-pub fn close_terminal(
+pub fn ask(
     window: &mut Window,
     cx: &mut App,
     title: String,
@@ -25,7 +25,7 @@ pub fn close_terminal(
 }
 
 #[cfg(target_os = "linux")]
-pub fn close_terminal(
+pub fn ask(
     window: &mut Window,
     cx: &mut App,
     title: String,
@@ -93,3 +93,5 @@ pub fn close_terminal(
         }
     })
 }
+
+pub use ask as close_terminal;

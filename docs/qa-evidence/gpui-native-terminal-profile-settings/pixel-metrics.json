@@ -1,0 +1,34 @@
+{
+  "status": "NOT_PASSED",
+  "metrics": {
+    "fullWindow": {
+      "box": [0, 0, 1280, 800],
+      "differentPixels": 819530,
+      "pixels": 1024000,
+      "differentFraction": 0.800322265625,
+      "masks": []
+    },
+    "modal": {
+      "box": [400, 169, 880, 631],
+      "differentPixels": 17381,
+      "pixels": 221760,
+      "differentFraction": 0.07837752525252525,
+      "masks": []
+    },
+    "fieldBody": {
+      "box": [420, 250, 860, 535],
+      "differentPixels": 11791,
+      "pixels": 125400,
+      "differentFraction": 0.09402711323763956,
+      "masks": []
+    },
+    "actions": {
+      "box": [420, 550, 860, 604],
+      "differentPixels": 1636,
+      "pixels": 23760,
+      "differentFraction": 0.06885521885521885,
+      "masks": []
+    }
+  },
+  "note": "Unmasked RGB comparisons. Matched 1280x800, dark/en, same private host/profile data. Native full settings shell and native/CSS text/fractional geometry still differ."
+}
