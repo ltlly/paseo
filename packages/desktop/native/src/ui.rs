@@ -64,6 +64,14 @@ fn resolve_launch_target() -> Result<Target> {
     }
 }
 
+struct WorkspaceMenu {
+    view: Entity<crate::action_menu::ActionMenu>,
+    _subscription: gpui::Subscription,
+    position: gpui::Point<gpui::Pixels>,
+    previous_focus: Option<FocusHandle>,
+    header: bool,
+}
+
 /// Windows of this native client. Every window holds its own host connection
 /// and terminal claims while sharing the settings file; closing one window
 /// closes only its own session — the daemon keeps every terminal alive.
@@ -476,6 +484,8 @@ pub struct Paseo {
     scripts_menu: Option<Entity<ScriptsMenu>>,
     _scripts_menu_subscription: Option<gpui::Subscription>,
     scripts_bounds: gpui::Bounds<gpui::Pixels>,
+    workspace_menu: Option<WorkspaceMenu>,
+    workspace_menu_bounds: gpui::Bounds<gpui::Pixels>,
     sidebar_open: bool,
     window_visible: bool,
     /// Whether this window has keyboard focus. Visibility alone means the frame
@@ -720,7 +730,7 @@ impl Paseo {
             composers: BTreeMap::new(),
             tools: None,
             workspace_payloads: BTreeMap::new(),
-            dock_open: true,
+            dock_open: false,
             editors: BTreeMap::new(),
             browsers: BTreeMap::new(),
             browser_subscriptions: BTreeMap::new(),
@@ -728,6 +738,8 @@ impl Paseo {
             scripts_menu: None,
             _scripts_menu_subscription: None,
             scripts_bounds: gpui::Bounds::default(),
+            workspace_menu: None,
+            workspace_menu_bounds: gpui::Bounds::default(),
             sidebar_open: true,
             window_visible: window.is_visible(),
             window_active: window.is_window_active(),
@@ -1037,6 +1049,7 @@ impl Paseo {
             tools.update(cx, |view, cx| view.disconnected(cx));
         }
         self.scripts_menu = None;
+        self.workspace_menu = None;
         if let Some(pane) = &self.schedules_pane {
             pane.update(cx, |view, cx| view.disconnected("Host disconnected.", cx));
         }
@@ -2468,6 +2481,7 @@ impl Paseo {
             .and_then(|id| self.directory.workspaces.get(id))
             .map(|w| w.project_root_path.clone())
             .unwrap_or_default();
+        self.workspace_menu = None;
         let form = cx.new(|cx| {
             crate::workspace_form::WorkspaceForm::new(mode, connection, projects, &path, cx)
         });
@@ -2550,6 +2564,13 @@ impl Paseo {
         self.lifecycle_subscriptions.push(cx.subscribe_in(
             &form,
             window,
+            |this, _, event: &crate::workspace_form::OpenForm, window, cx| {
+                this.open_workspace_form(event.0.clone(), window, cx);
+            },
+        ));
+        self.lifecycle_subscriptions.push(cx.subscribe_in(
+            &form,
+            window,
             |this, _, _: &crate::workspace_form::Dismiss, _, cx| {
                 this.workspace_form = None;
                 this.lifecycle_subscriptions.clear();
@@ -2592,7 +2613,22 @@ impl Paseo {
                 cx.notify();
             },
         ));
+        self.lifecycle_subscriptions.push(cx.subscribe_in(
+            &panel,
+            window,
+            |this, _, _: &crate::agent_history::RecoverWorkspace, window, cx| {
+                this.history = None;
+                this.open_workspace_form(
+                    crate::workspace_form::FormMode::Recover {
+                        workspace_id: String::new(),
+                    },
+                    window,
+                    cx,
+                );
+            },
+        ));
         self.history = Some(panel);
+        self.workspace_menu = None;
         cx.notify();
     }
 
@@ -2711,6 +2747,7 @@ impl Paseo {
         self.selected_workspace = Some(id.clone());
         self.selected_file = None;
         self.scripts_menu = None;
+        self.workspace_menu = None;
         if let Some(tools) = &self.tools {
             let workspace = self.directory.workspaces.get(&id);
             let cwd = workspace
@@ -2876,6 +2913,85 @@ impl Paseo {
         if self.selected_file.as_ref() == Some(key) {
             self.selected_file = None;
         }
+        cx.notify();
+    }
+
+    fn close_workspace_menu(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(menu) = self.workspace_menu.take() {
+            if let Some(focus) = menu.previous_focus {
+                focus.focus(window, cx);
+            }
+            cx.notify();
+        }
+    }
+
+    fn open_workspace_menu(
+        &mut self,
+        workspace_id: String,
+        context: bool,
+        position: gpui::Point<gpui::Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.close_workspace_menu(window, cx);
+        let Some(workspace) = self.directory.workspaces.get(&workspace_id) else {
+            return;
+        };
+        let locale = paseo_desktop::locales::active_locale(self.shared_settings.get().language);
+        let text =
+            |key| paseo_desktop::locales::translate(locale, paseo_desktop::locales::Tx::key(key));
+        let mut items = vec![crate::action_menu::Item::new(
+            "copy-path",
+            text("workspace.header.actions.copyPath"),
+            "copy",
+        )];
+        if context {
+            items.push(crate::action_menu::Item::new(
+                "archive",
+                text("sidebar.workspace.actions.archiveWorkspace"),
+                "archive",
+            ));
+        }
+        let name = workspace.name.clone();
+        let previous_focus = window.focused(cx);
+        self.scripts_menu = None;
+        let view = cx
+            .new(|cx| crate::action_menu::ActionMenu::new(items, self.shared_settings.clone(), cx));
+        let subscription = cx.subscribe_in(
+            &view,
+            window,
+            move |this, _, event: &crate::action_menu::Chosen, window, cx| {
+                this.close_workspace_menu(window, cx);
+                match event.0.as_deref() {
+                    Some("copy-path") => {
+                        if let Some(workspace) = this.directory.workspaces.get(&workspace_id) {
+                            let path = workspace
+                                .workspace_directory
+                                .as_ref()
+                                .unwrap_or(&workspace.project_root_path);
+                            cx.write_to_clipboard(gpui::ClipboardItem::new_string(path.clone()));
+                        }
+                    }
+                    Some("archive") => this.open_workspace_form(
+                        crate::workspace_form::FormMode::Archive {
+                            id: workspace_id.clone(),
+                            name: name.clone(),
+                        },
+                        window,
+                        cx,
+                    ),
+                    _ => {}
+                }
+            },
+        );
+        view.read(cx).focus_handle(cx).focus(window, cx);
+        self.workspace_menu = Some(WorkspaceMenu {
+            view,
+            _subscription: subscription,
+            position,
+            previous_focus,
+            header: !context,
+        });
         cx.notify();
     }
 
@@ -3344,7 +3460,7 @@ impl Paseo {
             && self.history.is_none();
         // The scripts menu is the one overlay the terminal visibility rule does
         // not model, and a native page would paint over it.
-        let obscured = self.scripts_menu.is_some();
+        let obscured = self.scripts_menu.is_some() || self.workspace_menu.is_some();
         for (tab_id, browser) in self.browsers.iter() {
             let presented = window_visible && rendered.contains(tab_id);
             browser.update(cx, |browser, cx| {
@@ -4171,6 +4287,19 @@ impl Render for Paseo {
         // the sidebar surface, so theme switches stay exact without alpha layers.
         let hover_overlay =
             crate::chrome::control_color(palette.foreground, palette.surface_sidebar, 0.08);
+        let header_hover = paseo_desktop::appearance::interaction_background(
+            if palette.is_dark {
+                crate::action_menu_presentation::DARK_HEADER_HIGHLIGHT_COLOR
+            } else {
+                crate::action_menu_presentation::LIGHT_HEADER_HIGHLIGHT_COLOR
+            },
+            palette.surface0,
+            if palette.is_dark {
+                crate::action_menu_presentation::DARK_HEADER_HIGHLIGHT_OPACITY
+            } else {
+                crate::action_menu_presentation::LIGHT_HEADER_HIGHLIGHT_OPACITY
+            },
+        );
         let label_overlay =
             crate::chrome::control_color(palette.foreground, palette.surface_sidebar, 0.76);
         let dot_overlay = crate::chrome::control_color(
@@ -4378,6 +4507,7 @@ impl Render for Paseo {
                                 let agents = self.directory.sidebar_agents(&workspace.id).into_iter().cloned().collect::<Vec<_>>();
                                 let label = self.directory.workspace_title(&workspace.id, &workspace.name);
                                 let id = workspace.id.clone();
+                                let menu_id = id.clone();
                                 let selected = self.selected_workspace.as_ref() == Some(&id);
                                 div()
                                     .id(gpui::SharedString::from(id.clone()))
@@ -4401,6 +4531,10 @@ impl Render for Paseo {
                                             this.select_workspace(id.clone(), cx)
                                         }),
                                     )
+                                    .on_mouse_down(MouseButton::Right, cx.listener(move |this, event: &MouseDownEvent, window, cx| {
+                                        cx.stop_propagation();
+                                        this.open_workspace_menu(menu_id.clone(), true, event.position, window, cx);
+                                    }))
                                     .child(
                                         div()
                                             .flex()
@@ -4545,75 +4679,6 @@ impl Render for Paseo {
         let subtitle = workspace
             .map(|w| w.project_display_name.clone())
             .unwrap_or_default();
-        let lifecycle_actions = div()
-            .flex()
-            .gap_2()
-            .child(
-                div()
-                    .id("new-directory")
-                    .h(px(28.))
-                    .px_2()
-                    .cursor_pointer()
-                    .child("New directory")
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.open_workspace_form(
-                                crate::workspace_form::FormMode::CreateDirectory,
-                                window,
-                                cx,
-                            )
-                        }),
-                    ),
-            )
-            .child(
-                div()
-                    .id("recover-workspace")
-                    .h(px(28.))
-                    .px_2()
-                    .cursor_pointer()
-                    .child("Recover workspace")
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(|this, _, window, cx| {
-                            this.open_workspace_form(
-                                crate::workspace_form::FormMode::Recover {
-                                    workspace_id: String::new(),
-                                },
-                                window,
-                                cx,
-                            )
-                        }),
-                    ),
-            )
-            .when(self.selected_workspace.is_some(), |row| {
-                row.child(
-                    div()
-                        .id("archive-workspace")
-                        .h(px(28.))
-                        .px_2()
-                        .cursor_pointer()
-                        .child("Archive workspace")
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(|this, _, window, cx| {
-                                if let Some(id) = this.selected_workspace.clone() {
-                                    let name = this
-                                        .directory
-                                        .workspaces
-                                        .get(&id)
-                                        .map(|w| w.name.clone())
-                                        .unwrap_or_else(|| id.clone());
-                                    this.open_workspace_form(
-                                        crate::workspace_form::FormMode::Archive { id, name },
-                                        window,
-                                        cx,
-                                    );
-                                }
-                            }),
-                        ),
-                )
-            });
         let pane = match self.pane {
             Some(Pane::Settings) => self
                 .settings_pane
@@ -4664,7 +4729,7 @@ impl Render for Paseo {
                                 .items_center()
                                 .justify_center()
                                 .cursor_pointer()
-                                .hover(|button| button.bg(rgb(hover_overlay)))
+                                .hover(|button| button.bg(rgb(header_hover)))
                                 .child(icon("panel-left", 16.))
                                 .on_mouse_down(
                                     MouseButton::Left,
@@ -4679,7 +4744,7 @@ impl Render for Paseo {
                     .child(
                         div()
                             .min_w_0()
-                            .flex_1()
+                            .flex_shrink(1.)
                             .flex()
                             .items_center()
                             .gap_2()
@@ -4688,65 +4753,138 @@ impl Render for Paseo {
                                     .min_w_0()
                                     .truncate()
                                     .font_weight(gpui::FontWeight::LIGHT)
-                                    .child(title),
+                                    .child(title.clone()),
                             )
-                            .child(
-                                div()
-                                    .min_w_0()
-                                    .truncate()
-                                    .text_color(rgb(palette.foreground_muted))
-                                    .child(subtitle),
+                            .when(
+                                !title.trim().eq_ignore_ascii_case(subtitle.trim()),
+                                |group| {
+                                    group.child(
+                                        div()
+                                            .min_w_0()
+                                            .truncate()
+                                            .text_color(rgb(palette.foreground_muted))
+                                            .child(subtitle),
+                                    )
+                                },
                             ),
                     )
-                    .child(lifecycle_actions)
-                    .child(icon("ellipsis", 16.))
-                    .child({
-                        let entity = cx.entity();
-                        let scripts_open = self.scripts_menu.is_some();
-                        div()
-                            .id("scripts-button")
-                            .relative()
-                            .size(px(26.))
-                            .rounded(px(radius::MD))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .when(self.selected_workspace.is_some(), |button| {
-                                button.cursor_pointer()
-                            })
-                            .when(scripts_open, |button| button.bg(rgb(palette.surface2)))
-                            .hover(|button| button.bg(gpui::rgba(0xffffff14)))
-                            .child(icon("play", 16.))
-                            .child(
-                                canvas(
-                                    move |bounds, _, cx| {
-                                        entity.update(cx, |this, _| {
-                                            this.scripts_bounds = bounds;
-                                        })
-                                    },
-                                    |_, (), _, _| {},
+                    .when(self.selected_workspace.is_some(), |header| {
+                        header.child({
+                            let entity = cx.entity();
+                            div()
+                                .id("workspace-header-menu")
+                                .relative()
+                                .size(px(26.))
+                                .flex_shrink_0()
+                                .rounded(px(radius::MD))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .cursor_pointer()
+                                .when(
+                                    self.workspace_menu.as_ref().is_some_and(|menu| menu.header),
+                                    |button| button.bg(rgb(header_hover)),
                                 )
-                                .absolute()
-                                .size_full(),
-                            )
-                            .on_mouse_down(
-                                MouseButton::Left,
-                                cx.listener(|this, _, window, cx| {
-                                    cx.stop_propagation();
-                                    if this.selected_workspace.is_some() {
-                                        this.toggle_scripts_menu(window, cx);
-                                    }
-                                }),
-                            )
+                                .hover(|button| button.bg(rgb(header_hover)))
+                                .child(icon("ellipsis", 16.))
+                                .child(
+                                    canvas(
+                                        move |bounds, _, cx| {
+                                            entity.update(cx, |this, _| {
+                                                this.workspace_menu_bounds = bounds
+                                            })
+                                        },
+                                        |_, (), _, _| {},
+                                    )
+                                    .absolute()
+                                    .size_full(),
+                                )
+                                .on_mouse_down(
+                                    MouseButton::Left,
+                                    cx.listener(|this, _, window, cx| {
+                                        cx.stop_propagation();
+                                        if let Some(id) = this.selected_workspace.clone() {
+                                            let origin = point(
+                                                this.workspace_menu_bounds.left(),
+                                                this.workspace_menu_bounds.bottom() + px(4.),
+                                            );
+                                            this.open_workspace_menu(id, false, origin, window, cx);
+                                        }
+                                    }),
+                                )
+                        })
                     })
                     .child(crate::window_chrome::drag_region())
+                    .when(
+                        self.tools
+                            .as_ref()
+                            .is_some_and(|tools| !tools.read(cx).scripts().is_empty()),
+                        |header| {
+                            header.child({
+                                let entity = cx.entity();
+                                let scripts_open = self.scripts_menu.is_some();
+                                div()
+                                    .id("scripts-button")
+                                    .relative()
+                                    .size(px(26.))
+                                    .rounded(px(radius::MD))
+                                    .flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .when(self.selected_workspace.is_some(), |button| {
+                                        button.cursor_pointer()
+                                    })
+                                    .when(scripts_open, |button| button.bg(rgb(palette.surface2)))
+                                    .hover(|button| button.bg(gpui::rgba(0xffffff14)))
+                                    .child(icon("play", 16.))
+                                    .child(
+                                        canvas(
+                                            move |bounds, _, cx| {
+                                                entity.update(cx, |this, _| {
+                                                    this.scripts_bounds = bounds;
+                                                })
+                                            },
+                                            |_, (), _, _| {},
+                                        )
+                                        .absolute()
+                                        .size_full(),
+                                    )
+                                    .on_mouse_down(
+                                        MouseButton::Left,
+                                        cx.listener(|this, _, window, cx| {
+                                            cx.stop_propagation();
+                                            if this.selected_workspace.is_some() {
+                                                this.toggle_scripts_menu(window, cx);
+                                            }
+                                        }),
+                                    )
+                            })
+                        },
+                    )
                     .child(
                         div()
+                            .id("toggle-explorer")
                             .size(px(26.))
+                            .flex_shrink_0()
+                            .when(
+                                !cfg!(target_os = "macos") && !window.is_fullscreen(),
+                                |button| button.mr(px(-4.)),
+                            )
                             .flex()
                             .items_center()
                             .justify_center()
-                            .child(icon("panel-right", 16.)),
+                            .rounded(px(radius::MD))
+                            .cursor_pointer()
+                            .hover(|button| button.bg(rgb(header_hover)))
+                            .child(icon("panel-right", 16.))
+                            .on_mouse_down(
+                                MouseButton::Left,
+                                cx.listener(|this, _, _, cx| {
+                                    cx.stop_propagation();
+                                    this.dock_open = !this.dock_open;
+                                    cx.notify();
+                                }),
+                            ),
                     )
                     .when(
                         !cfg!(target_os = "macos") && !window.is_fullscreen(),
@@ -4935,6 +5073,43 @@ impl Render for Paseo {
                     .with_priority(3),
                 )
             })
+            .when_some(
+                self.workspace_menu
+                    .as_ref()
+                    .map(|menu| (menu.view.clone(), menu.position)),
+                |root, (menu, position)| {
+                    root.child(
+                        div()
+                            .absolute()
+                            .inset_0()
+                            .occlude()
+                            .on_mouse_down(
+                                MouseButton::Left,
+                                cx.listener(|this, _, window, cx| {
+                                    cx.stop_propagation();
+                                    this.close_workspace_menu(window, cx);
+                                }),
+                            )
+                            .on_mouse_down(
+                                MouseButton::Right,
+                                cx.listener(|this, _, window, cx| {
+                                    cx.stop_propagation();
+                                    this.close_workspace_menu(window, cx);
+                                }),
+                            )
+                            .child(
+                                gpui::deferred(
+                                    gpui::anchored()
+                                        .position(position)
+                                        .anchor(gpui::Anchor::TopLeft)
+                                        .snap_to_window_with_margin(px(8.))
+                                        .child(menu),
+                                )
+                                .with_priority(4),
+                            ),
+                    )
+                },
+            )
             .children(crate::window_chrome::resize_handles(window))
     }
 }

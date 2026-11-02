@@ -14,6 +14,7 @@ const PAGE_LIMIT: i64 = 200;
 
 pub struct OpenAgent(pub Agent);
 pub struct Dismiss;
+pub struct RecoverWorkspace;
 
 enum Load {
     /// The first page never arrived; the panel shows retry instead of an empty
@@ -37,6 +38,7 @@ pub struct HistoryPanel {
 
 impl EventEmitter<OpenAgent> for HistoryPanel {}
 impl EventEmitter<Dismiss> for HistoryPanel {}
+impl EventEmitter<RecoverWorkspace> for HistoryPanel {}
 
 impl HistoryPanel {
     pub fn new(connection: Arc<Connection>, cx: &mut Context<Self>) -> Self {
@@ -270,6 +272,11 @@ impl Render for HistoryPanel {
                 this.load(cursor, cx);
             }));
         }
+        body = body.child(
+            self.button("recover-workspace", "Recover workspace…", cx, |_, cx| {
+                cx.emit(RecoverWorkspace)
+            }),
+        );
         body = body.child(self.button("close", "Close", cx, |_, cx| cx.emit(Dismiss)));
         div()
             .size_full()

@@ -1,0 +1,18 @@
+from pathlib import Path
+import json,base64,subprocess,time
+q=Path(__file__).parent;m=json.loads((q/'fixture.json').read_text())
+def run(*a):return subprocess.run(a,check=True,capture_output=True,text=True).stdout
+def key(*a):run('python3',str(q/'input.py'),'key',*a);time.sleep(.1)
+def click(x,y):run('python3',str(q/'input.py'),'click',str(x),str(y));time.sleep(.2)
+def snap(name):run('ffmpeg','-hide_banner','-loglevel','error','-draw_mouse','0','-video_size','1280x800','-f','x11grab','-i',':98+162,100','-frames:v','1','-y',str(q/name))
+def raw():return b''.join(base64.b64decode(json.loads(line)['base64']) for line in Path(m['input']).read_text().splitlines())
+def typed(value):run('python3',str(q/'input.py'),'type',value);time.sleep(.15)
+before=raw();typed('menu-input');assert raw()==before
+key('Down');key('Return');clip=json.loads(run('python3',str(q/'read-clipboard.py')));assert clip==m['cwd'],clip
+typed('after-menu');assert raw()[len(before):]==b'after-menu'
+click(934,118);key('Escape');typed('after-escape');assert raw()[len(before):]==b'after-menuafter-escape'
+click(934,118);click(1062,400);typed('after-outside');assert raw()[len(before):]==b'after-menuafter-escapeafter-outside'
+click(1317,118);snap('native-explorer-open.png');click(1317,118);snap('native-explorer-closed.png')
+(q/'gui.json').write_text(json.dumps({'copyPath':clip,'menuTextDoesNotLeak':True,'focusRestoredAfterSelection':True,'focusRestoredAfterEscape':True,'focusRestoredAfterOutsideClick':True,'typedHex':raw()[len(before):].hex(),'explorerToggle':'opened and closed with mouse; screenshots recorded'},indent=2)+'\n')
+click(220,122);snap('new-workspace-form.png')
+print('Header menu clipboard, keyboard isolation, focus restore and Explorer click checks passed')

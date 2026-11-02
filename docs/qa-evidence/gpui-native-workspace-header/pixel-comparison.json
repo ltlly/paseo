@@ -1,0 +1,33 @@
+{
+  "visualAcceptance": "NOT_PASSED",
+  "masks": [],
+  "threshold": null,
+  "scope": "Only the fixed 960x36 workspace header. Reference and final native use the same final isolated daemon, workspace, OSC title and dark/English/14px settings. Baseline is the old native binary with matching header labels. Lifecycle checks changed its sidebar inventory, so no whole-window comparison is claimed. Pointer explicitly moves away from the reference header to compare matching idle states.",
+  "regions": {
+    "header": {
+      "region": [320, 0, 1280, 36],
+      "pixels": 34560,
+      "beforeDifferentPixels": 12465,
+      "afterDifferentPixels": 3566
+    },
+    "sidebarToggle": {
+      "region": [324, 4, 350, 31],
+      "pixels": 702,
+      "beforeDifferentPixels": 702,
+      "afterDifferentPixels": 134
+    },
+    "explorerToggle": {
+      "region": [1142, 4, 1168, 31],
+      "pixels": 702,
+      "beforeDifferentPixels": 180,
+      "afterDifferentPixels": 134
+    },
+    "windowControls": {
+      "region": [1172, 0, 1280, 36],
+      "pixels": 3888,
+      "beforeDifferentPixels": 161,
+      "afterDifferentPixels": 161
+    }
+  },
+  "hoverCorrection": "An earlier capture had the reference menu trigger hovered. That comparison (13028 -> 4180) is superseded, not a valid idle-state pair."
+}

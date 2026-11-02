@@ -1,0 +1,27 @@
+import ctypes as C,time,json
+x=C.CDLL('libX11.so.6')
+x.XOpenDisplay.argtypes=[C.c_char_p];x.XOpenDisplay.restype=C.c_void_p;d=x.XOpenDisplay(b':98');assert d
+x.XDefaultRootWindow.argtypes=[C.c_void_p];x.XDefaultRootWindow.restype=C.c_ulong
+x.XCreateSimpleWindow.argtypes=[C.c_void_p,C.c_ulong,C.c_int,C.c_int,C.c_uint,C.c_uint,C.c_uint,C.c_ulong,C.c_ulong];x.XCreateSimpleWindow.restype=C.c_ulong
+w=x.XCreateSimpleWindow(d,x.XDefaultRootWindow(d),0,0,1,1,0,0,0)
+x.XInternAtom.argtypes=[C.c_void_p,C.c_char_p,C.c_int];x.XInternAtom.restype=C.c_ulong
+clip,utf,prop=[x.XInternAtom(d,a,0) for a in [b'CLIPBOARD',b'UTF8_STRING',b'PASEO_NATIVE_QA']]
+x.XConvertSelection.argtypes=[C.c_void_p,C.c_ulong,C.c_ulong,C.c_ulong,C.c_ulong,C.c_ulong];x.XConvertSelection(d,clip,utf,prop,w,0)
+x.XFlush.argtypes=[C.c_void_p];x.XFlush(d)
+class Selection(C.Structure):_fields_=[('type',C.c_int),('serial',C.c_ulong),('send_event',C.c_int),('display',C.c_void_p),('requestor',C.c_ulong),('selection',C.c_ulong),('target',C.c_ulong),('property',C.c_ulong),('time',C.c_ulong)]
+class Event(C.Union):_fields_=[('selection',Selection),('padding',C.c_long*24)]
+x.XPending.argtypes=[C.c_void_p];x.XNextEvent.argtypes=[C.c_void_p,C.POINTER(Event)]
+x.XGetWindowProperty.argtypes=[C.c_void_p,C.c_ulong,C.c_ulong,C.c_long,C.c_long,C.c_int,C.c_ulong,C.POINTER(C.c_ulong),C.POINTER(C.c_int),C.POINTER(C.c_ulong),C.POINTER(C.c_ulong),C.POINTER(C.POINTER(C.c_ubyte))]
+x.XFree.argtypes=[C.c_void_p];end=time.monotonic()+3
+try:
+ while time.monotonic()<end:
+  if not x.XPending(d):time.sleep(.01);continue
+  e=Event();x.XNextEvent(d,C.byref(e))
+  if e.selection.type!=31:continue
+  assert e.selection.property,'clipboard conversion rejected'
+  actual=C.c_ulong();fmt=C.c_int();n=C.c_ulong();remaining=C.c_ulong();data=C.POINTER(C.c_ubyte)()
+  x.XGetWindowProperty(d,w,prop,0,100000,1,utf,C.byref(actual),C.byref(fmt),C.byref(n),C.byref(remaining),C.byref(data));assert fmt.value==8 and remaining.value==0
+  print(json.dumps(C.string_at(data,n.value).decode(),ensure_ascii=False));x.XFree(data);break
+ else:raise Exception('clipboard request timeout')
+finally:
+ x.XDestroyWindow.argtypes=[C.c_void_p,C.c_ulong];x.XDestroyWindow(d,w);x.XCloseDisplay.argtypes=[C.c_void_p];x.XCloseDisplay(d)

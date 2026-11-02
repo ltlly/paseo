@@ -1,0 +1,20 @@
+{
+  "binary": {
+    "pid": 2517948,
+    "args": ["/home/ltlly/.cache/paseo-native-qa/header-20261102/final-smoke/paseo-header-render"],
+    "sha256": "0c4e871d0ca10a612360c5a47dc0c0d7636acc9d3eb8e0cf922e521072f5a70a"
+  },
+  "idleHeaderChangedPixelsVsFunctionalCheckpoint": 0,
+  "menuInputIsolated": true,
+  "copyPath": "/tmp/paseo-home-hWScYe/.paseo/native-keys-project",
+  "focusReturnTypedHex": "66696e616c2d72656e646572",
+  "highlight": {
+    "referenceRgb": [42, 44, 43],
+    "nativeBeforeRgb": [42, 45, 44],
+    "nativeAfterRgb": [42, 44, 43],
+    "referencePoint": [752, 18],
+    "nativePoint": [760, 18],
+    "referenceBackgroundRgb": [24, 27, 26],
+    "source": "Actual Electron and native screenshots; default dark header interaction highlight only."
+  }
+}

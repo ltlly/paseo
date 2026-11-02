@@ -389,6 +389,7 @@ pub struct Completed {
     pub payload: Value,
 }
 pub struct Dismiss;
+pub struct OpenForm(pub FormMode);
 pub struct WorkspaceForm {
     connection: Arc<Connection>,
     pub state: Lifecycle,
@@ -404,6 +405,7 @@ pub struct WorkspaceForm {
 }
 impl EventEmitter<Completed> for WorkspaceForm {}
 impl EventEmitter<Dismiss> for WorkspaceForm {}
+impl EventEmitter<OpenForm> for WorkspaceForm {}
 impl WorkspaceForm {
     pub fn new(
         mode: FormMode,
@@ -799,6 +801,19 @@ impl Render for WorkspaceForm {
                 FormMode::Archive { .. } => "Archive workspace",
             }
         };
+        if matches!(self.mode, FormMode::NewWorkspace | FormMode::AddProject) {
+            body = body.child(self.button(
+                "new-directory",
+                "New directory…",
+                false,
+                cx,
+                |this, cx| {
+                    if !matches!(this.state.phase, Phase::Pending { .. }) {
+                        cx.emit(OpenForm(FormMode::CreateDirectory));
+                    }
+                },
+            ));
+        }
         body = body.child(
             div()
                 .flex()

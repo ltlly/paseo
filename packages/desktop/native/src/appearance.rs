@@ -507,9 +507,29 @@ pub fn scale_ui_font(authored: f32, ui_base_font_size: i64) -> f32 {
     (authored * ui_base_font_size as f32 / 14.).round()
 }
 
+/// Flatten a CSS interaction fill over its solid rail. The Electron reference
+/// uses premultiplied byte composition; GPUI's floating blend rounds differently.
+pub fn interaction_background(foreground: u32, background: u32, opacity: f32) -> u32 {
+    let alpha = (opacity.clamp(0., 1.) * 255.).round() as u32;
+    [16, 8, 0].into_iter().fold(0, |result, shift| {
+        let source = ((foreground >> shift) & 255) * alpha;
+        let destination = ((background >> shift) & 255) * (256 - alpha);
+        result | (((source + 127) / 255 + (destination >> 8)) << shift)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interaction_background_matches_electron_header_pixels() {
+        // Real Electron, default dark header: rgba(255,255,255,0.08)
+        // over rgb(24,27,26) captures rgb(42,44,43), not GPUI's (42,45,44).
+        assert_eq!(interaction_background(0xffffff, 0x181b1a, 0.08), 0x2a2c2b);
+        assert_eq!(interaction_background(0xffffff, 0x181b1a, 0.), 0x181b1a);
+        assert_eq!(interaction_background(0xffffff, 0x181b1a, 1.), 0xffffff);
+    }
 
     #[test]
     fn default_dark_palette_matches_the_generated_tokens() {

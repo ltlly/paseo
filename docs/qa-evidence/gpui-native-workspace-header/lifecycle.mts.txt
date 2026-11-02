@@ -1,0 +1,12 @@
+import fs from 'node:fs/promises';
+import {DaemonClient} from '/home/ltlly/Code/paseo/packages/client/src/daemon-client.ts';
+const q='/home/ltlly/.cache/paseo-native-qa/header-20261102';const m=JSON.parse(await fs.readFile(q+'/fixture.json','utf8'));
+const c=new DaemonClient({url:`ws://127.0.0.1:${m.port}/ws`,clientId:'native-header-lifecycle',clientType:'cli',appVersion:'0.14.0'});await c.connect();try{
+ if(process.argv[2]==='create'){
+ const path=m.cwd+'/archive-check';await fs.mkdir(path,{recursive:true});const p=await c.addProject(m.cwd);const w=await c.createWorkspace({source:{kind:'directory',path,projectId:p.project.projectId},title:'Archive QA'});await fs.writeFile(q+'/archive-workspace.json',JSON.stringify({workspaceId:w.workspace.id,path},null,2));console.log(JSON.stringify(w));
+ }else{
+ const a=JSON.parse(await fs.readFile(q+'/archive-workspace.json','utf8'));console.log(JSON.stringify(await c.inspectWorkspaceRecovery(a.workspaceId)));
+ const available=await c.fetchWorkspaces();await fs.writeFile(q+'/available-workspaces.json',JSON.stringify(available,null,2));
+ const t=await c.listTerminals(m.cwd,undefined,{workspaceId:m.workspaceId});if(!t.terminals.some(t=>t.id===m.terminalId))throw new Error('Original PTY missing');
+ }
+}finally{await c.close();}

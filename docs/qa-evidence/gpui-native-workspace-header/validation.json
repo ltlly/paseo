@@ -1,0 +1,224 @@
+{
+  "status": "HEADER_CHECKPOINT_VERIFIED_VISUAL_AND_MIGRATION_ACCEPTANCE_PENDING",
+  "date": "2026-11-02T11:42:20.644816+08:00",
+  "baseCommit": "0e9c88b04067fd4e2622a047f039931dc3e226ca",
+  "scope": "Native workspace title/menu layout and existing lifecycle action entrypoints. Android, protocol, daemon/provider sources and installed clients unchanged.",
+  "sourceSnapshot": {
+    "sha256": "4cf0011995fda16b19bfd720d8ceb3e7e99becf3fd65554408bb8f0cd9fc46e3",
+    "archive": "/home/ltlly/.cache/paseo-native-qa/header-20261102/native-source.tar.gz",
+    "fileCount": 219
+  },
+  "sourceFreshness": "All 219 final archive files match the current native source byte for byte after formatting. Final macOS/Windows checks verify that archive SHA256, clean only the native package and build the full application. Lifecycle GUI cases use the earlier functional snapshot; subsequent changes only correct the header interaction fill. Final-source GUI checks repeat clipboard ownership, keyboard isolation and focus return, retain the same idle-header pixels, and match the actual Electron highlight sample.",
+  "baselineBinary": {
+    "sha256": "8df5562b4dbbac131ec2a4889e5ebeabdf0eeef3cf06f4479be9c0b72eeaca35",
+    "source": "0e9c88b04 terminal keyboard checkpoint; immutable copied artifact"
+  },
+  "reference": {
+    "runtime": "Fresh Electron-targeted Expo export of the real app, repository Electron and existing desktop runtime bridge against the same isolated daemon. Real xterm PTY. No app component doubles.",
+    "viewport": [1280, 800],
+    "display": ":98 private Xvfb / software rendering",
+    "settings": {
+      "theme": "dark",
+      "language": "en",
+      "uiFontSize": 14,
+      "contentFontSize": 15,
+      "codeFontSize": 12
+    },
+    "data": "Matching project/workspace names and OSC terminal title; scripts are empty. Window controls use injected Linux custom-chrome mode.",
+    "producer": "reference.mts with TSX_TSCONFIG_PATH=packages/app/tsconfig.json and PASEO_NATIVE_QA=<private-dir>; reference-dist must contain a fresh PASEO_WEB_PLATFORM=electron Expo export.",
+    "sourceSha256": {
+      "packages/app/src/screens/workspace/workspace-screen.tsx": "0c163ae6a5bd1d30070d8674afbcefb6c7622be6639a38c9c44d7691ee28e508",
+      "packages/app/src/screens/workspace/workspace-header-menu.tsx": "5f274df01ae092c252bd8fe501c76c7dec3bf4c23998aaad945c6aa6b0e2cc3d",
+      "packages/app/src/components/headers/screen-header.tsx": "d9b4150bec7bf7145ffb87519608687d70594f8db69a3b6d178b7264b728324e",
+      "packages/app/src/components/headers/screen-title.tsx": "0bc0f1426a7fa65fe2c6417c8d9d73487f8b3aba22e8cf73d1dfc8576af51029",
+      "packages/app/src/components/ui/menu/menu-item.tsx": "4b1a86e20ec8981b51d1dc2e12689ffebe4ea55901f4b248784d2ae3a1bf40c5",
+      "packages/app/src/components/ui/menu/menu-overlay.tsx": "e12781375ee1cdde1c3dc7ca78ef34d08f363e66deb9519b0b359e877a100aa8",
+      "packages/app/src/components/ui/menu/menu-geometry.ts": "42c2c48f2acb89785e4489969f12f455cdc22afd7435d52bad05e5214cf15e59",
+      "packages/app/src/styles/theme.ts": "2c1f9cf9a9adf1fed7e40a141772b786802d9f36174119a31a8045e7ee35300a"
+    },
+    "note": "Canonical idle reference and final native screenshots use the final-smoke daemon together. The earlier hovered reference is retained separately and excluded from the idle-state comparison."
+  },
+  "checks": {
+    "Linux": {
+      "nativeApplicationBuild": "passed",
+      "nativeCheck": "passed",
+      "lint": "passed",
+      "typecheck": "passed",
+      "osInteraction": "real X11 events, clipboard and PTY bytes",
+      "highlightRegressionTests": 1
+    },
+    "macOS": {
+      "archiveHashVerified": true,
+      "nativeCheck": "passed with runtime-shaders",
+      "nativeApplicationBuild": "passed with runtime-shaders",
+      "highlightRegressionTests": 1
+    },
+    "Windows": {
+      "archiveHashVerified": true,
+      "nativeCheck": "passed with stable MSVC",
+      "nativeApplicationBuild": "passed with stable MSVC",
+      "highlightRegressionTests": 1
+    }
+  },
+  "linuxInteraction": {
+    "fixture": "Random-port isolated daemon, raw-input Node PTY and unused fake provider clients. Browser CORS configured only on the test fixture. Production6767 routes blocked in the Electron producer.",
+    "header": [
+      "Title retains adjacent menu rather than yielding all space to prototype buttons",
+      "No permanent lifecycle text buttons",
+      "Scripts button omitted when scripts empty",
+      "Explorer initially closed; mouse opens and closes the retained tools"
+    ],
+    "menu": [
+      "OS clipboard matches workspace path",
+      "Typing into the menu does not reach the PTY",
+      "Selection, Escape and outside-click restore previous terminal focus; subsequent actual text matches exact logged bytes",
+      "Right-click another workspace copies that workspace path without changing the focused terminal"
+    ],
+    "lifecycle": [
+      "New workspace -> New directory creates a directory verified on disk",
+      "Workspace context -> Archive opens confirmation; cancel remains unarchived",
+      "Confirm archive makes host recovery state recoverable",
+      "History -> Recover workspace -> inspect -> restore returns both workspace IDs to available inventory",
+      "Original PTY remains present through archiving/restoring the other empty workspace and through client closes"
+    ],
+    "details": [
+      "gui.json",
+      "lifecycle-checks.json",
+      "directory-created.json",
+      "final-client-close.json"
+    ]
+  },
+  "visualComparison": {
+    "visualAcceptance": "NOT_PASSED",
+    "masks": [],
+    "threshold": null,
+    "scope": "Only the fixed 960x36 workspace header. Reference and final native use the same final isolated daemon, workspace, OSC title and dark/English/14px settings. Baseline is the old native binary with matching header labels. Lifecycle checks changed its sidebar inventory, so no whole-window comparison is claimed. Pointer explicitly moves away from the reference header to compare matching idle states.",
+    "regions": {
+      "header": {
+        "region": [320, 0, 1280, 36],
+        "pixels": 34560,
+        "beforeDifferentPixels": 12465,
+        "afterDifferentPixels": 3566
+      },
+      "sidebarToggle": {
+        "region": [324, 4, 350, 31],
+        "pixels": 702,
+        "beforeDifferentPixels": 702,
+        "afterDifferentPixels": 134
+      },
+      "explorerToggle": {
+        "region": [1142, 4, 1168, 31],
+        "pixels": 702,
+        "beforeDifferentPixels": 180,
+        "afterDifferentPixels": 134
+      },
+      "windowControls": {
+        "region": [1172, 0, 1280, 36],
+        "pixels": 3888,
+        "beforeDifferentPixels": 161,
+        "afterDifferentPixels": 161
+      }
+    },
+    "hoverCorrection": "An earlier capture had the reference menu trigger hovered. That comparison (13028 -> 4180) is superseded, not a valid idle-state pair."
+  },
+  "cleanup": {
+    "nativeClosed": true,
+    "fixtureClosed": true,
+    "xvfbClosed": true,
+    "ownedWorkerAndPtyAbsent": true,
+    "privateHomeRemoved": true,
+    "privatePortClosed": true,
+    "initialFixtureHomeRemoved": true,
+    "initialFixturePortClosed": true,
+    "production6767Listening": true,
+    "finalSourceFixture": {
+      "nativeClosed": true,
+      "fixtureClosed": true,
+      "ownedWorkerAndPtyAbsent": true,
+      "privateHomeRemoved": true,
+      "privatePortClosed": true,
+      "xvfbClosed": true,
+      "production6767Listening": true
+    },
+    "publishedProducerSmoke": true
+  },
+  "limitations": [
+    "Header still differs from Electron in text metrics/rasterization, SVG pixels and window-control pixels. No tolerance, masks or pixel-parity pass.",
+    "Header Import session, branch/setup actions and remaining original menus are not implemented by this checkpoint.",
+    "Native Explorer still uses its earlier left-hand 264px tools dock, while this reference opens a right-hand 320px Explorer. Placement, panel chrome/window-control ownership, resizing, saved visibility and shortcuts remain pending. Restoring the toggle does not accept Explorer parity.",
+    "Directory/Archive/Recovery forms retain their existing prototype presentation; full original form/flow and responsive fidelity remain pending.",
+    "Only default dark/English/14px UI scenario captured. Menu shadow and row-height values come from authored sources; that does not prove every theme/font-size/platform state.",
+    "No Mac/Windows GUI, physical IME, hardware latency, CPU/RSS or installed-package acceptance. Full native binaries now link on both hosts.",
+    "No full test suite, real model invocation, production restart, release, deployment or desktop entrypoint switch. Full goal remains active."
+  ],
+  "logs": {
+    "native-build.txt": "2fc4e9088634d3538bd5a8042573691f0b9e20cd0b53e2983239f47508345743",
+    "native-check.txt": "e084f50e4d53eb535a6855acf180da7ea858119c1ee21af9bd2239ba3ceacd12",
+    "mac-check.txt": "31b2e51c7a1831d5350806a013c0ac6005ba60380450b4444b066ef542b2cf19",
+    "windows-check.txt": "99e98cb60dd18bc5ee1b8d6f62b5abfe965a5d111f167a9efaf5b0bd33e2f744",
+    "lint.txt": "4242aa8df4ec7c2242c12b707e5922907b8f7394076f7bf46a8007df98acf374",
+    "typecheck.txt": "c66c34e9769aed3ee5642154024fa3dc49c6dba3310f8cf24edd821146dc9f60",
+    "reference-build.txt": "757bdc41e7971e2e59ebacd58e3760e48487df592bd9ff9bffaf58064d017148",
+    "reference-export.txt": "d4b3db29656d70f247667d3f8e079ca251499645d121dd556f7df00b5ad828b3",
+    "gui.txt": "ef423ec108f794d429d675e8a57b6a5c8cd428816d13c6ae8351cbed80cc17c6",
+    "highlight-tests.txt": "b5c353e32f89f44c556c3e22898fee2765a4317ed0afda58c06e383993972185",
+    "published-producer.txt": "434f667ffda6ae7a18a88776578a2c4f2101ebf30dbbc7dd42f4aec3e942c4e4"
+  },
+  "originalLogSha256": {
+    "native-build.txt": "2fc4e9088634d3538bd5a8042573691f0b9e20cd0b53e2983239f47508345743",
+    "native-check.txt": "e084f50e4d53eb535a6855acf180da7ea858119c1ee21af9bd2239ba3ceacd12",
+    "mac-check.txt": "31b2e51c7a1831d5350806a013c0ac6005ba60380450b4444b066ef542b2cf19",
+    "windows-check.txt": "8cb0244291ffdf4cbd2486164787438dfb72d37898812fcb7ba780b46c4010d9",
+    "lint.txt": "4242aa8df4ec7c2242c12b707e5922907b8f7394076f7bf46a8007df98acf374",
+    "typecheck.txt": "c66c34e9769aed3ee5642154024fa3dc49c6dba3310f8cf24edd821146dc9f60",
+    "reference-build.txt": "757bdc41e7971e2e59ebacd58e3760e48487df592bd9ff9bffaf58064d017148",
+    "reference-export.txt": "d4b3db29656d70f247667d3f8e079ca251499645d121dd556f7df00b5ad828b3",
+    "gui.txt": "ef423ec108f794d429d675e8a57b6a5c8cd428816d13c6ae8351cbed80cc17c6",
+    "highlight-tests.txt": "fcc9d37b3cfcc87df2bf4c4b6ff1d4d891c794ee6aeff311c15c0a175275e1be",
+    "published-producer.txt": "434f667ffda6ae7a18a88776578a2c4f2101ebf30dbbc7dd42f4aec3e942c4e4"
+  },
+  "logNormalization": "Stored logs normalize CRLF/trailing whitespace and final newline; original digests retained.",
+  "functionalSourceSnapshot": {
+    "sha256": "b568303b21204b32adf601161bba552d5af3610ce6cd71fd559f2288dbb13599",
+    "archive": "/home/ltlly/.cache/paseo-native-qa/header-20261102/native-source-functional.tar.gz",
+    "fileCount": 219
+  },
+  "functionalLinuxBinary": {
+    "pid": 2466102,
+    "args": ["/home/ltlly/.cache/paseo-native-qa/header-20261102/paseo-header-final"],
+    "sha256": "85c35139b90afd56a82e631cf5db52897e563a5dc942ab4ec2c3125f431afc0a"
+  },
+  "linuxBinary": {
+    "pid": 2517948,
+    "args": ["/home/ltlly/.cache/paseo-native-qa/header-20261102/final-smoke/paseo-header-render"],
+    "sha256": "0c4e871d0ca10a612360c5a47dc0c0d7636acc9d3eb8e0cf922e521072f5a70a"
+  },
+  "finalSourceGui": {
+    "binary": {
+      "pid": 2517948,
+      "args": [
+        "/home/ltlly/.cache/paseo-native-qa/header-20261102/final-smoke/paseo-header-render"
+      ],
+      "sha256": "0c4e871d0ca10a612360c5a47dc0c0d7636acc9d3eb8e0cf922e521072f5a70a"
+    },
+    "idleHeaderChangedPixelsVsFunctionalCheckpoint": 0,
+    "menuInputIsolated": true,
+    "copyPath": "/tmp/paseo-home-hWScYe/.paseo/native-keys-project",
+    "focusReturnTypedHex": "66696e616c2d72656e646572",
+    "highlight": {
+      "referenceRgb": [42, 44, 43],
+      "nativeBeforeRgb": [42, 45, 44],
+      "nativeAfterRgb": [42, 44, 43],
+      "referencePoint": [752, 18],
+      "nativePoint": [760, 18],
+      "referenceBackgroundRgb": [24, 27, 26],
+      "source": "Actual Electron and native screenshots; default dark header interaction highlight only."
+    }
+  },
+  "publishedProducerSmoke": {
+    "publishedFixtureAndReferenceProducer": "passed",
+    "idleHeaderChangedPixelsAcrossFreshFixtures": 0,
+    "pointerMovedAwayBeforeCapture": true,
+    "sameFinalDaemonUsedForReferenceAndNative": true
+  }
+}

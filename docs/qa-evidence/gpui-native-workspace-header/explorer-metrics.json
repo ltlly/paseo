@@ -1,0 +1,82 @@
+[
+  {
+    "id": "composer-dock-header",
+    "text": "Terminal workspace header alignmentnative-keys-project",
+    "x": 320,
+    "y": 0,
+    "w": 640,
+    "h": 36
+  },
+  {
+    "id": "menu-button",
+    "text": "",
+    "x": 324,
+    "y": 4.5,
+    "w": 26,
+    "h": 26
+  },
+  {
+    "id": "workspace-header-title",
+    "text": "Terminal workspace header alignment",
+    "x": 358,
+    "y": 9.5,
+    "w": 246.984375,
+    "h": 16
+  },
+  {
+    "id": "workspace-header-subtitle",
+    "text": "native-keys-project",
+    "x": 612.984375,
+    "y": 9.5,
+    "w": 129.265625,
+    "h": 16
+  },
+  {
+    "id": "workspace-header-menu-trigger",
+    "text": "",
+    "x": 750.25,
+    "y": 4.5,
+    "w": 26,
+    "h": 26
+  },
+  {
+    "id": "workspace-explorer-toggle",
+    "text": "",
+    "x": 930,
+    "y": 4.5,
+    "w": 26,
+    "h": 26
+  },
+  {
+    "id": "file-explorer-backdrop",
+    "text": "",
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+  },
+  {
+    "id": "workspace-explorer-sidebar-resize-handle",
+    "text": "",
+    "x": 960,
+    "y": 0,
+    "w": 1,
+    "h": 800
+  },
+  {
+    "id": "workspace-explorer-sidebar",
+    "text": "FilesChangesFilesChangesNot a git repositoryCommits",
+    "x": 960,
+    "y": 0,
+    "w": 320,
+    "h": 800
+  },
+  {
+    "id": "commits-section-header",
+    "text": "Commits",
+    "x": 960,
+    "y": 768,
+    "w": 320,
+    "h": 32
+  }
+]

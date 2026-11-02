@@ -1,0 +1,6 @@
+{
+  "publishedFixtureAndReferenceProducer": "passed",
+  "idleHeaderChangedPixelsAcrossFreshFixtures": 0,
+  "pointerMovedAwayBeforeCapture": true,
+  "sameFinalDaemonUsedForReferenceAndNative": true
+}
