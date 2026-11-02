@@ -10,13 +10,6 @@ pub const ICON_SIZE: f32 = 16.0;
 pub const HEADER_PADDING: f32 = 2.0;
 pub const HEADER_MARGIN: f32 = 4.0;
 pub const HEADER_HEIGHT: f32 = 20.0;
-pub const MAIN_PANEL_KINDS: &[&str] = &[
-    "draft",
-    "terminal",
-    "working_diff",
-    "browser",
-    "pull_request",
-];
 pub const PRIMARY_ORDER: &[&str] = &[
     "agent",
     "terminal",

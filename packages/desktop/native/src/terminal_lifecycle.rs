@@ -362,20 +362,44 @@ pub fn place_created(
         layout.prune_tabs(|tab| tab != replace);
     }
     if !select {
-        for pane in before.panes() {
+        for pane in before.all_panes() {
             if let Some(tab) = pane.focused_tab {
                 layout.set_focused_tab(&pane.id, &tab);
             }
         }
-        if let Some(pane) = before.focused_pane_id {
-            layout.focus_pane(&pane);
-        }
+        layout.focused_pane_id = before.focused_pane_id;
+        layout.active_pane_id = before.active_pane_id;
+        layout.explorer.visible = before.explorer.visible;
     }
     Ok(())
 }
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_late_explorer_create_keeps_the_hidden_dock_and_workspace_focus() {
+        use crate::{explorer_layout::EXPLORER_PANE_ID as DOCK, split_layout::SplitLayout};
+        let mut layout = SplitLayout::single("main");
+        layout.attach_tab("main-terminal");
+        layout.explorer.ensure_pane();
+        let target = Destination {
+            workspace: "w".into(),
+            cwd: "/tmp".into(),
+            pane: DOCK.into(),
+            replace: None,
+            focus: None,
+        };
+        let selected = layout.pane(DOCK).unwrap().focused_tab.clone();
+        place_created(&mut layout, &target, "created", false).unwrap();
+        assert!(!layout.explorer.visible);
+        assert_eq!(layout.active_pane().unwrap().id, "main");
+        assert_eq!(layout.pane(DOCK).unwrap().focused_tab, selected);
+        assert_eq!(layout.find_pane_containing_tab("created").unwrap().id, DOCK);
+        place_created(&mut layout, &target, "created", true).unwrap();
+        assert!(layout.explorer.visible);
+        assert_eq!(layout.active_pane().unwrap().id, DOCK);
+        assert_eq!(layout.focused_pane_id.as_deref(), Some("main"));
+    }
     fn dest() -> Destination {
         Destination {
             workspace: "a".into(),

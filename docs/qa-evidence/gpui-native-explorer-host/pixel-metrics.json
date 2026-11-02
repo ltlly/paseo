@@ -1,0 +1,35 @@
+{
+  "status": "NOT_PASSED",
+  "metrics": {
+    "fullWindow": {
+      "box": [0, 0, 1280, 800],
+      "differentPixels": 143197,
+      "pixels": 1024000,
+      "differentFraction": 0.1398408203125,
+      "masks": []
+    },
+    "explorerRail": {
+      "box": [800, 0, 1280, 36],
+      "differentPixels": 14780,
+      "pixels": 17280,
+      "differentFraction": 0.8553240740740741,
+      "masks": []
+    },
+    "mainRail": {
+      "box": [320, 36, 800, 72],
+      "differentPixels": 854,
+      "pixels": 17280,
+      "differentFraction": 0.049421296296296297,
+      "masks": []
+    },
+    "explorerContent": {
+      "box": [800, 36, 1280, 800],
+      "differentPixels": 51462,
+      "pixels": 366720,
+      "differentFraction": 0.14033049738219897,
+      "masks": []
+    }
+  },
+  "referenceTerminalRenderer": "DOM fallback (captured xterm-dom-renderer-owner styles); hardware/WebGL terminal acceptance is not claimed.",
+  "note": "Real Electron and GPUI, same private terminal IDs, source data, viewport/theme and Explorer width480. Raw unmasked frames retain title/sidebar, font, terminal and scrollbar differences."
+}

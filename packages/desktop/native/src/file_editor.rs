@@ -47,6 +47,30 @@ fn permits_save(status: Status, overwrite: bool) -> bool {
     status == Status::Dirty || (overwrite && status == Status::Conflict { deleted: false })
 }
 
+fn adopt_content(editing: &mut Editing, text: String) {
+    // Own-save notifications advance the version without replacing the
+    // editing session's caret, selection, or an active composition.
+    if editing.text != text {
+        editing.text = text;
+        editing.selection = 0..0;
+        editing.reversed = false;
+        editing.marked = None;
+    }
+}
+
+fn is_known_version(version: &Value, revision: Option<&str>, modified_at: Option<&str>) -> bool {
+    if version["status"] != "ready" {
+        return false;
+    }
+    match (revision, version["revision"].as_str()) {
+        (Some(known), Some(observed)) => known == observed,
+        (None, None) => modified_at
+            .zip(version["modifiedAt"].as_str())
+            .is_some_and(|(known, observed)| known == observed),
+        _ => false,
+    }
+}
+
 struct Line {
     start: usize,
     top: Pixels,
@@ -534,6 +558,15 @@ impl FileEditor {
             return false;
         }
         let version = &payload["version"];
+        // A notification for an acknowledged write can arrive after the next
+        // local edit. It does not introduce a new disk revision or a conflict.
+        if is_known_version(
+            version,
+            self.revision.as_deref(),
+            self.modified_at.as_deref(),
+        ) {
+            return true;
+        }
         match version["status"].as_str() {
             Some("missing") => {
                 self.apply_deleted(cx);
@@ -601,9 +634,10 @@ impl FileEditor {
         } else {
             "\n"
         };
-        self.editing.text = content.replace("\r\n", "\n").replace('\r', "\n");
-        self.editing.selection = 0..0;
-        self.editing.marked = None;
+        adopt_content(
+            &mut self.editing,
+            content.replace("\r\n", "\n").replace('\r', "\n"),
+        );
         self.modified_at = file["modifiedAt"].as_str().map(str::to_owned);
         self.revision = file["revision"].as_str().map(str::to_owned);
         if let Some(find) = &mut self.find {
@@ -632,6 +666,14 @@ impl FileEditor {
             find.run(&self.editing.text);
         }
         self.schedule_autosave(cx);
+        window.notify_text_input_changed(&self.focus);
+        cx.notify();
+    }
+
+    fn selection_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        // Cursor navigation must not dirty the buffer, queue a write, or rerun
+        // a text search over an unchanged document.
+        self.pending_scroll = true;
         window.notify_text_input_changed(&self.focus);
         cx.notify();
     }
@@ -844,11 +886,23 @@ impl FileEditor {
             key.modifiers.control
         };
         let extend = key.modifiers.shift;
+        let mut changed = false;
         if shortcut && !key.modifiers.alt {
             match key.key.as_str() {
                 "a" => {
                     self.editing.select(0, false);
                     self.editing.select(self.editing.text.len(), true);
+                }
+                // Match the installed CodeMirror document-navigation keys.
+                "home" if !self.input_target_is_find() => self.editing.select(0, extend),
+                "end" if !self.input_target_is_find() => {
+                    self.editing.select(self.editing.text.len(), extend)
+                }
+                "up" if cfg!(target_os = "macos") && !self.input_target_is_find() => {
+                    self.editing.select(0, extend)
+                }
+                "down" if cfg!(target_os = "macos") && !self.input_target_is_find() => {
+                    self.editing.select(self.editing.text.len(), extend)
                 }
                 "c" | "x" => {
                     let selection = self.editing.selection.clone();
@@ -858,6 +912,7 @@ impl FileEditor {
                         ));
                         if key.key == "x" {
                             self.editing.replace(None, "", false, None);
+                            changed = true;
                         }
                     }
                 }
@@ -865,6 +920,7 @@ impl FileEditor {
                     if let Some(text) = cx.read_from_clipboard().and_then(|c| c.text()) {
                         self.editing
                             .replace(None, &text.replace("\r\n", "\n"), false, None);
+                        changed = true;
                     }
                 }
                 "s" => {
@@ -882,10 +938,19 @@ impl FileEditor {
             return;
         } else {
             match key.key.as_str() {
-                "enter" => self.editing.replace(None, "\n", false, None),
-                "backspace" => self.editing.delete(false),
-                "delete" => self.editing.delete(true),
-                "tab" => self.editing.replace(None, "  ", false, None),
+                "enter" => {
+                    self.editing.replace(None, "\n", false, None);
+                    changed = true;
+                }
+                "backspace" | "delete" => {
+                    let before = self.editing.text.len();
+                    self.editing.delete(key.key == "delete");
+                    changed = before != self.editing.text.len();
+                }
+                "tab" => {
+                    self.editing.replace(None, "  ", false, None);
+                    changed = true;
+                }
                 "left" | "right" => self.editing.horizontal(key.key == "right", extend),
                 "home" => {
                     let cursor = self.editing.cursor();
@@ -915,7 +980,7 @@ impl FileEditor {
                         let index = self.index_at(target);
                         self.editing.select(index, extend);
                     }
-                    self.edited(window, cx);
+                    self.selection_changed(window, cx);
                     window.prevent_default();
                     cx.stop_propagation();
                     return;
@@ -923,7 +988,11 @@ impl FileEditor {
                 _ => return, // Printable text goes through the native text service exactly once.
             }
         }
-        self.edited(window, cx);
+        if changed {
+            self.edited(window, cx);
+        } else {
+            self.selection_changed(window, cx);
+        }
         window.prevent_default();
         cx.stop_propagation();
     }
@@ -1948,6 +2017,41 @@ impl Render for FileEditor {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_acknowledged_version_is_not_a_new_external_change() {
+        let same = serde_json::json!({"status":"ready","revision":"one","modifiedAt":"time"});
+        assert!(super::is_known_version(&same, Some("one"), Some("time")));
+        assert!(!super::is_known_version(&same, Some("two"), Some("time")));
+        assert!(!super::is_known_version(&same, None, Some("time")));
+        let legacy = serde_json::json!({"status":"ready","modifiedAt":"time"});
+        assert!(super::is_known_version(&legacy, None, Some("time")));
+        assert!(!super::is_known_version(&legacy, None, None));
+        assert!(!super::is_known_version(
+            &serde_json::json!({"status":"missing"}),
+            Some("one"),
+            Some("time")
+        ));
+    }
+    #[test]
+    fn unchanged_save_snapshots_preserve_the_editing_session() {
+        let mut editing = paseo_desktop::editing::Editing {
+            text: "a🙂b".into(),
+            selection: 1..5,
+            reversed: true,
+            marked: Some(1..5),
+            revision: 9,
+        };
+        super::adopt_content(&mut editing, "a🙂b".into());
+        assert_eq!(editing.selection, 1..5);
+        assert!(editing.reversed);
+        assert_eq!(editing.marked, Some(1..5));
+        assert_eq!(editing.revision, 9);
+        super::adopt_content(&mut editing, "new".into());
+        assert_eq!(editing.text, "new");
+        assert_eq!(editing.selection, 0..0);
+        assert!(!editing.reversed);
+        assert_eq!(editing.marked, None);
+    }
     use super::permits_save;
     use super::{
         Status, WriteOutcome, file_subscription_key, find_matches, status_after_disconnect,

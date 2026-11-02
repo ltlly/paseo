@@ -1,0 +1,50 @@
+{
+  "input": [
+    {
+      "tag": "grok-qa",
+      "terminalId": "de543d6f-4839-4bea-88f9-319b70cc9227",
+      "base64": "G1s8MzU7MjU7MTRN"
+    },
+    {
+      "tag": "grok-qa",
+      "terminalId": "de543d6f-4839-4bea-88f9-319b70cc9227",
+      "base64": "G1s8MDsyNTsxNE0bWzwwOzI1OzE0bQ=="
+    },
+    {
+      "tag": "grok-qa",
+      "terminalId": "de543d6f-4839-4bea-88f9-319b70cc9227",
+      "base64": "G1s8MzU7MjY7MTVN"
+    },
+    {
+      "tag": "grok-qa",
+      "terminalId": "de543d6f-4839-4bea-88f9-319b70cc9227",
+      "base64": "G1s8MzU7Mjc7MTVN"
+    },
+    {
+      "tag": "grok-qa",
+      "terminalId": "de543d6f-4839-4bea-88f9-319b70cc9227",
+      "base64": "G1s8MDsyNzsxNU0bWzwwOzI3OzE1bQ=="
+    }
+  ],
+  "bytesHex": "1b5b3c33353b32353b31344d1b5b3c303b32353b31344d1b5b3c303b32353b31346d1b5b3c33353b32363b31354d1b5b3c33353b32373b31354d1b5b3c303b32373b31354d1b5b3c303b32373b31356d",
+  "layout": {
+    "root": {
+      "kind": "pane",
+      "pane": {
+        "id": "main",
+        "tabs": ["66bdeae3-13ce-4b66-9394-7b494042d0f6", "de543d6f-4839-4bea-88f9-319b70cc9227"],
+        "focusedTab": "de543d6f-4839-4bea-88f9-319b70cc9227"
+      }
+    },
+    "focusedPaneId": "main",
+    "explorer": {
+      "visible": true,
+      "width": 480.00244140625,
+      "pane": {
+        "id": "explorer",
+        "tabs": ["files", "changes_tree", "2b1f53cf-3cac-4883-85ca-323f3f6efa22"],
+        "focusedTab": "2b1f53cf-3cac-4883-85ca-323f3f6efa22"
+      }
+    }
+  }
+}

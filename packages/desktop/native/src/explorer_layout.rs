@@ -11,16 +11,27 @@ pub use geometry::*;
 pub struct ExplorerState {
     pub visible: bool,
     pub width: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pane: Option<crate::split_layout::SplitPane>,
 }
 impl Default for ExplorerState {
     fn default() -> Self {
         Self {
             visible: false,
             width: DEFAULT_WIDTH,
+            pane: None,
         }
     }
 }
 impl ExplorerState {
+    pub fn ensure_pane(&mut self) -> &mut crate::split_layout::SplitPane {
+        self.pane
+            .get_or_insert_with(|| crate::split_layout::SplitPane {
+                id: EXPLORER_PANE_ID.into(),
+                tabs: vec![FILES_TAB_ID.into(), CHANGES_TAB_ID.into()],
+                focused_tab: Some(FILES_TAB_ID.into()),
+            })
+    }
     pub fn is_default(&self) -> bool {
         self == &Self::default()
     }
@@ -33,6 +44,9 @@ impl ExplorerState {
         self
     }
 }
+pub const EXPLORER_PANE_ID: &str = "explorer";
+pub const FILES_TAB_ID: &str = "files";
+pub const CHANGES_TAB_ID: &str = "changes_tree";
 
 pub fn resolve_width(requested: f64, container: f64) -> f64 {
     let maximum = if container > 0. {
@@ -95,6 +109,7 @@ mod tests {
         let state = ExplorerState {
             visible: true,
             width: 500.,
+            ..Default::default()
         };
         let narrow = geometry(800., true, 320., state.visible, state.width);
         assert!(!narrow.navigation_visible);

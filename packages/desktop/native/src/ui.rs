@@ -397,10 +397,6 @@ struct TabDrag {
     start_y: f64,
     moved: bool,
     hovered_pane: Option<String>,
-    /// Pane hover events reach the root handler afterwards, so a root move
-    /// with no pane hover since the last one means the pointer left every
-    /// pane and a release must cancel instead of reusing the stale target.
-    pane_hover_fresh: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -410,6 +406,22 @@ enum PaneTabKind {
     File,
     Browser,
     Launcher,
+    Files,
+    Changes,
+}
+
+impl PaneTabKind {
+    fn panel_kind(self) -> &'static str {
+        match self {
+            Self::Terminal => "terminal",
+            Self::Agent => "agent",
+            Self::File => "file",
+            Self::Browser => "browser",
+            Self::Launcher => "new_tab",
+            Self::Files => "files",
+            Self::Changes => "changes_tree",
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -1925,7 +1937,7 @@ impl Paseo {
             self.selected_workspace
                 .as_ref()
                 .and_then(|id| self.splits.get(id))
-                .and_then(|layout| layout.focused_pane())
+                .and_then(|layout| layout.active_pane())
                 .and_then(|pane| pane.focused_tab.as_deref())
                 .is_some_and(|tab| self.pane_tab_kind(tab) == Some(PaneTabKind::File)),
             self.selected_agent
@@ -2371,45 +2383,25 @@ impl Paseo {
     }
 
     fn toggle_explorer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let return_focus = self
-            .tools
-            .as_ref()
-            .is_some_and(|tools| tools.read(cx).focus_handle(cx).is_focused(window));
+        let return_focus = self.selected_splits().is_some_and(|layout| {
+            layout
+                .active_pane()
+                .is_some_and(|pane| pane.id == paseo_desktop::explorer_layout::EXPLORER_PANE_ID)
+        });
+        let mut closing = false;
         if let Some(layout) = self.selected_splits() {
             layout.explorer.visible = !layout.explorer.visible;
-            let closing = !layout.explorer.visible;
-            let tab = layout
-                .focused_pane()
-                .and_then(|pane| pane.focused_tab.clone());
-            if closing && return_focus {
-                let focus = tab
-                    .and_then(|tab| match self.pane_tab_kind(&tab) {
-                        Some(PaneTabKind::Terminal) => self
-                            .terminals
-                            .iter()
-                            .find(|(id, _)| id.as_str() == tab)
-                            .map(|(_, view)| view.read(cx).focus_handle(cx)),
-                        Some(PaneTabKind::Agent) => self
-                            .composers
-                            .get(&tab)
-                            .map(|view| view.read(cx).focus_handle(cx)),
-                        Some(PaneTabKind::File) => self
-                            .editors
-                            .iter()
-                            .find(|(key, _)| key.tab_id() == tab)
-                            .map(|(_, view)| view.read(cx).focus_handle(cx)),
-                        Some(PaneTabKind::Browser) => self
-                            .browsers
-                            .get(&tab)
-                            .map(|view| view.read(cx).focus_handle(cx)),
-                        Some(PaneTabKind::Launcher) | None => None,
-                    })
-                    .unwrap_or_else(|| self.focus.clone());
-                focus.focus(window, cx);
+            closing = !layout.explorer.visible;
+            if closing {
+                layout.active_pane_id = None;
             }
-            self.persist_splits();
-            cx.notify();
         }
+        if closing && return_focus {
+            self.selected_terminal = None;
+            self.sync_active_tab(window, cx);
+        }
+        self.persist_splits();
+        cx.notify();
     }
     fn on_toggle_explorer(
         &mut self,
@@ -3341,9 +3333,16 @@ impl Paseo {
             }
         }
         let tab = key.tab_id();
-        let adopted = self
-            .selected_splits()
-            .is_some_and(|layout| layout.attach_tab(&tab).is_some());
+        let adopted = self.selected_splits().is_some_and(|layout| {
+            // Ordinary file opens use the remembered main pane; revealing
+            // an existing tab keeps its Explorer ownership intact.
+            if layout.find_pane_containing_tab(&tab).is_none() {
+                if let Some(main) = layout.focused_pane_id.clone() {
+                    layout.focus_pane(&main);
+                }
+            }
+            layout.attach_tab(&tab).is_some()
+        });
         if !adopted {
             self.error = Some("This pane cannot accept another file tab.".into());
             cx.notify();
@@ -3362,7 +3361,7 @@ impl Paseo {
                 // background buffer so its existing confirmation is visible.
                 let owner = self.selected_splits().and_then(|layout| {
                     layout
-                        .panes()
+                        .all_panes()
                         .into_iter()
                         .find(|pane| pane.tabs.contains(&key.tab_id()))
                 });
@@ -3380,7 +3379,7 @@ impl Paseo {
     fn forget_file(&mut self, key: &EditorKey, window: &mut Window, cx: &mut Context<Self>) {
         let restore_focus = self
             .selected_splits()
-            .and_then(|layout| layout.focused_pane())
+            .and_then(|layout| layout.active_pane())
             .is_some_and(|pane| pane.focused_tab.as_deref() == Some(key.tab_id().as_str()));
         if let Some(editor) = self.editors.remove(key) {
             editor.update(cx, |editor, _| editor.closed());
@@ -3825,11 +3824,12 @@ impl Paseo {
 
     fn selected_splits(&mut self) -> Option<&mut SplitLayout> {
         let workspace = self.selected_workspace.clone()?;
-        Some(
-            self.splits
-                .entry(workspace)
-                .or_insert_with(|| SplitLayout::single(MAIN_PANE_ID)),
-        )
+        let layout = self
+            .splits
+            .entry(workspace)
+            .or_insert_with(|| SplitLayout::single(MAIN_PANE_ID));
+        layout.explorer.ensure_pane();
+        Some(layout)
     }
 
     /// The terminal tabs a pane currently renders; unrendered retained views
@@ -3840,8 +3840,12 @@ impl Paseo {
             .and_then(|workspace| self.splits.get(workspace))
             .map(|layout| {
                 layout
-                    .panes()
+                    .all_panes()
                     .into_iter()
+                    .filter(|pane| {
+                        pane.id != paseo_desktop::explorer_layout::EXPLORER_PANE_ID
+                            || layout.explorer.visible
+                    })
                     .filter_map(|pane| pane.focused_tab)
                     .collect()
             })
@@ -3864,6 +3868,12 @@ impl Paseo {
     }
 
     fn pane_tab_kind(&self, tab_id: &str) -> Option<PaneTabKind> {
+        if tab_id == paseo_desktop::explorer_layout::FILES_TAB_ID {
+            return Some(PaneTabKind::Files);
+        }
+        if tab_id == paseo_desktop::explorer_layout::CHANGES_TAB_ID {
+            return Some(PaneTabKind::Changes);
+        }
         if tab_id.starts_with(terminal_commands::PREFIX) {
             Some(PaneTabKind::Launcher)
         } else if self.directory.terminals.contains_key(tab_id) {
@@ -3880,6 +3890,12 @@ impl Paseo {
     }
 
     fn pane_tab_title(&self, tab_id: &str, cx: &gpui::App) -> Option<String> {
+        if tab_id == paseo_desktop::explorer_layout::FILES_TAB_ID {
+            return Some(self.launch_text("panels.files.label"));
+        }
+        if tab_id == paseo_desktop::explorer_layout::CHANGES_TAB_ID {
+            return Some(self.launch_text("panels.diff.changesLabel"));
+        }
         if tab_id.starts_with(terminal_commands::PREFIX) {
             return Some(self.launch_text("workspace.tabs.actions.newTab"));
         }
@@ -4083,7 +4099,7 @@ impl Paseo {
             .selected_workspace
             .clone()
             .and_then(|workspace| self.splits.get(&workspace).cloned())
-            .and_then(|layout| layout.focused_pane().cloned())
+            .and_then(|layout| layout.active_pane().cloned())
             .and_then(|pane| pane.focused_tab.map(|tab| (pane.id, tab)));
         let Some((_pane_id, tab)) = active else {
             self.terminal = None;
@@ -4160,6 +4176,12 @@ impl Paseo {
                 self.selected_terminal = None;
                 self.selected_agent = None;
             }
+            Some(PaneTabKind::Files | PaneTabKind::Changes) => {
+                self.clear_session_pointer(cx);
+                if let Some(tools) = &self.tools {
+                    tools.read(cx).focus_handle(cx).focus(window, cx);
+                }
+            }
             Some(PaneTabKind::Launcher) | None => {
                 self.terminal = None;
                 self.selected_terminal = None;
@@ -4186,7 +4208,12 @@ impl Paseo {
         match self.pane_tab_kind(&tab_id) {
             Some(PaneTabKind::Terminal) => self.select_terminal(tab_id, window, cx),
             Some(PaneTabKind::Agent) => self.select_agent(tab_id, window, cx),
-            Some(PaneTabKind::File | PaneTabKind::Launcher) => {
+            Some(
+                PaneTabKind::File
+                | PaneTabKind::Launcher
+                | PaneTabKind::Files
+                | PaneTabKind::Changes,
+            ) => {
                 self.close_pane(cx);
                 self.sync_active_tab(window, cx);
                 cx.notify();
@@ -4215,48 +4242,55 @@ impl Paseo {
             start_y: position.y.to_f64(),
             moved: false,
             hovered_pane: None,
-            pane_hover_fresh: false,
         });
         self.select_pane_tab(from_pane, tab_id, window, cx);
     }
 
+    fn pane_at_position(&self, position: gpui::Point<gpui::Pixels>) -> Option<String> {
+        if self.pane.is_some() || self.workspace_form.is_some() || self.history.is_some() {
+            return None;
+        }
+        let layout = self
+            .selected_workspace
+            .as_ref()
+            .and_then(|id| self.splits.get(id))?;
+        self.pane_bounds
+            .iter()
+            .find(|(id, bounds)| {
+                layout.pane(id).is_some()
+                    && (id.as_str() != paseo_desktop::explorer_layout::EXPLORER_PANE_ID
+                        || layout.explorer.visible)
+                    && bounds.contains(&position)
+            })
+            .map(|(id, _)| id.clone())
+    }
     fn track_tab_drag(&mut self, position: gpui::Point<gpui::Pixels>, cx: &mut Context<Self>) {
-        let Some(drag) = &mut self.tab_drag else {
+        let Some(drag) = self.tab_drag.as_ref() else {
             return;
         };
         if !drag.moved {
             let dx = position.x.to_f64() - drag.start_x;
             let dy = position.y.to_f64() - drag.start_y;
             if dx * dx + dy * dy >= TAB_DRAG_THRESHOLD_SQUARED {
-                drag.moved = true;
+                self.tab_drag.as_mut().unwrap().moved = true;
                 cx.notify();
             }
             return;
         }
-        // Pane hover fired before this root move for the same position; a
-        // move the panes did not see means the pointer is outside every pane.
-        if drag.pane_hover_fresh {
-            drag.pane_hover_fresh = false;
-        } else if drag.hovered_pane.take().is_some() {
+        let target = self.pane_at_position(position).filter(|pane| {
+            self.pane_tab_kind(&drag.tab_id).is_some_and(|kind| {
+                paseo_desktop::panel_host::supports(
+                    kind.panel_kind(),
+                    paseo_desktop::panel_host::Host::for_pane(pane),
+                )
+            })
+        });
+        let drag = self.tab_drag.as_mut().unwrap();
+        if drag.hovered_pane != target {
+            drag.hovered_pane = target;
             cx.notify();
         }
     }
-
-    fn hover_tab_drag(&mut self, pane_id: &str, cx: &mut Context<Self>) {
-        let Some(drag) = &mut self.tab_drag else {
-            return;
-        };
-        if !drag.moved {
-            return;
-        }
-        drag.pane_hover_fresh = true;
-        if drag.hovered_pane.as_deref() == Some(pane_id) {
-            return;
-        }
-        drag.hovered_pane = Some(pane_id.to_owned());
-        cx.notify();
-    }
-
     fn finish_tab_drag(
         &mut self,
         position: gpui::Point<gpui::Pixels>,
@@ -4269,20 +4303,52 @@ impl Paseo {
         if !drag.moved {
             return false;
         }
-        let Some(target) = self
-            .pane_bounds
-            .iter()
-            .find(|(_, bounds)| bounds.contains(&position))
-            .map(|(id, _)| id.clone())
-        else {
-            return false;
-        };
-        if target == drag.from_pane {
+        if !self
+            .selected_workspace
+            .as_ref()
+            .and_then(|workspace| self.splits.get(workspace))
+            .and_then(|layout| layout.find_pane_containing_tab(&drag.tab_id))
+            .is_some_and(|pane| pane.id == drag.from_pane)
+        {
             return false;
         }
+        let Some(target) = self.pane_at_position(position) else {
+            return false;
+        };
+        if !self.pane_tab_kind(&drag.tab_id).is_some_and(|kind| {
+            paseo_desktop::panel_host::supports(
+                kind.panel_kind(),
+                paseo_desktop::panel_host::Host::for_pane(&target),
+            )
+        }) {
+            return false;
+        }
+        let in_rail = self.pane_bounds.get(&target).is_some_and(|bounds| {
+            position.y < bounds.top() + px(paseo_desktop::workspace_tab_layout::p::ROW_HEIGHT)
+        });
+        let anchor = if in_rail {
+            self.selected_workspace
+                .as_ref()
+                .and_then(|workspace| self.splits.get(workspace))
+                .and_then(|layout| layout.pane(&target))
+                .and_then(|pane| {
+                    pane.tabs
+                        .iter()
+                        .filter(|id| **id != drag.tab_id)
+                        .find(|id| {
+                            self.tab_rail
+                                .bounds
+                                .get(&(target.clone(), (*id).clone()))
+                                .is_some_and(|bounds| position.x < bounds.center().x)
+                        })
+                        .cloned()
+                })
+        } else {
+            None
+        };
         let moved = self
             .selected_splits()
-            .map(|layout| layout.move_tab_to_pane(&drag.tab_id, &target))
+            .map(|layout| layout.move_tab_before(&drag.tab_id, &target, anchor.as_deref()))
             .unwrap_or(false);
         if moved {
             self.persist_splits();
@@ -4493,7 +4559,9 @@ impl Paseo {
             .or_insert_with(|| SplitLayout::single(MAIN_PANE_ID))
             .clone();
         let mut opened_agent = false;
-        for pane in layout.panes() {
+        for pane in layout.all_panes().into_iter().filter(|p| {
+            p.id != paseo_desktop::explorer_layout::EXPLORER_PANE_ID || layout.explorer.visible
+        }) {
             let Some(tab) = pane.focused_tab.clone() else {
                 continue;
             };
@@ -4506,7 +4574,9 @@ impl Paseo {
                     } else {
                         self.open_terminal(&tab, window, cx)
                     };
-                    if Some(&pane.id) == layout.focused_pane_id.as_ref()
+                    if layout
+                        .active_pane()
+                        .is_some_and(|active| active.id == pane.id)
                         && self.selected_terminal.as_deref() != Some(tab.as_str())
                         && let Some(view) = view
                     {
@@ -4517,14 +4587,21 @@ impl Paseo {
                 }
                 Some(PaneTabKind::Agent) => {
                     opened_agent |= self.open_agent_conversation(&tab, cx);
-                    if Some(&pane.id) == layout.focused_pane_id.as_ref()
+                    if layout
+                        .active_pane()
+                        .is_some_and(|active| active.id == pane.id)
                         && self.selected_terminal.is_none()
                     {
                         self.selected_agent = Some(tab.clone());
                     }
                 }
                 Some(PaneTabKind::File) => {}
-                Some(PaneTabKind::Browser | PaneTabKind::Launcher) => {}
+                Some(
+                    PaneTabKind::Browser
+                    | PaneTabKind::Launcher
+                    | PaneTabKind::Files
+                    | PaneTabKind::Changes,
+                ) => {}
                 None => {}
             }
         }
@@ -4884,11 +4961,6 @@ impl Render for Paseo {
         );
         self.explorer_container_width = explorer_geometry.container_width;
         let sidebar_presented = explorer_geometry.navigation_visible;
-        if let Some(tools) = &self.tools {
-            tools.update(cx, |tools, cx| {
-                tools.set_window_corner(explorer_presented, cx)
-            });
-        }
         let mut projects = self
             .directory
             .projects
@@ -5518,24 +5590,36 @@ impl Render for Paseo {
                             if this.explorer_drag.is_some() {
                                 this.move_explorer_drag(event.position, cx);
                                 cx.stop_propagation();
+                            } else if this.tab_drag.is_some() {
+                                this.track_tab_drag(event.position, cx);
+                                cx.stop_propagation();
                             }
                         });
                     }
                 });
                 let drag_entity = entity.clone();
-                window.on_mouse_event(move |event: &MouseUpEvent, phase, _, cx| {
+                window.on_mouse_event(move |event: &MouseUpEvent, phase, window, cx| {
                     if phase.capture() && event.button == MouseButton::Left {
                         let _ = drag_entity.update(cx, |this, cx| {
                             if this.explorer_drag.is_some() {
                                 this.finish_explorer_drag(cx);
                                 cx.stop_propagation();
+                            } else if this.tab_drag.is_some() {
+                                this.finish_tab_drag(event.position, window, cx);
+                                cx.stop_propagation();
+                                cx.notify();
                             }
                         });
                     }
                 });
                 window.on_mouse_event(move |_: &gpui::ScrollEvent, phase, _, cx| {
                     if phase.capture() {
-                        let _ = entity.update(cx, |this, _| this.note_user_activity());
+                        let _ = entity.update(cx, |this, cx| {
+                            this.note_user_activity();
+                            if this.tab_drag.is_some() || this.explorer_drag.is_some() {
+                                cx.stop_propagation();
+                            }
+                        });
                     }
                 });
             },
@@ -5572,6 +5656,14 @@ impl Render for Paseo {
             .on_action(cx.listener(Self::on_new_terminal))
             .on_action(cx.listener(Self::on_new_browser))
             .on_key_down(cx.listener(Self::on_launcher_key))
+            .capture_key_down(cx.listener(|this, event: &gpui::KeyDownEvent, window, cx| {
+                if this.tab_drag.is_some() && event.keystroke.key == "escape" {
+                    this.tab_drag = None;
+                    cx.stop_propagation();
+                    window.prevent_default();
+                    cx.notify();
+                }
+            }))
             .on_action(cx.listener(Self::on_new_window))
             .on_action(cx.listener(Self::on_toggle_explorer))
             .on_action(cx.listener(Self::on_toggle_explorer_terminal))
@@ -5590,7 +5682,13 @@ impl Render for Paseo {
                     .w(px(explorer_geometry.width as f32))
                     .h_full()
                     .flex_shrink_0()
-                    .child(self.tools.clone().unwrap())
+                    .child({
+                        let dock = self
+                            .selected_splits()
+                            .and_then(|layout| layout.explorer.pane.clone())
+                            .unwrap();
+                        self.render_split_pane(&dock, window, cx)
+                    })
                     .when(!explorer_geometry.overlay, |frame| {
                         frame.child(
                             div()
@@ -5711,7 +5809,8 @@ impl Paseo {
             .map(|layout| layout.clone())
             .unwrap_or_else(|| SplitLayout::single(MAIN_PANE_ID));
         let measure = cx.entity();
-        let active_panes: BTreeSet<_> = layout.panes().into_iter().map(|pane| pane.id).collect();
+        let active_panes: BTreeSet<_> =
+            layout.all_panes().into_iter().map(|pane| pane.id).collect();
         self.tab_rail.retain(&layout);
         self.terminal_commands
             .retain(self.selected_workspace.as_deref(), &layout);
@@ -5862,6 +5961,19 @@ impl Paseo {
                 .browsers
                 .get(tab)
                 .map(|browser| browser.clone().into_any_element()),
+            Some((_, PaneTabKind::Files | PaneTabKind::Changes)) => {
+                self.tools.clone().map(|tools| {
+                    let tab = if focused_tab.as_deref()
+                        == Some(paseo_desktop::explorer_layout::FILES_TAB_ID)
+                    {
+                        crate::workspace_tools::DockTab::Files
+                    } else {
+                        crate::workspace_tools::DockTab::Changes
+                    };
+                    tools.update(cx, |tools, cx| tools.toggle_tab(tab, cx));
+                    tools.into_any_element()
+                })
+            }
             _ => None,
         };
 
@@ -5879,7 +5991,6 @@ impl Paseo {
         let measure = cx.entity();
         let measured_pane_id = pane_id.clone();
         let focus_pane_id = pane_id.clone();
-        let hover_pane_id = pane_id.clone();
         let pane_element = div()
             .id(SharedString::from(format!("split-pane-{pane_id}")))
             .relative()
@@ -5895,9 +6006,6 @@ impl Paseo {
                     this.focus_split_pane(focus_pane_id.clone(), window, cx);
                 }),
             )
-            .on_mouse_move(cx.listener(move |this, _, _, cx| {
-                this.hover_tab_drag(&hover_pane_id, cx);
-            }))
             .child(
                 canvas(
                     move |bounds, _, cx| {

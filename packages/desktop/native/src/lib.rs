@@ -22,6 +22,7 @@ pub mod markdown;
 pub mod message_document;
 pub mod model;
 pub mod mouse;
+pub mod panel_host;
 pub mod relay;
 pub mod settings;
 pub mod split_layout;

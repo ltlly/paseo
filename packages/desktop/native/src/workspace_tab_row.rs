@@ -26,12 +26,18 @@ pub(super) struct RailCache {
     labels: BTreeMap<String, LabelWidth>,
     scrolls: BTreeMap<String, RailScroll>,
     icons: FileIconCache,
+    pub bounds: BTreeMap<(String, String), gpui::Bounds<gpui::Pixels>>,
 }
 impl RailCache {
     pub(super) fn retain(&mut self, layout: &SplitLayout) {
-        let panes = layout.panes();
+        let panes = layout.all_panes();
         let tabs: BTreeSet<_> = panes.iter().flat_map(|pane| pane.tabs.iter()).collect();
         self.labels.retain(|tab, _| tabs.contains(tab));
+        self.bounds.retain(|(owner, id), _| {
+            panes
+                .iter()
+                .any(|pane| &pane.id == owner && pane.tabs.contains(id))
+        });
         self.scrolls
             .retain(|id, _| panes.iter().any(|pane| &pane.id == id));
     }
@@ -92,11 +98,23 @@ impl Paseo {
         );
         let family = crate::fonts::ui_family_for(&settings.ui_font_family);
         let line = crate::fonts::strut_for(window, font_size, &family);
-        let pane_focused = self
-            .selected_workspace
-            .as_ref()
-            .and_then(|id| self.splits.get(id))
-            .is_some_and(|layout| layout.focused_pane_id.as_deref() == Some(&pane.id));
+        let explorer = pane.id == paseo_desktop::explorer_layout::EXPLORER_PANE_ID;
+        let owns_controls = explorer && !cfg!(target_os = "macos") && !window.is_fullscreen();
+        let controls_width = if owns_controls {
+            3. * if cfg!(target_os = "windows") {
+                crate::window_geometry::WINDOWS.control_width
+            } else {
+                crate::window_geometry::LINUX.control_width
+            }
+        } else {
+            0.
+        };
+        let pane_focused = explorer
+            || self
+                .selected_workspace
+                .as_ref()
+                .and_then(|id| self.splits.get(id))
+                .is_some_and(|layout| layout.focused_pane_id.as_deref() == Some(&pane.id));
         let rows: Vec<_> = pane
             .tabs
             .iter()
@@ -130,7 +148,8 @@ impl Paseo {
             .map_or(window.viewport_size().width, |bounds| bounds.size.width)
             .to_f64() as f32;
         // The authored row reserves the 36px add-button slot before shrinking labels.
-        let layout = workspace_tab_layout::layout(width, &labels, 36., false);
+        let layout =
+            workspace_tab_layout::layout((width - controls_width).max(0.), &labels, 36., false);
         let scroll = self.tab_rail.scrolls.entry(pane.id.clone()).or_default();
         if !layout.overflow {
             scroll.handle.set_offset(gpui::point(px(0.), px(0.)));
@@ -180,6 +199,8 @@ impl Paseo {
                     match kind {
                         PaneTabKind::Terminal => "terminal",
                         PaneTabKind::Launcher => "plus",
+                        PaneTabKind::Files => "files",
+                        PaneTabKind::Changes => "file-diff",
                         _ => "eye",
                     },
                     p::ICON_SIZE,
@@ -191,6 +212,9 @@ impl Paseo {
             let owner = pane.id.clone();
             let selected = id.clone();
             let tooltip = title.clone();
+            let measure = cx.entity();
+            let measured_owner = pane.id.clone();
+            let measured_id = id.clone();
             let mut chip = div()
                 .id(group.clone())
                 .group(group.clone())
@@ -210,6 +234,20 @@ impl Paseo {
                 .line_height(line)
                 .text_color(rgb(foreground))
                 .tooltip(move |_, cx| cx.new(|_| chrome::Tooltip(tooltip.clone())).into())
+                .child(
+                    gpui::canvas(
+                        move |bounds, _, cx| {
+                            measure.update(cx, |this, _| {
+                                this.tab_rail
+                                    .bounds
+                                    .insert((measured_owner.clone(), measured_id.clone()), bounds);
+                            });
+                        },
+                        |_, _, _, _| {},
+                    )
+                    .absolute()
+                    .inset_0(),
+                )
                 .child(div().size(px(p::ICON_SIZE)).flex_shrink_0().child(glyph))
                 .when(layout.show_labels[index], |v| {
                     v.child(
@@ -390,6 +428,15 @@ impl Paseo {
                     .children(chips),
             )
             .when_some(fixed, |row, add| row.child(add))
+            .when(explorer, |row| {
+                row.on_mouse_down(MouseButton::Left, |_, window, cx| {
+                    cx.stop_propagation();
+                    window.start_window_move();
+                })
+            })
+            .when(owns_controls, |row| {
+                row.child(crate::window_chrome::controls(window))
+            })
             .into_any_element()
     }
     fn close_passive_pane_tab(

@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 pub const MIN_SPLIT_SIZE: f64 = 0.1;
 /// Matches `MAX_TREE_DEPTH` in `packages/app/src/stores/workspace-layout-store.ts`.
 pub const MAX_TREE_DEPTH: usize = 5;
-/// Upper bound on panes in one workspace. The renderer keeps one terminal view
-/// per pane, so the live model and restore validation share this ceiling.
+/// Upper bound on main split panes. The separately docked Explorer adds at
+/// most one pane; the live tree and restore validation share this ceiling.
 pub const MAX_PANES: usize = 64;
 /// Upper bound on tabs one pane owns. The live model refuses the operation and
 /// restore validation drops the surplus, so both sides share one ceiling and a
@@ -94,6 +94,10 @@ pub struct SplitLayout {
     pub root: SplitNode,
     #[serde(default)]
     pub focused_pane_id: Option<String>,
+    /// Keyboard content ownership is transient. Selecting Explorer never
+    /// changes the remembered main-workspace pane.
+    #[serde(skip)]
+    pub active_pane_id: Option<String>,
     #[serde(
         default,
         skip_serializing_if = "crate::explorer_layout::ExplorerState::is_default"
@@ -243,6 +247,7 @@ impl SplitLayout {
                 },
             },
             focused_pane_id: Some(pane_id.to_owned()),
+            active_pane_id: None,
             explorer: Default::default(),
         }
     }
@@ -253,7 +258,26 @@ impl SplitLayout {
         panes
     }
 
+    pub fn all_panes(&self) -> Vec<SplitPane> {
+        let mut panes = self.panes();
+        panes.extend(self.explorer.pane.iter().cloned());
+        panes
+    }
+
+    pub fn active_pane(&self) -> Option<&SplitPane> {
+        self.active_pane_id
+            .as_deref()
+            .and_then(|id| self.pane(id))
+            .filter(|pane| {
+                pane.id != crate::explorer_layout::EXPLORER_PANE_ID || self.explorer.visible
+            })
+            .or_else(|| self.focused_pane())
+    }
+
     pub fn pane(&self, pane_id: &str) -> Option<&SplitPane> {
+        if pane_id == crate::explorer_layout::EXPLORER_PANE_ID {
+            return self.explorer.pane.as_ref();
+        }
         fn walk<'a>(node: &'a SplitNode, pane_id: &str) -> Option<&'a SplitPane> {
             match node {
                 SplitNode::Pane { pane } => (pane.id == pane_id).then_some(pane),
@@ -275,7 +299,7 @@ impl SplitLayout {
     }
 
     pub fn find_pane_containing_tab(&self, tab_id: &str) -> Option<SplitPane> {
-        self.panes()
+        self.all_panes()
             .into_iter()
             .find(|pane| pane.tabs.iter().any(|tab| tab == tab_id))
     }
@@ -381,6 +405,7 @@ impl SplitLayout {
             return None;
         }
         candidate.focused_pane_id = Some(new_pane_id.clone());
+        candidate.active_pane_id = None;
         *self = candidate;
         Some(new_pane_id)
     }
@@ -401,6 +426,9 @@ impl SplitLayout {
             self.focused_pane_id =
                 fallback.or_else(|| self.panes().first().map(|pane| pane.id.clone()));
         }
+        if self.active_pane_id.as_deref() == Some(pane_id) {
+            self.active_pane_id = None;
+        }
         true
     }
 
@@ -408,10 +436,16 @@ impl SplitLayout {
         if self.pane(pane_id).is_none() {
             return false;
         }
-        if self.focused_pane_id.as_deref() == Some(pane_id) {
+        if self.active_pane().is_some_and(|pane| pane.id == pane_id) {
             return false;
         }
-        self.focused_pane_id = Some(pane_id.to_owned());
+        self.active_pane_id =
+            (pane_id == crate::explorer_layout::EXPLORER_PANE_ID).then(|| pane_id.to_owned());
+        if pane_id == crate::explorer_layout::EXPLORER_PANE_ID {
+            self.explorer.visible = true;
+        } else {
+            self.focused_pane_id = Some(pane_id.to_owned());
+        }
         true
     }
 
@@ -450,12 +484,12 @@ impl SplitLayout {
     /// tab on the next write.
     pub fn attach_tab(&mut self, tab_id: &str) -> Option<String> {
         if let Some(current) = self.find_pane_containing_tab(tab_id) {
-            self.focused_pane_id = Some(current.id.clone());
+            self.focus_pane(&current.id);
             self.set_focused_tab(&current.id, tab_id);
             return Some(current.id);
         }
         let target = self
-            .focused_pane()
+            .active_pane()
             .cloned()
             .or_else(|| self.panes().into_iter().next())?;
         if target.tabs.len() >= MAX_TABS_PER_PANE {
@@ -466,7 +500,7 @@ impl SplitLayout {
         pane.tabs.push(tab_id.to_owned());
         pane.focused_tab = Some(tab_id.to_owned());
         self.replace_pane(pane);
-        self.focused_pane_id = Some(pane_id.clone());
+        self.focus_pane(&pane_id);
         Some(pane_id)
     }
 
@@ -514,7 +548,7 @@ impl SplitLayout {
 
     /// True when `tab_id` already is the visible tab of the focused pane.
     pub fn tab_is_focused(&self, tab_id: &str) -> bool {
-        self.focused_pane().is_some_and(|pane| {
+        self.active_pane().is_some_and(|pane| {
             pane.focused_tab.as_deref() == Some(tab_id) && pane.tabs.iter().any(|tab| tab == tab_id)
         })
     }
@@ -530,11 +564,11 @@ impl SplitLayout {
         };
         if source.id == to_pane_id {
             if source.focused_tab.as_deref() == Some(tab_id)
-                && self.focused_pane_id.as_deref() == Some(to_pane_id)
+                && self.active_pane().is_some_and(|pane| pane.id == to_pane_id)
             {
                 return false;
             }
-            self.focused_pane_id = Some(to_pane_id.to_owned());
+            self.focus_pane(to_pane_id);
             self.set_focused_tab(to_pane_id, tab_id);
             return true;
         }
@@ -553,7 +587,8 @@ impl SplitLayout {
             source_pane.focused_tab = source_pane.tabs.last().cloned();
         }
         let source_id = source_pane.id.clone();
-        let source_is_main = source_id == MAIN_PANE_ID;
+        let source_is_main =
+            source_id == MAIN_PANE_ID || source_id == crate::explorer_layout::EXPLORER_PANE_ID;
         self.replace_pane(source_pane);
         if !source_is_main && self.panes().len() > 1 {
             let emptied = self
@@ -570,7 +605,7 @@ impl SplitLayout {
         }
         target_pane.focused_tab = Some(tab_id.to_owned());
         self.replace_pane(target_pane);
-        self.focused_pane_id = Some(to_pane_id.to_owned());
+        self.focus_pane(to_pane_id);
         true
     }
 
@@ -582,18 +617,56 @@ impl SplitLayout {
         Some(pane.id)
     }
 
+    /// Move relative to a stable tab identity. Pointer geometry chooses the
+    /// anchor; a missing anchor refuses the move before either pane changes.
+    pub fn move_tab_before(
+        &mut self,
+        tab_id: &str,
+        to_pane_id: &str,
+        before: Option<&str>,
+    ) -> bool {
+        let Some(target) = self.pane(to_pane_id) else {
+            return false;
+        };
+        if before
+            .is_some_and(|anchor| anchor == tab_id || !target.tabs.iter().any(|tab| tab == anchor))
+        {
+            return false;
+        }
+        let original = self.clone();
+        self.move_tab_to_pane(tab_id, to_pane_id);
+        if !self
+            .pane(to_pane_id)
+            .is_some_and(|pane| pane.tabs.iter().any(|id| id == tab_id))
+        {
+            return false;
+        }
+        let mut pane = self.pane(to_pane_id).unwrap().clone();
+        pane.tabs.retain(|id| id != tab_id);
+        let index = before
+            .and_then(|id| pane.tabs.iter().position(|tab| tab == id))
+            .unwrap_or(pane.tabs.len());
+        pane.tabs.insert(index, tab_id.to_owned());
+        self.replace_pane(pane);
+        *self != original
+    }
+
     /// Forgets tabs that no longer exist. Panes that lose their last tab are
     /// removed unless they are the last pane or the main workspace pane, which
     /// survives as an empty split target like the app's preserved default pane.
     pub fn prune_tabs(&mut self, mut keep: impl FnMut(&str) -> bool) {
-        let panes = self.panes();
+        let panes = self.all_panes();
         for pane in panes {
             let focused_alive = pane.focused_tab.as_deref().map_or(true, |tab| keep(tab));
             if pane.tabs.iter().all(|tab| keep(tab)) && focused_alive {
                 continue;
             }
             let tabs: Vec<String> = pane.tabs.iter().filter(|tab| keep(tab)).cloned().collect();
-            if tabs.is_empty() && pane.id != MAIN_PANE_ID && self.panes().len() > 1 {
+            if tabs.is_empty()
+                && pane.id != MAIN_PANE_ID
+                && pane.id != crate::explorer_layout::EXPLORER_PANE_ID
+                && self.panes().len() > 1
+            {
                 self.close_pane(&pane.id);
             } else {
                 let focused_tab = tabs
@@ -633,6 +706,10 @@ impl SplitLayout {
     }
 
     fn replace_pane(&mut self, pane: SplitPane) {
+        if pane.id == crate::explorer_layout::EXPLORER_PANE_ID {
+            self.explorer.pane = Some(pane);
+            return;
+        }
         replace_pane_in_node(&mut self.root, pane);
     }
 }
@@ -1001,6 +1078,107 @@ fn compare_candidates(left: &PaneCandidate, right: &PaneCandidate) -> std::cmp::
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn tab_drag_reorders_relative_to_identity_and_refuses_stale_anchors_atomically() {
+        let mut layout = SplitLayout::single("main");
+        for tab in ["a", "b", "c"] {
+            layout.attach_tab(tab);
+        }
+        assert!(layout.move_tab_before("c", "main", Some("a")));
+        assert_eq!(layout.pane("main").unwrap().tabs, ["c", "a", "b"]);
+        let before = layout.clone();
+        assert!(!layout.move_tab_before("c", "main", Some("gone")));
+        assert_eq!(layout, before);
+        layout.explorer.ensure_pane();
+        assert!(layout.move_tab_before("c", "explorer", Some("changes_tree")));
+        assert_eq!(
+            layout.pane("explorer").unwrap().tabs,
+            ["files", "c", "changes_tree"]
+        );
+        assert_eq!(layout.pane("main").unwrap().tabs, ["a", "b"]);
+        assert_eq!(layout.focused_pane_id.as_deref(), Some("main"));
+        assert!(layout.move_tab_before("c", "main", None));
+        assert_eq!(layout.pane("main").unwrap().tabs, ["a", "b", "c"]);
+    }
+
+    #[test]
+    fn explorer_owns_tabs_without_becoming_a_workspace_split() {
+        use crate::explorer_layout::{CHANGES_TAB_ID, EXPLORER_PANE_ID as DOCK, FILES_TAB_ID};
+        let mut layout = SplitLayout::single(MAIN_PANE_ID);
+        layout.attach_tab("main-terminal").unwrap();
+        let saved_root = layout.root.clone();
+        layout.explorer.ensure_pane();
+        assert_eq!(layout.panes().len(), 1);
+        assert_eq!(layout.all_panes().len(), 2);
+        assert_eq!(
+            layout.pane(DOCK).unwrap().tabs,
+            [FILES_TAB_ID, CHANGES_TAB_ID]
+        );
+        assert!(layout.focus_pane(DOCK));
+        layout.attach_tab("dock-terminal").unwrap();
+        assert_eq!(layout.focused_pane_id.as_deref(), Some(MAIN_PANE_ID));
+        assert_eq!(layout.active_pane().unwrap().id, DOCK);
+        assert_eq!(layout.root, saved_root);
+        assert_eq!(
+            layout.find_pane_containing_tab("dock-terminal").unwrap().id,
+            DOCK
+        );
+        let mut ids = SplitIds::for_layout(&layout.root);
+        assert!(
+            layout
+                .split_empty(DOCK, SplitPosition::Right, &mut ids)
+                .is_none()
+        );
+        assert!(!layout.close_pane(DOCK));
+        layout.explorer.visible = false;
+        assert_eq!(layout.active_pane().unwrap().id, MAIN_PANE_ID);
+        assert_eq!(layout.attach_tab("dock-terminal").as_deref(), Some(DOCK));
+        assert!(layout.explorer.visible);
+        assert_eq!(layout.focused_pane_id.as_deref(), Some(MAIN_PANE_ID));
+        assert!(layout.move_tab_to_pane("dock-terminal", MAIN_PANE_ID));
+        assert_eq!(layout.active_pane().unwrap().id, MAIN_PANE_ID);
+        assert!(
+            !layout
+                .pane(DOCK)
+                .unwrap()
+                .tabs
+                .contains(&"dock-terminal".into())
+        );
+        layout.prune_tabs(|_| false);
+        assert_eq!(layout.panes().len(), 1);
+        assert!(layout.pane(DOCK).unwrap().tabs.is_empty());
+    }
+    #[test]
+    fn explorer_capacity_and_pruning_preserve_one_owner_and_both_selections() {
+        use crate::explorer_layout::EXPLORER_PANE_ID as DOCK;
+        let mut layout = SplitLayout::single(MAIN_PANE_ID);
+        layout.attach_tab("original").unwrap();
+        layout.explorer.ensure_pane();
+        layout.focus_pane(DOCK);
+        for i in 2..MAX_TABS_PER_PANE {
+            layout.attach_tab(&format!("terminal-{i}")).unwrap();
+        }
+        let before = layout.clone();
+        assert!(!layout.move_tab_to_pane("original", DOCK));
+        assert_eq!(layout, before);
+        assert!(layout.attach_tab("overflow").is_none());
+        layout.prune_tabs(|id| id != "terminal-255");
+        assert!(layout.move_tab_to_pane("original", DOCK));
+        assert_eq!(
+            layout
+                .all_panes()
+                .iter()
+                .flat_map(|p| p.tabs.iter())
+                .filter(|id| *id == "original")
+                .count(),
+            1
+        );
+        assert_eq!(layout.focused_pane_id.as_deref(), Some(MAIN_PANE_ID));
+        assert_eq!(
+            layout.active_pane().unwrap().focused_tab.as_deref(),
+            Some("original")
+        );
+    }
 
     fn pane_ids(layout: &SplitLayout) -> Vec<String> {
         layout.panes().iter().map(|pane| pane.id.clone()).collect()
@@ -1145,6 +1323,7 @@ mod tests {
                 },
             },
             focused_pane_id: Some(MAIN_PANE_ID.into()),
+            active_pane_id: None,
             explorer: Default::default(),
         };
         let mut ids = SplitIds::for_layout(&layout.root);

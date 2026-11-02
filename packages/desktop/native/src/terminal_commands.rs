@@ -37,7 +37,7 @@ impl Commands {
         workspace: Option<&str>,
         layout: &paseo_desktop::split_layout::SplitLayout,
     ) {
-        let panes = layout.panes();
+        let panes = layout.all_panes();
         self.anchors
             .retain(|id, _| panes.iter().any(|pane| &pane.id == id));
         self.active.retain(|(owner, pane, tab), _| {
@@ -56,6 +56,7 @@ impl Commands {
 enum Selection {
     Terminal(Option<Profile>),
     Browser,
+    Tools(crate::workspace_tools::DockTab),
     Unavailable,
 }
 struct Row {
@@ -77,7 +78,7 @@ impl Paseo {
     }
     fn terminal_focus_ticket(&self) -> Option<Focus> {
         let workspace = self.selected_workspace.as_ref()?;
-        let pane = self.splits.get(workspace)?.focused_pane()?;
+        let pane = self.splits.get(workspace)?.active_pane()?;
         Some(Focus {
             workspace: workspace.clone(),
             pane: pane.id.clone(),
@@ -319,11 +320,24 @@ impl Paseo {
             }
         }
     }
-    fn launcher_rows(&self, cx: &gpui::App) -> Vec<Row> {
+    fn launcher_rows(&self, pane_id: &str, cx: &gpui::App) -> Vec<Row> {
         let (git, pr) = self
             .tools
             .as_ref()
             .map_or((false, false), |tools| tools.read(cx).launch_flags());
+        let host = paseo_desktop::panel_host::Host::for_pane(pane_id);
+        let existing: Vec<_> = self
+            .selected_workspace
+            .as_ref()
+            .and_then(|id| self.splits.get(id))
+            .and_then(|layout| layout.pane(pane_id))
+            .map(|pane| {
+                pane.tabs
+                    .iter()
+                    .filter_map(|tab| self.pane_tab_kind(tab).map(|kind| kind.panel_kind()))
+                    .collect()
+            })
+            .unwrap_or_default();
         let mut rows = vec![];
         for (id, key, icon, selection, visible) in [
             (
@@ -344,7 +358,7 @@ impl Paseo {
                 "changes",
                 "panels.diff.changesLabel",
                 "files",
-                Selection::Unavailable,
+                Selection::Tools(crate::workspace_tools::DockTab::Changes),
                 git,
             ),
             (
@@ -358,7 +372,7 @@ impl Paseo {
                 "files",
                 "panels.files.label",
                 "files",
-                Selection::Unavailable,
+                Selection::Tools(crate::workspace_tools::DockTab::Files),
                 true,
             ),
             (
@@ -383,7 +397,7 @@ impl Paseo {
                 "pullRequest" => "pull_request",
                 other => other,
             };
-            if visible && p::MAIN_PANEL_KINDS.contains(&kind) {
+            if visible && paseo_desktop::panel_host::can_launch(kind, host, &existing) {
                 let enabled = !matches!(selection, Selection::Unavailable)
                     && (!matches!(selection, Selection::Terminal(_))
                         || !self.terminal_commands.state.creating());
@@ -483,7 +497,7 @@ impl Paseo {
         let mut items = vec![];
         let mut selections = BTreeMap::new();
         let mut profiles = false;
-        for row in self.launcher_rows(cx) {
+        for row in self.launcher_rows(&destination.pane, cx) {
             if row.profile.is_some() && !profiles {
                 profiles = true;
                 let mut sep = Item::new("separator", "", "");
@@ -554,6 +568,12 @@ impl Paseo {
         match selection {
             Selection::Terminal(profile) => self.create_terminal(destination, profile.as_ref(), cx),
             Selection::Browser => {
+                if !paseo_desktop::panel_host::supports(
+                    "browser",
+                    paseo_desktop::panel_host::Host::for_pane(&destination.pane),
+                ) {
+                    return;
+                }
                 if self.selected_workspace.as_deref() != Some(&destination.workspace) {
                     return;
                 }
@@ -571,6 +591,28 @@ impl Paseo {
                     self.persist_splits();
                 }
             }
+            Selection::Tools(tab) => {
+                if self.selected_workspace.as_deref() != Some(&destination.workspace) {
+                    return;
+                }
+                let id = if tab == crate::workspace_tools::DockTab::Files {
+                    paseo_desktop::explorer_layout::FILES_TAB_ID
+                } else {
+                    paseo_desktop::explorer_layout::CHANGES_TAB_ID
+                };
+                if let Some(layout) = self.splits.get_mut(&destination.workspace) {
+                    layout.focus_pane(&destination.pane);
+                    if layout.attach_tab(id).is_none() {
+                        return;
+                    }
+                    if let Some(replace) = &destination.replace {
+                        layout.prune_tabs(|tab| tab != replace);
+                    }
+                }
+                self.persist_splits();
+                self.sync_active_tab(window, cx);
+                cx.notify();
+            }
             Selection::Unavailable => {}
         }
     }
@@ -583,10 +625,12 @@ impl Paseo {
             return;
         }
         let id = format!("{PREFIX}{}", uuid::Uuid::new_v4());
-        if self
-            .selected_splits()
-            .is_some_and(|layout| layout.attach_tab(&id).is_some())
-        {
+        if self.selected_splits().is_some_and(|layout| {
+            if let Some(main) = layout.focused_pane_id.clone() {
+                layout.focus_pane(&main);
+            }
+            layout.attach_tab(&id).is_some()
+        }) {
             self.close_pane(cx);
             self.persist_splits();
             self.sync_active_tab(window, cx);
@@ -611,12 +655,20 @@ impl Paseo {
         let Some(focus) = self.terminal_focus_ticket() else {
             return;
         };
-        let replace = focus
-            .tab
+        let Some(target) = self
+            .splits
+            .get(&focus.workspace)
+            .and_then(|layout| layout.focused_pane())
+            .cloned()
+        else {
+            return;
+        };
+        let replace = target
+            .focused_tab
             .as_ref()
             .filter(|id| id.starts_with(PREFIX))
             .cloned();
-        if let Some(destination) = self.terminal_destination(&focus.pane, replace) {
+        if let Some(destination) = self.terminal_destination(&target.id, replace) {
             self.create_terminal(destination, None, cx);
         }
     }
@@ -636,12 +688,20 @@ impl Paseo {
         let Some(focus) = self.terminal_focus_ticket() else {
             return;
         };
-        let replace = focus
-            .tab
+        let Some(target) = self
+            .splits
+            .get(&focus.workspace)
+            .and_then(|layout| layout.focused_pane())
+            .cloned()
+        else {
+            return;
+        };
+        let replace = target
+            .focused_tab
             .as_ref()
             .filter(|id| id.starts_with(PREFIX))
             .cloned();
-        if let Some(destination) = self.terminal_destination(&focus.pane, replace) {
+        if let Some(destination) = self.terminal_destination(&target.id, replace) {
             self.choose_launcher(destination, Selection::Browser, window, cx);
         }
     }
@@ -808,7 +868,7 @@ impl Paseo {
             return div().into_any_element();
         };
         self.load_terminal_profiles(false, cx);
-        let rows = self.launcher_rows(cx);
+        let rows = self.launcher_rows(&destination.pane, cx);
         let interactive = self
             .terminal_focus_ticket()
             .is_some_and(|focus| focus.pane == pane)
@@ -1000,7 +1060,7 @@ impl Paseo {
         if focus.tab.as_ref().is_some_and(|id| !id.starts_with(PREFIX)) {
             return;
         }
-        let rows = self.launcher_rows(cx);
+        let rows = self.launcher_rows(&focus.pane, cx);
         let enabled: Vec<_> = rows
             .iter()
             .enumerate()

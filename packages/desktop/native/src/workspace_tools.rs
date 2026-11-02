@@ -623,7 +623,6 @@ pub struct WorkspaceTools {
     local_endpoint: bool,
     features: Features,
     pub tab: DockTab,
-    owns_window_corner: bool,
     // Explorer
     directories: BTreeMap<String, Directory>,
     expanded: BTreeSet<String>,
@@ -697,7 +696,6 @@ impl WorkspaceTools {
             local_endpoint,
             features: Features::default(),
             tab: DockTab::Files,
-            owns_window_corner: false,
             directories: BTreeMap::new(),
             expanded: BTreeSet::from([".".to_owned()]),
             loading: BTreeSet::new(),
@@ -744,12 +742,6 @@ impl WorkspaceTools {
         tools
     }
 
-    pub fn set_window_corner(&mut self, owned: bool, cx: &mut Context<Self>) {
-        if self.owns_window_corner != owned {
-            self.owns_window_corner = owned;
-            cx.notify();
-        }
-    }
     pub fn host(&self) -> &str {
         &self.host
     }
@@ -884,6 +876,9 @@ impl WorkspaceTools {
     }
 
     pub fn toggle_tab(&mut self, tab: DockTab, cx: &mut Context<Self>) {
+        if self.tab == tab {
+            return;
+        }
         self.tab = tab;
         self.selected_diff = None;
         self.menu = None;
@@ -2720,54 +2715,6 @@ impl Render for WorkspaceTools {
             DockTab::Files => self.render_files(&palette, window, cx),
             DockTab::Changes => self.render_changes(&palette, cx),
         };
-        fn dock_tab(
-            label: &'static str,
-            tab: DockTab,
-            selected: bool,
-            palette: &Palette,
-            cx: &mut Context<WorkspaceTools>,
-        ) -> gpui::Stateful<gpui::Div> {
-            let this_tab = tab;
-            div()
-                .id(gpui::SharedString::from(format!("dock-tab-{label}")))
-                .h(px(28.))
-                .px_2()
-                .rounded(px(radius::MD))
-                .flex()
-                .items_center()
-                .cursor_pointer()
-                .text_size(px(font_size::BASE))
-                .min_w_0()
-                .flex_shrink(1.)
-                .gap_1()
-                .text_color(rgb(if selected {
-                    palette.foreground
-                } else {
-                    palette.foreground_muted
-                }))
-                .when(selected, |tab| tab.bg(rgb(palette.surface2)))
-                .hover(|tab| tab.bg(rgb(palette.surface2)))
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(move |this, _, window, cx| {
-                        cx.stop_propagation();
-                        this.focus.focus(window, cx);
-                        this.toggle_tab(this_tab, cx);
-                    }),
-                )
-                .child(
-                    icon(
-                        if this_tab == DockTab::Files {
-                            "files"
-                        } else {
-                            "file-diff"
-                        },
-                        14.,
-                    )
-                    .flex_shrink_0(),
-                )
-                .child(div().min_w_0().truncate().child(label))
-        }
         let files_toolbar = self.render_files_toolbar(&palette, cx);
         div()
             .id("workspace-tools")
@@ -2786,55 +2733,6 @@ impl Render for WorkspaceTools {
                         cx.notify();
                     }
                 }),
-            )
-            .child(
-                div()
-                    .h(px(36.))
-                    .flex_shrink_0()
-                    .pl_2()
-                    .pr(px(
-                        if self.owns_window_corner
-                            && !cfg!(target_os = "macos")
-                            && !window.is_fullscreen()
-                        {
-                            0.
-                        } else {
-                            8.
-                        },
-                    ))
-                    .flex()
-                    .items_center()
-                    .gap_1()
-                    .border_b_1()
-                    .border_color(rgb(palette.border))
-                    .child(
-                        div()
-                            .min_w_0()
-                            .flex_1()
-                            .flex()
-                            .items_center()
-                            .gap_1()
-                            .child(dock_tab(
-                                "Files",
-                                DockTab::Files,
-                                self.tab == DockTab::Files,
-                                &palette,
-                                cx,
-                            ))
-                            .child(dock_tab(
-                                "Changes",
-                                DockTab::Changes,
-                                self.tab == DockTab::Changes,
-                                &palette,
-                                cx,
-                            )),
-                    )
-                    .when(
-                        self.owns_window_corner
-                            && !cfg!(target_os = "macos")
-                            && !window.is_fullscreen(),
-                        |rail| rail.child(crate::window_chrome::controls(window)),
-                    ),
             )
             .when(self.tab == DockTab::Files, |dock| dock.child(files_toolbar))
             .child(content)

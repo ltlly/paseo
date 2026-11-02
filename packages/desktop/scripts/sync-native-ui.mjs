@@ -532,7 +532,7 @@ if (check) {
 const profileBundle = await bundle({
   stdin: {
     contents:
-      'export {DEFAULT_TERMINAL_PROFILES,PROMPT_SENTINEL,resolveTerminalProfileLaunch,getTerminalProfileIcon} from "./packages/protocol/src/terminal-profiles.ts"; export {KNOWN_PROVIDER_ICON_NAMES} from "./packages/protocol/src/provider-icon-names.ts"; export {ACP_PROVIDER_ICON_SVGS} from "./packages/app/src/assets/acp-provider-icons.ts"; export {panelSupportsHost} from "./packages/app/src/panels/panel-manifest.ts"; export {PRIMARY_LAUNCH_ORDER} from "./packages/app/src/workspace-tabs/launcher/internal/catalog.ts";',
+      'export {DEFAULT_TERMINAL_PROFILES,PROMPT_SENTINEL,resolveTerminalProfileLaunch,getTerminalProfileIcon} from "./packages/protocol/src/terminal-profiles.ts"; export {KNOWN_PROVIDER_ICON_NAMES} from "./packages/protocol/src/provider-icon-names.ts"; export {ACP_PROVIDER_ICON_SVGS} from "./packages/app/src/assets/acp-provider-icons.ts"; export {panelSupportsHost,panelCanLaunchInPane} from "./packages/app/src/panels/panel-manifest.ts"; export {PRIMARY_LAUNCH_ORDER} from "./packages/app/src/workspace-tabs/launcher/internal/catalog.ts";',
     resolveDir: root,
   },
   bundle: true,
@@ -544,6 +544,47 @@ const profileSource = await import(
   `data:text/javascript;base64,${Buffer.from(profileBundle.outputFiles[0].text).toString("base64")}`
 );
 const profileDefaults = JSON.stringify(profileSource.DEFAULT_TERMINAL_PROFILES);
+const panelContext = {};
+runInNewContext(
+  ts.transpileModule(
+    `${await authoredNode("packages/app/src/panels/panel-manifest.ts", "manifests")}globalThis.manifests=manifests;`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022 } },
+  ).outputText,
+  panelContext,
+  { timeout: 1000 },
+);
+const panelManifests = Object.entries(panelContext.manifests).map(([kind, manifest]) => ({
+  kind,
+  main: manifest.supportedHosts.includes("main"),
+  explorer: manifest.supportedHosts.includes("explorer"),
+  showClose: manifest.showCloseButton,
+  singleton: manifest.singleton,
+}));
+await output(
+  "packages/desktop/native/src/panel_manifest.rs",
+  `// Generated from panels/panel-manifest.ts. Do not edit.\nuse super::Manifest;\npub const MANIFESTS:&[Manifest]=&[${panelManifests.map((p) => `Manifest{kind:${JSON.stringify(p.kind)},main:${p.main},explorer:${p.explorer},show_close:${p.showClose},singleton:${p.singleton}}`).join(",")}];\n`,
+);
+const hostCases = panelManifests.flatMap(({ kind }) =>
+  ["main", "explorer"].flatMap((host) =>
+    [[], [kind], ["files", "changes_tree"]].map((existing) => ({
+      kind,
+      host,
+      existing,
+      supported: profileSource.panelSupportsHost(kind, host),
+      canLaunch:
+        profileSource.panelSupportsHost(kind, host) &&
+        profileSource.panelCanLaunchInPane(kind, existing),
+    })),
+  ),
+);
+const hostOraclePath = path.join(root, "packages/desktop/native/src/testdata/panel-host.json");
+if (check) {
+  if (
+    JSON.stringify(JSON.parse(await fs.readFile(hostOraclePath, "utf8"))) !==
+    JSON.stringify(hostCases)
+  )
+    throw new Error("Native panel host oracle is stale");
+} else await fs.writeFile(hostOraclePath, JSON.stringify(hostCases, null, 2) + "\n");
 await output(
   "packages/desktop/native/src/terminal_profile_data.rs",
   `// Generated from authored terminal profile definitions. Do not edit.\npub const PROMPT_SENTINEL:&str=${JSON.stringify(profileSource.PROMPT_SENTINEL)};\npub const DEFAULT_PROFILES:&str=r###"${profileDefaults}"###;\npub const KNOWN_ICONS:&[&str]=&${JSON.stringify(profileSource.KNOWN_PROVIDER_ICON_NAMES)};\n`,
@@ -613,7 +654,7 @@ await output(
     .map(([key, value]) => `pub const ${key}:f32=${Number(value).toFixed(1)};`)
     .join(
       "\n",
-    )}\npub const MAIN_PANEL_KINDS:&[&str]=&${JSON.stringify(["draft", "terminal", "changes_tree", "working_diff", "files", "browser", "pull_request"].filter((kind) => profileSource.panelSupportsHost(kind, "main")))};\npub const PRIMARY_ORDER:&[&str]=&${JSON.stringify(profileSource.PRIMARY_LAUNCH_ORDER)};\n`,
+    )}\npub const PRIMARY_ORDER:&[&str]=&${JSON.stringify(profileSource.PRIMARY_LAUNCH_ORDER)};\n`,
 );
 
 const profileEditorFile = "packages/app/src/screens/settings/terminal-profile-edit-modal.tsx";

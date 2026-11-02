@@ -1,0 +1,590 @@
+[
+  {
+    "kind": "new_tab",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "new_tab",
+    "host": "main",
+    "existing": ["new_tab"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "new_tab",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "new_tab",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "new_tab",
+    "host": "explorer",
+    "existing": ["new_tab"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "new_tab",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "draft",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "draft",
+    "host": "main",
+    "existing": ["draft"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "draft",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "draft",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "draft",
+    "host": "explorer",
+    "existing": ["draft"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "draft",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "agent",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "agent",
+    "host": "main",
+    "existing": ["agent"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "agent",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "agent",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "agent",
+    "host": "explorer",
+    "existing": ["agent"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "agent",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "provider_subagent",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "provider_subagent",
+    "host": "main",
+    "existing": ["provider_subagent"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "provider_subagent",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "provider_subagent",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "provider_subagent",
+    "host": "explorer",
+    "existing": ["provider_subagent"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "provider_subagent",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "terminal",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "terminal",
+    "host": "main",
+    "existing": ["terminal"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "terminal",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "terminal",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "terminal",
+    "host": "explorer",
+    "existing": ["terminal"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "terminal",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "browser",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "browser",
+    "host": "main",
+    "existing": ["browser"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "browser",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "browser",
+    "host": "explorer",
+    "existing": [],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "browser",
+    "host": "explorer",
+    "existing": ["browser"],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "browser",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "changes_tree",
+    "host": "main",
+    "existing": [],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "changes_tree",
+    "host": "main",
+    "existing": ["changes_tree"],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "changes_tree",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "changes_tree",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "changes_tree",
+    "host": "explorer",
+    "existing": ["changes_tree"],
+    "supported": true,
+    "canLaunch": false
+  },
+  {
+    "kind": "changes_tree",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": false
+  },
+  {
+    "kind": "files",
+    "host": "main",
+    "existing": [],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "files",
+    "host": "main",
+    "existing": ["files"],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "files",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "files",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "files",
+    "host": "explorer",
+    "existing": ["files"],
+    "supported": true,
+    "canLaunch": false
+  },
+  {
+    "kind": "files",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": false
+  },
+  {
+    "kind": "pull_request",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "pull_request",
+    "host": "main",
+    "existing": ["pull_request"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "pull_request",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "pull_request",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "pull_request",
+    "host": "explorer",
+    "existing": ["pull_request"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "pull_request",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "file",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "file",
+    "host": "main",
+    "existing": ["file"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "file",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "file",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "file",
+    "host": "explorer",
+    "existing": ["file"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "file",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "working_diff",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "working_diff",
+    "host": "main",
+    "existing": ["working_diff"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "working_diff",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "working_diff",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "working_diff",
+    "host": "explorer",
+    "existing": ["working_diff"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "working_diff",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "plugin",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "plugin",
+    "host": "main",
+    "existing": ["plugin"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "plugin",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "plugin",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "plugin",
+    "host": "explorer",
+    "existing": ["plugin"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "plugin",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "setup",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "setup",
+    "host": "main",
+    "existing": ["setup"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "setup",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "setup",
+    "host": "explorer",
+    "existing": [],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "setup",
+    "host": "explorer",
+    "existing": ["setup"],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "setup",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": false,
+    "canLaunch": false
+  },
+  {
+    "kind": "commit_diff",
+    "host": "main",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "commit_diff",
+    "host": "main",
+    "existing": ["commit_diff"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "commit_diff",
+    "host": "main",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "commit_diff",
+    "host": "explorer",
+    "existing": [],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "commit_diff",
+    "host": "explorer",
+    "existing": ["commit_diff"],
+    "supported": true,
+    "canLaunch": true
+  },
+  {
+    "kind": "commit_diff",
+    "host": "explorer",
+    "existing": ["files", "changes_tree"],
+    "supported": true,
+    "canLaunch": true
+  }
+]

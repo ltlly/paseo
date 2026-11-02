@@ -1,0 +1,17 @@
+{
+  "ownPidsStopped": {
+    "3367808": true,
+    "3367809": true,
+    "3367831": true,
+    "3527339": true,
+    "3367900": true
+  },
+  "privatePortsClosed": {
+    "38953": true,
+    "33133": true
+  },
+  "privateHomeRemoved": true,
+  "production6767StillListening": true,
+  "production6767Pid999Alive": true,
+  "androidAndInstalledClientsTouched": false
+}

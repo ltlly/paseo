@@ -1,0 +1,69 @@
+{
+  "scope": "Native shared Explorer tab host and launcher; stable terminal/file ownership, drag and focused-input routing. No app/server/protocol/Android product changes.",
+  "goal": {
+    "objective": "我们迁移到GPUI吧 安卓仍然保持不变",
+    "status": "active",
+    "terminalFirst": true,
+    "installedClientSwitch": false
+  },
+  "finalSource": {
+    "manifest": "source-identity.json",
+    "archiveSha256": "448e89265000e9c0347ae49ba616983ea503eba7bacdb0b1df9fe1b15595ea4a",
+    "fileCount": 297,
+    "compiledInputsByteMatchCheckout": true
+  },
+  "binaries": {
+    "linux": "13fc0ddee83652484569002bdd5831a01f3d6da80a04232155a03dfbd538c994",
+    "macOS": "8641380b5ffa750eeb6f7020144fb7f6689c843d89829e32d296b133df440724",
+    "windows": "03014045a699fc993cd6e90220783a38962443cf65bcb4dd02b5ad304db8904c"
+  },
+  "checks": {
+    "finalApplicationBuilds": ["Linux", "macOS runtime-shaders", "Windows MSVC"],
+    "focusedTestsPerOS": 57,
+    "focusedFilters": {
+      "split_layout::tests": 18,
+      "workspace_layout_storage::tests": 14,
+      "terminal_lifecycle::tests": 9,
+      "panel_host::tests": 1,
+      "file_editor::tests": 15
+    },
+    "authoredHostOracleCases": 84,
+    "linuxOSInteractionAssertions": 24,
+    "linuxOSChecks": "checks.json",
+    "testedSourceNote": "Mac/Windows all 57 tests run on the frozen archive. Linux focused model suites ran earlier; final file-editor suite uses final source. Source modules were unchanged thereafter. No full test suite run.",
+    "linuxGUINote": "Incremental interactive phases, not a cold-start runner. Early host/drag tests used earlier binaries recorded by native-before-*.json. Final known-version fix binary covers the final file assertions, 3 close assertions and client-close proof. No claim every historical phase reran on the final binary.",
+    "npmLint": true,
+    "npmTypecheck": true,
+    "generatedNativeFreshness": true,
+    "npmFormat": true
+  },
+  "visual": {
+    "status": "NOT_PASSED",
+    "metrics": "pixel-metrics.json",
+    "reference": "Real Electron, same isolated daemon, terminal IDs, 1280x800 viewport, default dark, dock width480. xterm DOM fallback, not hardware/WebGL acceptance.",
+    "limitations": [
+      "Title/sidebar, typography, terminal canvas and scrollbar differ. Raw frames have no masks.",
+      "Dock/main rail geometry and menus still require exact parity.",
+      "No macOS/Windows native GUI interaction, IME or hardware performance acceptance."
+    ]
+  },
+  "remaining": [
+    "Full tab context menus, Agent drafts and plugin panel contributions.",
+    "Canonical settings shell, Changes/diff and complete file editor behavior.",
+    "File-buffer restore, dirty window close, read/write concurrency and authored recent-file retention.",
+    "IME, full keyboard/mouse protocols, images and complete cross-platform terminal interaction.",
+    "Matched hardware input/scroll latency, CPU, memory and lifecycle workloads.",
+    "Full feature, pixel, packaging and deployment acceptance before replacing installed clients."
+  ],
+  "safety": {
+    "modelsInvoked": false,
+    "providerLabelNote": "Pi/Grok QA profiles run Node raw-input PTYs, not real agents. Hooks disabled, plugins disabled in private fixture.",
+    "production6767Restarted": false,
+    "installedAppsOrAndroidChanged": false,
+    "clientCloseProof": "final-client-close-proof.json",
+    "cleanup": "cleanup.json"
+  },
+  "ci": {
+    "status": "Not run yet; do not infer green CI from local checks."
+  }
+}

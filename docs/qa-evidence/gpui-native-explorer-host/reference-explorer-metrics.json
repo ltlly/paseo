@@ -1,0 +1,79 @@
+[
+  {
+    "id": "workspace-tab-terminal_66bdeae3-13ce-4b66-9394-7b494042d0f6",
+    "box": {
+      "x": 326,
+      "y": 39.5,
+      "width": 120,
+      "height": 28
+    },
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "background": "rgb(39, 42, 41)"
+  },
+  {
+    "id": "workspace-explorer-sidebar-resize-handle",
+    "box": {
+      "x": 800,
+      "y": 0,
+      "width": 1,
+      "height": 800
+    },
+    "font": "16px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "background": "rgb(37, 43, 42)"
+  },
+  {
+    "id": "workspace-explorer-sidebar",
+    "box": {
+      "x": 800,
+      "y": 0,
+      "width": 480,
+      "height": 800
+    },
+    "font": "16px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "background": "rgb(20, 23, 22)"
+  },
+  {
+    "id": "workspace-tab-files",
+    "box": {
+      "x": 806,
+      "y": 3.5,
+      "width": 65,
+      "height": 28
+    },
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "background": "rgba(0, 0, 0, 0)"
+  },
+  {
+    "id": "workspace-tab-changes_tree",
+    "box": {
+      "x": 875,
+      "y": 3.5,
+      "width": 72,
+      "height": 28
+    },
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "background": "rgba(0, 0, 0, 0)"
+  },
+  {
+    "id": "workspace-tab-terminal_2b1f53cf-3cac-4883-85ca-323f3f6efa22",
+    "box": {
+      "x": 951,
+      "y": 3.5,
+      "width": 87,
+      "height": 28
+    },
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "background": "rgb(39, 42, 41)"
+  },
+  {
+    "id": "workspace-tab-terminal_de543d6f-4839-4bea-88f9-319b70cc9227",
+    "box": {
+      "x": 1042,
+      "y": 3.5,
+      "width": 88,
+      "height": 28
+    },
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "background": "rgba(0, 0, 0, 0)"
+  }
+]

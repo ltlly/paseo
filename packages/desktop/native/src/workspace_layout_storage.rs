@@ -328,13 +328,24 @@ pub fn validate_layout(layout: SplitLayout) -> Option<SplitLayout> {
     let mut tabs = BTreeSet::new();
     let mut budget = RestoreBudget { nodes: 0, panes: 0 };
     let root = validate_node(layout.root, 1, &mut ids, &mut tabs, &mut budget)?;
+    if ids.contains(crate::explorer_layout::EXPLORER_PANE_ID) {
+        return None;
+    }
     if budget.panes == 0 {
         return None;
+    }
+    let mut explorer = layout.explorer.normalized();
+    if let Some(pane) = explorer.pane.take() {
+        if pane.id != crate::explorer_layout::EXPLORER_PANE_ID {
+            return None;
+        }
+        explorer.pane = Some(validate_pane(pane, &mut ids, &mut tabs)?);
     }
     let mut restored = SplitLayout {
         root,
         focused_pane_id: layout.focused_pane_id,
-        explorer: layout.explorer.normalized(),
+        active_pane_id: None,
+        explorer,
     };
     let panes = restored.panes();
     let focused = restored
@@ -367,7 +378,9 @@ fn accept_layout(layout: SplitLayout) -> Result<SplitLayout> {
             "split layout cannot be stored: duplicate or missing pane/group ids, deeper than {MAX_TREE_DEPTH} levels, or more than {MAX_PANES} panes"
         )
     })?;
-    if restored.focused_pane_id != layout.focused_pane_id || restored.panes() != layout.panes() {
+    if restored.focused_pane_id != layout.focused_pane_id
+        || restored.all_panes() != layout.all_panes()
+    {
         bail!(
             "split layout cannot be stored without loss: duplicate tabs, more than {} tabs in one pane, or a missing focused pane",
             MAX_TABS_PER_PANE
@@ -513,6 +526,41 @@ fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn explorer_restore_deduplicates_and_persists_without_keyboard_focus() {
+        use crate::explorer_layout::EXPLORER_PANE_ID as DOCK;
+        let mut layout = crate::split_layout::SplitLayout::single("main");
+        layout.attach_tab("original");
+        layout.explorer.ensure_pane();
+        layout.focus_pane(DOCK);
+        layout.attach_tab("side-terminal");
+        let serialized = serde_json::to_vec(&layout).unwrap();
+        let restored =
+            super::validate_layout(serde_json::from_slice(&serialized).unwrap()).unwrap();
+        assert_eq!(restored.focused_pane_id.as_deref(), Some("main"));
+        assert_eq!(restored.active_pane().unwrap().id, "main");
+        assert_eq!(restored.pane(DOCK).unwrap(), layout.pane(DOCK).unwrap());
+        layout
+            .explorer
+            .pane
+            .as_mut()
+            .unwrap()
+            .tabs
+            .push("original".into());
+        assert!(super::accept_layout(layout.clone()).is_err());
+        let repaired = super::validate_layout(layout).unwrap();
+        assert!(
+            !repaired
+                .pane(DOCK)
+                .unwrap()
+                .tabs
+                .contains(&"original".into())
+        );
+        let mut invalid = restored;
+        invalid.explorer.pane.as_mut().unwrap().id = "main".into();
+        assert!(super::validate_layout(invalid).is_none());
+    }
     use super::*;
     use crate::split_layout::{
         MAIN_PANE_ID, MIN_SPLIT_SIZE, SplitDirection, SplitIds, SplitPosition,
@@ -681,6 +729,7 @@ mod tests {
             validate_layout(SplitLayout {
                 root: node,
                 focused_pane_id: Some("main".into()),
+                active_pane_id: None,
                 explorer: Default::default(),
             }),
             None
@@ -738,6 +787,7 @@ mod tests {
                 },
             },
             focused_pane_id: Some("pane-0".into()),
+            active_pane_id: None,
             explorer: Default::default(),
         };
         assert_eq!(validate_layout(layout), None);
@@ -847,6 +897,7 @@ mod tests {
                 },
             },
             focused_pane_id: Some(MAIN_PANE_ID.into()),
+            active_pane_id: None,
             explorer: Default::default(),
         };
         // The live model refuses the 257th tab instead of accepting it and
