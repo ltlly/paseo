@@ -41,6 +41,12 @@ pub enum Status {
     Conflict { deleted: bool },
 }
 
+// A host update can arrive before the queued autosave fires. Only the
+// explicit Overwrite control may use the new host version with local text.
+fn permits_save(status: Status, overwrite: bool) -> bool {
+    status == Status::Dirty || (overwrite && status == Status::Conflict { deleted: false })
+}
+
 struct Line {
     start: usize,
     top: Pixels,
@@ -428,8 +434,8 @@ impl FileEditor {
                         // The tab stays open to resolve the conflict; a later
                         // save must not close it behind the user's back.
                         self.close_after_save = false;
-                        // Adopt the host version so a retrying save (or the
-                        // overwrite button) compares against what is on disk.
+                        // Only explicit Overwrite uses this host version.
+                        // Ordinary saves remain blocked by the conflict.
                         self.adopt_version(&payload["result"]["version"]);
                         self.status = if self.dirty {
                             Status::Conflict { deleted }
@@ -646,10 +652,11 @@ impl FileEditor {
     }
 
     fn save(&mut self, cx: &mut Context<Self>) {
-        if !self.connected
-            || self.save_request.is_some()
-            || !matches!(self.status, Status::Dirty | Status::Conflict { .. })
-        {
+        self.save_with_intent(false, cx);
+    }
+
+    fn save_with_intent(&mut self, overwrite: bool, cx: &mut Context<Self>) {
+        if !self.connected || self.save_request.is_some() || !permits_save(self.status, overwrite) {
             return;
         }
         // The snapshot records what this write carries; the acknowledgement
@@ -718,7 +725,7 @@ impl FileEditor {
     /// adopted, so the write lands unless the host moved again meanwhile.
     /// A deleted host file cannot be overwritten; only Discard resolves it.
     fn overwrite(&mut self, cx: &mut Context<Self>) {
-        self.save(cx);
+        self.save_with_intent(true, cx);
     }
 
     fn open_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -772,6 +779,11 @@ impl FileEditor {
     /// Resolve the unsaved-changes confirmation: save first, close on success;
     /// or drop the buffer and let the host remove the tab.
     fn confirm_close_save(&mut self, cx: &mut Context<Self>) {
+        if matches!(self.status, Status::Conflict { .. }) {
+            self.error = Some("Resolve the file conflict before saving and closing.".into());
+            cx.notify();
+            return;
+        }
         self.close_after_save = true;
         self.save(cx);
         if self.save_request.is_some() {
@@ -1318,9 +1330,8 @@ impl Render for FileEditor {
         };
         let conflict = matches!(self.status, Status::Conflict { .. });
         let alarming = conflict || self.status == Status::Failed;
-        let can_save = self.connected
-            && matches!(self.status, Status::Dirty | Status::Conflict { .. })
-            && self.save_request.is_none();
+        let can_save =
+            self.connected && permits_save(self.status, false) && self.save_request.is_none();
 
         let header = div()
             .h(px(36.))
@@ -1936,6 +1947,7 @@ impl Render for FileEditor {
 
 #[cfg(test)]
 mod tests {
+    use super::permits_save;
     use super::{
         Status, WriteOutcome, file_subscription_key, find_matches, status_after_disconnect,
         subscription_from_response, unsaved_after_write, update_targets, write_fields,
@@ -1989,6 +2001,23 @@ mod tests {
         let empty: Vec<Range<usize>> = Vec::new();
         assert_eq!(find_matches(text, "ä"), empty);
         assert_eq!(find_matches(text, "Äb"), vec![1..4]);
+    }
+
+    #[test]
+    fn queued_autosave_and_normal_save_cannot_overwrite_a_conflict() {
+        assert!(permits_save(Status::Dirty, false));
+        for status in [
+            Status::Loading,
+            Status::Failed,
+            Status::Clean,
+            Status::Saving,
+            Status::Conflict { deleted: false },
+            Status::Conflict { deleted: true },
+        ] {
+            assert!(!permits_save(status, false), "{status:?}");
+        }
+        assert!(permits_save(Status::Conflict { deleted: false }, true));
+        assert!(!permits_save(Status::Conflict { deleted: true }, true));
     }
 
     #[test]

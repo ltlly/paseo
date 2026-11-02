@@ -1,0 +1,48 @@
+{
+  "clientClose": "client-close.json",
+  "processes": {
+    "before-native": {
+      "pid": 2888887,
+      "stopped": true
+    },
+    "row-native": {
+      "pid": 2894753,
+      "stopped": true
+    },
+    "conflict-native": {
+      "pid": 2912858,
+      "stopped": true
+    },
+    "final-native": {
+      "pid": 2947791,
+      "stopped": true
+    },
+    "fixture": {
+      "pid": 2887906,
+      "stopped": true
+    },
+    "worker": {
+      "pid": 2888268,
+      "stopped": true
+    },
+    "primaryPTY": {
+      "pid": 2888400,
+      "stopped": true
+    },
+    "secondaryPTY": {
+      "pid": 2888749,
+      "stopped": true
+    },
+    "xvfb": {
+      "pid": 2887905,
+      "stopped": true
+    }
+  },
+  "privateHomeRemoved": true,
+  "privatePortClosed": 43913,
+  "production6767": {
+    "pid": 999,
+    "stillListening": true,
+    "restarted": false
+  }
+}

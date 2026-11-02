@@ -425,6 +425,110 @@ await output(
     .map(([key, value]) => `pub const ${key}:f32=${Number(value).toFixed(1)};`)
     .join("\n")}\n`,
 );
+const tabFile = "packages/app/src/screens/workspace/workspace-desktop-tabs-row.tsx";
+const tabSymbols = [
+  "TAB_CHIP_HORIZONTAL_PADDING",
+  "TAB_CHIP_GAP",
+  "TAB_ROW_PADDING_HORIZONTAL",
+  "TAB_ICON_WIDTH",
+  "TAB_CONTENT_GAP",
+  "TAB_MIN_WIDTH",
+  "TAB_MAX_WIDTH",
+  "TAB_CLOSE_BUTTON_RESERVED_WIDTH",
+  "TAB_LABEL_LAYOUT_ALLOWANCE",
+  "TAB_MODIFIED_DOT_SIZE",
+];
+const tabStyles = await authoredStyles(tabFile, [
+  "tabsContainer",
+  "tab",
+  "tabSlot",
+  "tabCloseButton",
+  "tabModifiedDot",
+]);
+const tabContext = { theme, exports: {} };
+const tabGeometry = `
+${await authoredNode("packages/app/src/constants/layout.ts", "WORKSPACE_SECONDARY_HEADER_HEIGHT")}
+${(await Promise.all(["TIGHT_CONTROL_HEIGHT", "COMPACT_CONTROL_HEIGHT", "FIELD_CONTROL_HEIGHT", "CONTROL_HEIGHTS", "buttonControlHeight"].map((symbol) => authoredNode("packages/app/src/components/ui/control-geometry.ts", symbol)))).join("\n")}
+${(await Promise.all(tabSymbols.map((symbol) => authoredNode(tabFile, symbol)))).join("\n")}
+${await authoredNode("packages/app/src/components/ui/trailing-action-scrim.tsx", "SCRIM_WIDTH")}
+${await authoredNode("packages/app/src/components/ui/trailing-action-scrim.tsx", "SCRIM_SOLID_OFFSET")}
+const styles=({${tabStyles}});
+globalThis.values={ROW_HEIGHT:styles.tabsContainer.height,CHIP_HEIGHT:styles.tab.height,CHIP_PADDING_X:styles.tab.paddingHorizontal,CHIP_RADIUS:styles.tab.borderRadius,CHIP_GAP:TAB_CHIP_GAP,ROW_PADDING_X:TAB_ROW_PADDING_HORIZONTAL,ICON_SIZE:TAB_ICON_WIDTH,CONTENT_GAP:TAB_CONTENT_GAP,MIN_WIDTH:TAB_MIN_WIDTH,MAX_WIDTH:TAB_MAX_WIDTH,CLOSE_RESERVED:TAB_CLOSE_BUTTON_RESERVED_WIDTH,LABEL_ALLOWANCE:TAB_LABEL_LAYOUT_ALLOWANCE,MODIFIED_SIZE:styles.tabModifiedDot.width,CLOSE_SIZE:styles.tabCloseButton.width,CLOSE_RIGHT:styles.tabCloseButton.right,CLOSE_RADIUS:styles.tabCloseButton.borderRadius,SCRIM_WIDTH,SCRIM_SOLID:parseFloat(SCRIM_SOLID_OFFSET)/100};`;
+runInNewContext(
+  ts.transpileModule(tabGeometry, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+  }).outputText,
+  tabContext,
+  { timeout: 1000 },
+);
+await output(
+  "packages/desktop/native/src/workspace_tab_presentation.rs",
+  `// Generated from the authored workspace tab rail. Do not edit.\n${Object.entries(
+    tabContext.values,
+  )
+    .map(
+      ([key, value]) =>
+        `pub const ${key}:f32=${Number.isInteger(Number(value)) ? Number(value).toFixed(1) : Number(value)};`,
+    )
+    .join("\n")}\n`,
+);
+const tabBundle = await bundle({
+  entryPoints: [path.join(root, "packages/app/src/screens/workspace/workspace-tab-layout.ts")],
+  bundle: true,
+  write: false,
+  format: "esm",
+  platform: "node",
+});
+const { computeWorkspaceTabLayout } = await import(
+  `data:text/javascript;base64,${Buffer.from(tabBundle.outputFiles[0].text).toString("base64")}`
+);
+const tp = tabContext.values;
+const tabCases = [];
+for (const viewport of [0, 63, 128, 256, 360, 640, 1280, 2560])
+  for (const labels of [
+    [],
+    [10],
+    [80, 140],
+    [4, 90, 400, 120],
+    Array.from({ length: 12 }, (_, i) => 20 + i * 7.25),
+  ])
+    for (const reserved of [0, 36, 66])
+      for (const compact of [false, true]) {
+        const metrics = {
+          rowHorizontalInset: 0,
+          actionsReservedWidth: reserved,
+          rowPaddingHorizontal: tp.ROW_PADDING_X,
+          tabGap: tp.CHIP_GAP,
+          minTabWidth: tp.MIN_WIDTH,
+          maxTabWidth: tp.MAX_WIDTH,
+          tabIconWidth: tp.ICON_SIZE,
+          tabContentGap: tp.CONTENT_GAP,
+          tabHorizontalPadding: tp.CHIP_PADDING_X,
+          closeButtonWidth: tp.CLOSE_RESERVED,
+        };
+        tabCases.push({
+          viewport,
+          labels,
+          reserved,
+          compact,
+          expected: computeWorkspaceTabLayout({
+            viewportWidth: viewport,
+            tabLabelWidths: labels,
+            metrics,
+            compact,
+          }),
+        });
+      }
+const tabOraclePath = path.join(root, "packages/desktop/native/src/testdata/workspace-tabs.json");
+const tabOracle = { cases: tabCases };
+if (check) {
+  if (
+    JSON.stringify(JSON.parse(await fs.readFile(tabOraclePath, "utf8"))) !==
+    JSON.stringify(tabOracle)
+  )
+    throw new Error("Native workspace-tab layout oracle is stale");
+} else await fs.writeFile(tabOraclePath, JSON.stringify(tabOracle, null, 2) + "\n");
+
 const commandFile = "packages/app/src/command-center/command-center.tsx";
 const commandStyle = await authoredStyles(commandFile, [
   "overlay",
@@ -1085,6 +1189,7 @@ for (const id of [
   "mic",
   "audio-lines",
   "square-terminal",
+  "terminal",
   "paperclip",
   "image",
   "file-text",

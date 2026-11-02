@@ -1,0 +1,10 @@
+from harness import *
+assert len(active()['tabs'])==2;primary_before=raw();second_before=Path(extra['input']).read_bytes()
+for i in range(9):
+ expected=f'long-file-{i}-for-overflow.txt';assert expected in search(f'long-file-{i}')['focusedTab']
+assert len(active()['tabs'])==11;text=snap('overflow-last-selected.png',(320,36,960,72));assert 'long-file-8'in text,text
+run('hwheel',-20);run('hover',1350,700);text=snap('overflow-manual-left.png',(320,36,960,72));assert 'second.cjs'in text,text
+run('resize',1400,800);time.sleep(.3);run('hover',1350,700);snap('tabs-fit-1400.png',width=1400)
+a=Image.open(q/'native-alpha.png').convert('RGB').crop((352,44,358,64));b=Image.open(q/'tabs-fit-1400.png').convert('RGB').crop((352,44,358,64));changed=sum(any(pixel)for pixel in ImageChops.difference(a,b).get_flattened_data());assert changed==0,changed
+run('resize',1280,800);time.sleep(.3);snap('overflow-restored-1280.png');assert raw()==primary_before;assert Path(extra['input']).read_bytes()==second_before
+(q/'overflow-checks.json').write_text(json.dumps({'openedFiles':9,'paneTabCount':11,'selectedLastTabActuallyVisible':True,'manualHorizontalScrollShowsFirstTerminal':True,'wideFitResetsOffset':{'viewport':[1400,800],'sameFirstGlyphAndLabelStartBox':[352,44,358,64],'changedPixels':changed},'narrowAgainViewport':[1280,800],'noInputLeakedToEitherPTY':True},indent=2));(q/'overflow-ocr.json').write_text(json.dumps(observations,indent=2));print('Overflow and resize checks passed')

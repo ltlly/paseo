@@ -1,0 +1,15 @@
+{
+  "cleanAndBackgroundFileClosePreservesFocus": true,
+  "conflictBlocksQueuedAutosaveAndCtrlSAndFurtherEdits": true,
+  "conflictSaveAndCloseCannotOverwrite": true,
+  "explicitDiscardPreservesHostText": true,
+  "explicitOverwriteWorks": true,
+  "foreignWorkspaceTabsHidden": true,
+  "workspaceBuffersRetainedOnReturn": true,
+  "middleClickCloseRespectsOwner": true,
+  "splitFileDoesNotCoverSiblingTerminal": true,
+  "reopeningExistingFileRefocusesItsOwner": true,
+  "lastFileCloseCollapsesOnlyItsEmptyPane": true,
+  "terminalFocusAndInputRetained": true,
+  "secondaryTTYInputUnchanged": true
+}

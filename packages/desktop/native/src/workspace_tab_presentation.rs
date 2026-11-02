@@ -1,0 +1,19 @@
+// Generated from the authored workspace tab rail. Do not edit.
+pub const ROW_HEIGHT: f32 = 36.0;
+pub const CHIP_HEIGHT: f32 = 28.0;
+pub const CHIP_PADDING_X: f32 = 8.0;
+pub const CHIP_RADIUS: f32 = 6.0;
+pub const CHIP_GAP: f32 = 4.0;
+pub const ROW_PADDING_X: f32 = 4.0;
+pub const ICON_SIZE: f32 = 14.0;
+pub const CONTENT_GAP: f32 = 4.0;
+pub const MIN_WIDTH: f32 = 64.0;
+pub const MAX_WIDTH: f32 = 160.0;
+pub const CLOSE_RESERVED: f32 = 0.0;
+pub const LABEL_ALLOWANCE: f32 = 4.0;
+pub const MODIFIED_SIZE: f32 = 8.0;
+pub const CLOSE_SIZE: f32 = 18.0;
+pub const CLOSE_RIGHT: f32 = 4.0;
+pub const CLOSE_RADIUS: f32 = 2.0;
+pub const SCRIM_WIDTH: f32 = 48.0;
+pub const SCRIM_SOLID: f32 = 0.55;

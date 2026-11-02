@@ -1,0 +1,96 @@
+{
+  "scope": "Native workspace pane tab ownership/presentation, removal of the global duplicate file rail, and safe ordinary-save admission after an external file conflict. Android, daemon/protocol product code and installed clients unchanged.",
+  "finalSource": {
+    "manifest": "source-identity.json",
+    "archiveSha256": "e414f411ab43c1dca0f0f25d5d07fd8ff0ee1efd04573c998abf7dbcf84fc169",
+    "fileCount": 239,
+    "archiveByteMatchesCheckout": true
+  },
+  "linuxBinary": {
+    "pid": 2947791,
+    "args": ["/home/ltlly/.cache/paseo-native-qa/panes-20261102/paseo-panes-icons"],
+    "sha256": "2c576e2e028e37cb61ca8105308b65d54152c52828872efb0d84d20d02a29eb7"
+  },
+  "checks": {
+    "linuxNativeCheckAndFullBinaryBuild": true,
+    "macOSNativeCheckAndFullBinaryBuild": true,
+    "macOSFeature": "runtime-shaders",
+    "windowsNativeCheckAndFullBinaryBuild": true,
+    "windowsToolchain": "MSVC",
+    "focusedTestsPerPlatform": {
+      "workspace_tab_layout": 1,
+      "workspaceAwareEditorIdentity": 1,
+      "conflictSaveAdmission": 1
+    },
+    "authoredLayoutCases": 240,
+    "testedSourceManifest": "tests-source-identity.json",
+    "testedSourceArchiveSha256": "9194f18d978da243ccad4e7a0d36f4a52be2b9203a8905629a387faa4bfd205a",
+    "finalSourceDelta": "Final source only changes workspace_tab_row terminal glyph name, adds the generated canonical terminal.svg and its assets.rs lookup. All three final applications rebuild; final Linux window selects/types into the same real PTY and opens the real file. Semantic GUI runs use the preceding source with identical ownership/editor code.",
+    "npmLint": true,
+    "npmTypecheck": true,
+    "generatedSourcesFresh": true,
+    "fullSuiteRun": false,
+    "ciRun": false,
+    "focusedCoreTestModulesAndOracleByteIdenticalToFinal": true
+  },
+  "linuxGUI": {
+    "fixture": "Real isolated daemon and two raw Node PTYs; zero agent/model runs",
+    "functionalSourceArchiveSha256": "9194f18d978da243ccad4e7a0d36f4a52be2b9203a8905629a387faa4bfd205a",
+    "ownershipAndConflict": "final-checks.json",
+    "observations": "final-ocr.json",
+    "overflow": "overflow-checks.json",
+    "overflowObservations": "overflow-ocr.json",
+    "finalIconBuildInteraction": "final-icon-interaction.json",
+    "clientClosePreservesBothPTYsAndOutput": "client-close.json",
+    "testViewport": [1280, 800],
+    "resizeViewport": [1400, 800]
+  },
+  "regression": {
+    "before": "red-autosave-overwrite.png",
+    "diskReadback": "conflict-red.json",
+    "failure": "red-close-guard-log.txt",
+    "cause": "A host update adopted its new compare-and-swap marker, then an already queued ordinary autosave accepted Conflict and overwrote that host content. The buffer became clean and closed without a guard.",
+    "fix": "Ordinary saves only admit Dirty. Explicit Overwrite alone admits a non-deleted conflict. Save-and-close refuses unresolved conflicts.",
+    "after": "conflict-preserved-after-edit-and-save.png",
+    "hostFilesAfterAllChecks": "host-files-final.json"
+  },
+  "visual": {
+    "comparison": "pixel-comparison.json",
+    "status": "NOT_PASSED",
+    "reference": "Real Electron, unmodified workspace-header Expo export, same isolated daemon/workspace/files and explicit dark14/15/12 settings plus GTK Noto Sans10. Actual authored drag UI matches retained B/A/file tab order.",
+    "masks": [],
+    "scope": "Matched pane rail and whole-window counts are both retained. Whole-window counts remain large and can increase as the native editor occupies its proper larger pane; its background, text rendering/syntax/toolbar and the sidebar/header/grid still differ. This is not a performance measurement or whole-window acceptance."
+  },
+  "producers": {
+    "fixture": "../gpui-native-workspace-header/fixture.mts",
+    "datasetAndExtraPTY": "prepare.mts",
+    "reference": "reference.mts",
+    "referenceExport": "/home/ltlly/.cache/paseo-native-qa/header-20261102/reference-dist",
+    "launcher": "launch.py.txt",
+    "OSInput": "x11-input.py.txt",
+    "functional": ["gui-harness.py.txt", "gui-ownership.py.txt", "gui-overflow.py.txt"],
+    "clientInspection": "lifecycle.mts",
+    "crossPlatform": [
+      "check-mac-tests.sh.txt",
+      "check-windows-tests.ps1.txt",
+      "check-mac-final.sh.txt",
+      "check-windows-final.ps1.txt"
+    ],
+    "instructions": "Use a fresh isolated home/daemon/display :99. Set PASEO_NATIVE_QA to its output directory and TSX_TSCONFIG_PATH=packages/app/tsconfig.json. Run fixture then prepare; copy input.py, launch.py and the compiled executable into the output directory. launch.py seeds dark/en and GTK Noto Sans10. Functional scripts expect the main fixture workspace selected, a320px Files dock and a1280x800 window at162,100. Copy gui-harness as harness.py; prepare the selected workspace/dock, then run ownership followed by overflow. Assertions inspect persisted layout, OCR actual drawn chip labels and raw PTY bytes. The reference runs separately with native closed and uses its own private Electron profile/config; both clients keep the fixture PTYs. The final glyph-only follow-up selects the original terminal, types icons (69636f6e73), opens alpha and recaptures the same rail. Close native, run lifecycle, kill only the extra fixture PTY through prepare cleanup, stop the owning fixture/display and verify private home/port removal."
+  },
+  "harnessCorrections": [
+    "An early dirty-close click used a clean-tab coordinate after the modified dot widened the tab. Later assertions failed rather than accepting it; the final guard test uses the visible widened close control.",
+    "Another early middle-click used a fixed index after a legitimate tab-order change. Final file selection uses OCR of the actual visible chip instead.",
+    "The private Tesseract data directory has no tsv config; the final harness explicitly enables tessedit_create_tsv instead of accepting plain text as TSV."
+  ],
+  "limitations": [
+    "NOT_PASSED: source launcher/split/maximize controls, menus/reordering/drag indicators, complete terminal and Agent close confirmations/status/accessibility, tooltips and exact fractional/text rasterization remain incomplete.",
+    "The existing inline unsaved-file confirmation still needs the authored modal and Cancel behavior. Native file editor appearance, syntax, complete dirty/reload/save/in-flight notification race coverage and input/selection parity remain unaccepted.",
+    "Workspace restore does not recreate persisted native file buffers; stale file IDs can remain without an editor after client restart. Same-directory workspaces sharing a file buffer and delayed closes across a workspace switch need complete ownership/persistence acceptance.",
+    "Shared Explorer panel hosting and compatible tab moves, bounded three-recent-panel retention, dirty retention, plugin panels and full multihost/routed-host behavior remain incomplete.",
+    "Mac/Windows evidence proves source-verified compilation and three focused core tests each, not GUI/IME or pixel acceptance. No hardware CPU/RSS/latency, packaging or deployment acceptance.",
+    "Complete GPUI migration remains active. Android, installed clients, production6767 and real sessions were not changed."
+  ],
+  "cleanup": "cleanup.json",
+  "logNormalization": "Stored text logs normalize CRLF/trailing whitespace and final newline."
+}

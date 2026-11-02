@@ -1,0 +1,15 @@
+{
+  "terminalCount": 2,
+  "retained": [
+    {
+      "terminalId": "fe34dc51-68b8-42c4-9058-1f326a6f74e4",
+      "outputMarker": "KEYS READY",
+      "retained": true
+    },
+    {
+      "terminalId": "362df749-fe1e-42ca-9190-047e9b2d881b",
+      "outputMarker": "SECOND READY",
+      "retained": true
+    }
+  ]
+}

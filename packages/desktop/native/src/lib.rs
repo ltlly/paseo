@@ -46,3 +46,5 @@ pub mod terminal_retention;
 pub mod terminal_scrollbar;
 pub mod workspace_layout_storage;
 pub mod workspace_lifecycle;
+
+pub mod workspace_tab_layout;

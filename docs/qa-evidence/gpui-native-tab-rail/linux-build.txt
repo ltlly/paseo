@@ -1,0 +1,14 @@
+Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+warning: method `set_active_turn` is never used
+   --> packages/desktop/native/src/conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `paseo-desktop` (bin "paseo-desktop") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.36s

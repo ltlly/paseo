@@ -1,0 +1,30 @@
+from harness import *
+# Remove remaining clean file tabs via their visible pane chips, regardless of prior user order.
+for name in ['alpha.rs','notes.md']:
+ if any(name in t for t in active()['tabs']):run('middle',*tabpoint(name))
+assert len(active()['tabs'])==2
+assert 'alpha.rs'in search('alpha')['focusedTab'];assert 'PANE ALPHA MARKER'in snap('native-alpha.png')
+assert 'notes.md'in search('notes')['focusedTab'];assert 'PANE NOTES MARKER'in snap('native-notes.png')
+run('middle',*tabpoint('notes.md'));assert 'alpha.rs'in active()['focusedTab'];assert not any('notes.md'in t for t in active()['tabs'])
+run('click',*tabpoint('keyboard.cjs'));assert active()['focusedTab']==m['terminalId'];before=raw();second_before=Path(extra['input']).read_bytes();run('type','typing');assert raw()[len(before):]==b'typing';assert Path(extra['input']).read_bytes()==second_before;snap('native-terminal.png')
+run('middle',*tabpoint('alpha.rs'));assert active()['focusedTab']==m['terminalId'];run('type','retained');assert raw()[len(before):]==b'typingretained';assert len(active()['tabs'])==2
+# A host modification after local edits races the real800ms autosave.
+Path(m['cwd']+'/dirty.txt').write_text('PANE DIRTY MARKER\n');assert 'dirty.txt'in search('dirty')['focusedTab'];run('click',800,300);run('type','unsaved');external='EXTERNAL HOST CONTENT\n';Path(m['cwd']+'/dirty.txt').write_text(external);time.sleep(1.1);assert Path(m['cwd']+'/dirty.txt').read_text()==external
+run('key','Control_L','s');run('type','preserve');time.sleep(1.1);assert Path(m['cwd']+'/dirty.txt').read_text()==external;snap('conflict-preserved-after-edit-and-save.png')
+run('hover',812,154);run('click',812,154);assert 'dirty.txt'in active()['focusedTab'];assert 'unsaved changes'in snap('dirty-close-confirmation.png');run('click',947,224);assert 'Resolve the file conflict'in snap('conflict-save-close-refused.png');assert Path(m['cwd']+'/dirty.txt').read_text()==external
+run('click',1057,224);assert active()['focusedTab']==m['terminalId'];assert len(active()['tabs'])==2;assert Path(m['cwd']+'/dirty.txt').read_text()==external;run('type','guarded');assert raw()[len(before):]==b'typingretainedguarded'
+# Explicit Overwrite still uses the current host revision.
+Path(m['cwd']+'/notes.md').write_text('PANE NOTES MARKER\n');assert 'notes.md'in search('notes')['focusedTab'];run('click',800,300);run('type','local');Path(m['cwd']+'/notes.md').write_text('EXTERNAL NOTES\n');time.sleep(1.1);assert Path(m['cwd']+'/notes.md').read_text()=='EXTERNAL NOTES\n';snap('explicit-overwrite-before.png');run('click',1049,224);time.sleep(1.1);assert 'local'in Path(m['cwd']+'/notes.md').read_text();snap('explicit-overwrite-after.png')
+assert 'alpha.rs'in search('alpha')['focusedTab'];assert 'notes.md'in search('notes')['focusedTab']
+# Another workspace must not display the retained first workspace's files.
+run('click',302,362);time.sleep(.4);run('key','Control_L','grave');run('click',1164,118);run('key','Control_L','p');run('type','other');time.sleep(.4);run('key','Return');time.sleep(.5)
+l=layout(extra['secondWorkspaceId']);assert any('other.txt'in t for p in panes(l['root'])for t in p['tabs']);text=snap('second-workspace.png',(320,36,960,72));assert 'alpha'not in text and 'notes'not in text,text
+run('click',302,400);time.sleep(.5);assert any('alpha.rs'in t for t in active()['tabs']);assert any('notes.md'in t for t in active()['tabs']);snap('first-workspace-restored.png')
+run('middle',*tabpoint('alpha.rs'));assert 'notes.md'in active()['focusedTab'];run('middle',*tabpoint('notes.md'));assert active()['focusedTab']==m['terminalId'];assert len(active()['tabs'])==2
+# The file occupies the new pane; the sibling raw PTY stays live and receives input.
+run('click',1164,118);run('key','Control_L','backslash');l=layout();assert len(panes(l['root']))==2;right=l['focusedPaneId'];assert right!='main';assert active()['tabs']==[]
+assert 'alpha.rs'in search('alpha')['focusedTab'];ps=panes(layout()['root']);assert next(p for p in ps if p['id']=='main')['focusedTab']==m['terminalId'];assert active()['id']==right;assert len(active()['tabs'])==1;snap('split-terminal-and-file.png')
+run('click',700,300);assert active()['id']=='main';phase_raw=raw();run('type','left');assert raw()[len(phase_raw):]==b'left';assert Path(extra['input']).read_bytes()==second_before
+assert 'alpha.rs'in search('alpha')['focusedTab'];assert active()['id']==right;assert sum('alpha.rs'in t for p in panes(layout()['root'])for t in p['tabs'])==1
+run('middle',*tabpoint('alpha.rs'));assert len(panes(layout()['root']))==1;assert active()['focusedTab']==m['terminalId'];run('type','collapsed');assert raw()[len(phase_raw):]==b'leftcollapsed';assert Path(extra['input']).read_bytes()==second_before;snap('closed-file-pane.png')
+(q/'final-layout.json').write_text(json.dumps(layout(),indent=2));(q/'final-ocr.json').write_text(json.dumps(observations,indent=2));(q/'final-checks.json').write_text(json.dumps({'cleanAndBackgroundFileClosePreservesFocus':True,'conflictBlocksQueuedAutosaveAndCtrlSAndFurtherEdits':True,'conflictSaveAndCloseCannotOverwrite':True,'explicitDiscardPreservesHostText':True,'explicitOverwriteWorks':True,'foreignWorkspaceTabsHidden':True,'workspaceBuffersRetainedOnReturn':True,'middleClickCloseRespectsOwner':True,'splitFileDoesNotCoverSiblingTerminal':True,'reopeningExistingFileRefocusesItsOwner':True,'lastFileCloseCollapsesOnlyItsEmptyPane':True,'terminalFocusAndInputRetained':True,'secondaryTTYInputUnchanged':True},indent=2));print('Final file/terminal ownership and conflict checks passed')

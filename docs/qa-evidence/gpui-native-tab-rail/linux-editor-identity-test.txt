@@ -1,0 +1,30 @@
+Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+warning: variable does not need to be mutable
+    --> packages/desktop/native/src/file_editor.rs:2202:9
+     |
+2202 |     let mut events = connection.events.clone();
+     |         ----^^^^^^
+     |         |
+     |         help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: method `set_active_turn` is never used
+   --> packages/desktop/native/src/conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `paseo-desktop` (bin "paseo-desktop" test) generated 2 warnings (run `cargo fix --bin "paseo-desktop" -p paseo-desktop --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.44s
+     Running unittests src/main.rs (target/debug/deps/paseo_desktop-3828294905dcd54e)
+
+running 1 test
+test ui::tests::the_same_relative_path_in_two_workspaces_is_two_tabs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 91 filtered out; finished in 0.00s

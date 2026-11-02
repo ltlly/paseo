@@ -1,0 +1,26 @@
+import subprocess,time,json,base64
+from pathlib import Path
+from PIL import Image,ImageChops
+q=Path(__file__).parent;m=json.loads((q/'fixture.json').read_text());extra=json.loads((q/'extra.json').read_text());observations={}
+def run(*a):subprocess.run(['python3',str(q/'input.py'),*map(str,a)],check=True);time.sleep(.25)
+def snap(name,crop=None,width=1280):
+ subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-draw_mouse','0','-video_size',str(width)+'x800','-f','x11grab','-i',':99+162,100','-frames:v','1','-y',str(q/name)],check=True)
+ im=Image.open(q/name);im=im.crop(crop)if crop else im;im.resize((im.width*2,im.height*2)).save(q/(name+'.ocr.png'));text=subprocess.run(['tesseract',str(q/(name+'.ocr.png')),'stdout','--tessdata-dir',str(q),'--psm','6'],capture_output=True,text=True,check=True).stdout;observations[name]=text;return text
+
+def layout(workspace=None):return next(e['layout']for e in json.loads((Path(m['home'])/'native-workspace-layouts.json').read_text())['layouts']if e['workspaceId']==(workspace or m['workspaceId']))
+def panes(node):return[node['pane']]if node['kind']=='pane'else sum([panes(c)for c in node['group']['children']],[])
+def active():
+ l=layout();return next(p for p in panes(l['root'])if p['id']==l['focusedPaneId'])
+def raw(which='input'):return b''.join(base64.b64decode(json.loads(line)['base64'])for line in Path((m if which=='input'else extra)[which]).read_text().splitlines())
+def search(text):
+ run('click',1164,118);run('key','Control_L','p');run('type',text);time.sleep(.4);run('key','Return');time.sleep(.5)
+ return active()
+def tabpoint(label):
+ run('hover',1350,700)
+ subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-draw_mouse','0','-video_size','1280x800','-f','x11grab','-i',':99+162,100','-frames:v','1','-y',str(q/'rail-position.png')],check=True)
+ im=Image.open(q/'rail-position.png').crop((320,36,960,72));im.resize((2560,144)).save(q/'rail-position-ocr.png')
+ text=subprocess.run(['tesseract',str(q/'rail-position-ocr.png'),'stdout','--tessdata-dir',str(q),'--psm','7','-c','tessedit_create_tsv=1'],capture_output=True,text=True,check=True).stdout
+ import csv,io
+ words=[r for r in csv.DictReader(io.StringIO(text),delimiter='\t')if label.lower() in r['text'].lower()]
+ assert len(words)==1,(label,[(r['text'],r['left'],r['top'])for r in csv.DictReader(io.StringIO(text),delimiter='\t')if r['text'].strip()])
+ w=words[0];return (round(162+320+(int(w['left'])+int(w['width'])/2)/4),154)

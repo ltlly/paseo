@@ -1,0 +1,48 @@
+{
+  "status": "NOT_PASSED",
+  "viewport": [1280, 800],
+  "scale": 1,
+  "theme": "dark",
+  "interfaceFont": "Noto Sans 14px",
+  "contentFontSize": 15,
+  "codeFontSize": 12,
+  "masks": [],
+  "matchedTabOrder": ["second.cjs", "keyboard.cjs", "alpha.rs"],
+  "sourceOrderMatchedBy": "Authored Electron drag UI, asserted by actual DOM chip positions",
+  "scenes": {
+    "alpha": {
+      "window": {
+        "box": [0, 0, 1280, 800],
+        "beforeChangedPixels": 506084,
+        "afterChangedPixels": 517741
+      },
+      "paneRail": {
+        "box": [320, 36, 960, 72],
+        "beforeChangedPixels": 3744,
+        "afterChangedPixels": 1584
+      },
+      "firstThreeChips": {
+        "box": [324, 36, 655, 72],
+        "beforeChangedPixels": 3692,
+        "afterChangedPixels": 1532
+      }
+    },
+    "terminal": {
+      "window": {
+        "box": [0, 0, 1280, 800],
+        "beforeChangedPixels": 93414,
+        "afterChangedPixels": 99975
+      },
+      "paneRail": {
+        "box": [320, 36, 960, 72],
+        "beforeChangedPixels": 4448,
+        "afterChangedPixels": 1645
+      },
+      "firstThreeChips": {
+        "box": [324, 36, 655, 72],
+        "beforeChangedPixels": 4396,
+        "afterChangedPixels": 1593
+      }
+    }
+  }
+}

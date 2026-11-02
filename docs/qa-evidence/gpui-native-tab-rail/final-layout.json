@@ -1,0 +1,15 @@
+{
+  "root": {
+    "kind": "pane",
+    "pane": {
+      "id": "main",
+      "tabs": ["362df749-fe1e-42ca-9190-047e9b2d881b", "fe34dc51-68b8-42c4-9058-1f326a6f74e4"],
+      "focusedTab": "fe34dc51-68b8-42c4-9058-1f326a6f74e4"
+    }
+  },
+  "focusedPaneId": "main",
+  "explorer": {
+    "visible": true,
+    "width": 320.0
+  }
+}

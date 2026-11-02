@@ -1,0 +1,72 @@
+[
+  {
+    "id": "workspace-tab-terminal_362df749-fe1e-42ca-9190-047e9b2d881b",
+    "text": "second.cjs",
+    "box": {
+      "x": 326,
+      "y": 39.5,
+      "w": 106,
+      "h": 28
+    },
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "padding": "0px 8px",
+    "gap": "4px",
+    "radius": "6px"
+  },
+  {
+    "id": "workspace-tab-terminal_fe34dc51-68b8-42c4-9058-1f326a6f74e4",
+    "text": "keyboard.cjs",
+    "box": {
+      "x": 436,
+      "y": 39.5,
+      "w": 120,
+      "h": 28
+    },
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "padding": "0px 8px",
+    "gap": "4px",
+    "radius": "6px"
+  },
+  {
+    "id": "workspace-tab-file_src/alpha.rs",
+    "text": "alpha.rs",
+    "box": {
+      "x": 560,
+      "y": 39.5,
+      "w": 91,
+      "h": 28
+    },
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "padding": "0px 8px",
+    "gap": "4px",
+    "radius": "6px"
+  },
+  {
+    "id": "workspace-tab-files",
+    "text": "Files",
+    "box": {
+      "x": 966,
+      "y": 3.5,
+      "w": 67,
+      "h": 28
+    },
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "padding": "0px 8px",
+    "gap": "4px",
+    "radius": "6px"
+  },
+  {
+    "id": "workspace-tab-changes_tree",
+    "text": "Changes",
+    "box": {
+      "x": 1037,
+      "y": 3.5,
+      "w": 93,
+      "h": 28
+    },
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "padding": "0px 8px",
+    "gap": "4px",
+    "radius": "6px"
+  }
+]

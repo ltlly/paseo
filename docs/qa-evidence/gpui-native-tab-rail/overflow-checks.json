@@ -1,0 +1,13 @@
+{
+  "openedFiles": 9,
+  "paneTabCount": 11,
+  "selectedLastTabActuallyVisible": true,
+  "manualHorizontalScrollShowsFirstTerminal": true,
+  "wideFitResetsOffset": {
+    "viewport": [1400, 800],
+    "sameFirstGlyphAndLabelStartBox": [352, 44, 358, 64],
+    "changedPixels": 0
+  },
+  "narrowAgainViewport": [1280, 800],
+  "noInputLeakedToEitherPTY": true
+}

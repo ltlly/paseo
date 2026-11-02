@@ -1,0 +1,355 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+archive=C:\Users\Administrator\.cache\paseo-gpui-current-9194f18d978d.tar.gz
+expected_sha256=9194f18d978da243ccad4e7a0d36f4a52be2b9203a8905629a387faa4bfd205a
+actual_sha256=9194f18d978da243ccad4e7a0d36f4a52be2b9203a8905629a387faa4bfd205a
+extracted=C:\Users\Administrator\.cache\paseo-gpui-src-9194f18d978d
+cargo=cargo 1.99.1 (5f94df478 2026-08-27)
+rustc=rustc 1.99.1 (58cf8f9c3 2026-10-13)
+STEP=cargo_clean
+cargo.exe :      Removed 881 files, 1004.1MiB total
+所在位置 C:\Users\Administrator\.cache\paseo-gpui-panes-9194f18d978d.ps1:36 字符: 3
++   & $cargo clean -p paseo-desktop 2>&1 | Tee-Object -FilePath $log -A ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (     Removed 881 files, 1004.1MiB total:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+STEP=cargo_check
+cargo.exe :    Compiling paseo-desktop v0.14.0 (C:\Users\Administrator\.cache\paseo-gpui-src-9194f18d978d\packages\desk
+top\native)
+所在位置 C:\Users\Administrator\.cache\paseo-gpui-panes-9194f18d978d.ps1:39 字符: 3
++   & $cargo check --locked -p paseo-desktop 2>&1 | Tee-Object -FilePat ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling pa...desktop\native):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+warning: unused import: `std::ffi::c_ulong`
+  --> packages\desktop\native\src\browser_webview.rs:73:9
+   |
+73 |     use std::ffi::c_ulong;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+warning: unused import: `std::sync::OnceLock`
+  --> packages\desktop\native\src\browser_webview.rs:74:9
+   |
+74 |     use std::sync::OnceLock;
+   |         ^^^^^^^^^^^^^^^^^^^
+warning: unused import: `anyhow`
+  --> packages\desktop\native\src\browser_webview.rs:76:26
+   |
+76 |     use anyhow::{Result, anyhow};
+   |                          ^^^^^^
+warning: unused imports: `HandleError`, `HasWindowHandle`, `RawWindowHandle`, `WindowHandle`, and `XlibWindowHandle`
+  --> packages\desktop\native\src\browser_webview.rs:80:9
+   |
+80 |         HandleError, HasWindowHandle, RawWindowHandle, WindowHandle, XlibWindowHandle,
+   |         ^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+warning: variant `Wayland` is never constructed
+  --> packages\desktop\native\src\browser_webview.rs:27:5
+   |
+25 | pub enum UnsupportedReason {
+   |          ----------------- variant in this enum
+26 |     /// GPUI is running on Wayland; wry's child webview is X11-only.
+27 |     Wayland,
+   |     ^^^^^^^
+   |
+   = note: `UnsupportedReason` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignore
+d during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+warning: variant `X11` is never constructed
+  --> packages\desktop\native\src\browser_webview.rs:35:5
+   |
+34 | pub enum PlatformSupport {
+   |          --------------- variant in this enum
+35 |     X11,
+   |     ^^^
+   |
+   = note: `PlatformSupport` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored
+during dead code analysis
+warning: method `set_active_turn` is never used
+   --> packages\desktop\native\src\conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+warning: `paseo-desktop` (bin "paseo-desktop") generated 7 warnings (run `cargo fix --bin "paseo-desktop" -p paseo-desk
+top` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.34s
+TEST_FILTER=workspace_tab_layout::tests
+cargo.exe :    Compiling paseo-desktop v0.14.0 (C:\Users\Administrator\.cache\paseo-gpui-src-9194f18d978d\packages\desk
+top\native)
+所在位置 C:\Users\Administrator\.cache\paseo-gpui-panes-9194f18d978d.ps1:44 字符: 5
++     & $cargo test --locked -p paseo-desktop --no-default-features --l ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling pa...desktop\native):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+warning: unused import: `StreamExt as _`
+   --> packages\desktop\native\src\hosts\runtime.rs:357:38
+    |
+357 |     use futures_util::{SinkExt as _, StreamExt as _};
+    |                                      ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+warning: unused import: `SinkExt`
+   --> packages\desktop\native\src\hosts\runtime.rs:357:24
+    |
+357 |     use futures_util::{SinkExt as _, StreamExt as _};
+    |                        ^^^^^^^
+warning: function `set_test_program` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:121:15
+    |
+121 | pub(crate) fn set_test_program(program: Option<(String, Option<String>)>) {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+warning: function `test_dial_lock` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:128:15
+    |
+128 | pub(crate) fn test_dial_lock() -> std::sync::MutexGuard<'static, ()> {
+    |               ^^^^^^^^^^^^^^
+warning: static `TEST_DIAL_LOCK` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:135:8
+    |
+135 | static TEST_DIAL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    |        ^^^^^^^^^^^^^^
+warning: `paseo-desktop` (lib test) generated 5 warnings (run `cargo fix --lib -p paseo-desktop --tests` to apply 1 sug
+gestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.47s
+     Running unittests src\lib.rs (C:\Users\Administrator\.cache\paseo-gpui-target\debug\deps\paseo_desktop-dd6e734e7c7
+80c53.exe)
+
+running 1 test
+test workspace_tab_layout::tests::matches_authored_widths_and_overflow_decisions ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 383 filtered out; finished in 0.01s
+
+BIN_TEST_FILTER=ui::tests::the_same_relative_path_in_two_workspaces_is_two_tabs
+cargo.exe :    Compiling paseo-desktop v0.14.0 (C:\Users\Administrator\.cache\paseo-gpui-src-9194f18d978d\packages\desk
+top\native)
+所在位置 C:\Users\Administrator\.cache\paseo-gpui-panes-9194f18d978d.ps1:49 字符: 5
++     & $cargo test --locked -p paseo-desktop --bin paseo-desktop $t -- ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling pa...desktop\native):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+warning: unused import: `std::ffi::c_ulong`
+  --> packages\desktop\native\src\browser_webview.rs:73:9
+   |
+73 |     use std::ffi::c_ulong;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+warning: unused import: `std::sync::OnceLock`
+  --> packages\desktop\native\src\browser_webview.rs:74:9
+   |
+74 |     use std::sync::OnceLock;
+   |         ^^^^^^^^^^^^^^^^^^^
+warning: unused import: `anyhow`
+  --> packages\desktop\native\src\browser_webview.rs:76:26
+   |
+76 |     use anyhow::{Result, anyhow};
+   |                          ^^^^^^
+warning: unused imports: `HandleError`, `HasWindowHandle`, `RawWindowHandle`, `WindowHandle`, and `XlibWindowHandle`
+  --> packages\desktop\native\src\browser_webview.rs:80:9
+   |
+80 |         HandleError, HasWindowHandle, RawWindowHandle, WindowHandle, XlibWindowHandle,
+   |         ^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+warning: variable does not need to be mutable
+    --> packages\desktop\native\src\file_editor.rs:2231:9
+     |
+2231 |     let mut events = connection.events.clone();
+     |         ----^^^^^^
+     |         |
+     |         help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+warning: variant `Wayland` is never constructed
+  --> packages\desktop\native\src\browser_webview.rs:27:5
+   |
+25 | pub enum UnsupportedReason {
+   |          ----------------- variant in this enum
+26 |     /// GPUI is running on Wayland; wry's child webview is X11-only.
+27 |     Wayland,
+   |     ^^^^^^^
+   |
+   = note: `UnsupportedReason` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignore
+d during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+warning: variant `X11` is never constructed
+  --> packages\desktop\native\src\browser_webview.rs:35:5
+   |
+34 | pub enum PlatformSupport {
+   |          --------------- variant in this enum
+35 |     X11,
+   |     ^^^
+   |
+   = note: `PlatformSupport` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored
+during dead code analysis
+warning: method `set_active_turn` is never used
+   --> packages\desktop\native\src\conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+warning: `paseo-desktop` (bin "paseo-desktop" test) generated 8 warnings (run `cargo fix --bin "paseo-desktop" -p paseo
+-desktop --tests` to apply 5 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.58s
+     Running unittests src\main.rs (C:\Users\Administrator\.cache\paseo-gpui-target\debug\deps\paseo_desktop-5670fe1bde
+f6cb61.exe)
+
+running 1 test
+test ui::tests::the_same_relative_path_in_two_workspaces_is_two_tabs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 92 filtered out; finished in 0.00s
+
+BIN_TEST_FILTER=file_editor::tests::queued_autosave_and_normal_save_cannot_overwrite_a_conflict
+cargo.exe : warning: unused import: `std::ffi::c_ulong`
+所在位置 C:\Users\Administrator\.cache\paseo-gpui-panes-9194f18d978d.ps1:49 字符: 5
++     & $cargo test --locked -p paseo-desktop --bin paseo-desktop $t -- ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: unused...::ffi::c_ulong`:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+  --> packages\desktop\native\src\browser_webview.rs:73:9
+   |
+73 |     use std::ffi::c_ulong;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+warning: unused import: `std::sync::OnceLock`
+  --> packages\desktop\native\src\browser_webview.rs:74:9
+   |
+74 |     use std::sync::OnceLock;
+   |         ^^^^^^^^^^^^^^^^^^^
+warning: unused import: `anyhow`
+  --> packages\desktop\native\src\browser_webview.rs:76:26
+   |
+76 |     use anyhow::{Result, anyhow};
+   |                          ^^^^^^
+warning: unused imports: `HandleError`, `HasWindowHandle`, `RawWindowHandle`, `WindowHandle`, and `XlibWindowHandle`
+  --> packages\desktop\native\src\browser_webview.rs:80:9
+   |
+80 |         HandleError, HasWindowHandle, RawWindowHandle, WindowHandle, XlibWindowHandle,
+   |         ^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+warning: variable does not need to be mutable
+    --> packages\desktop\native\src\file_editor.rs:2231:9
+     |
+2231 |     let mut events = connection.events.clone();
+     |         ----^^^^^^
+     |         |
+     |         help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+warning: variant `Wayland` is never constructed
+  --> packages\desktop\native\src\browser_webview.rs:27:5
+   |
+25 | pub enum UnsupportedReason {
+   |          ----------------- variant in this enum
+26 |     /// GPUI is running on Wayland; wry's child webview is X11-only.
+27 |     Wayland,
+   |     ^^^^^^^
+   |
+   = note: `UnsupportedReason` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignore
+d during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+warning: variant `X11` is never constructed
+  --> packages\desktop\native\src\browser_webview.rs:35:5
+   |
+34 | pub enum PlatformSupport {
+   |          --------------- variant in this enum
+35 |     X11,
+   |     ^^^
+   |
+   = note: `PlatformSupport` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored
+during dead code analysis
+warning: method `set_active_turn` is never used
+   --> packages\desktop\native\src\conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+warning: `paseo-desktop` (bin "paseo-desktop" test) generated 8 warnings (run `cargo fix --bin "paseo-desktop" -p paseo
+-desktop --tests` to apply 5 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+     Running unittests src\main.rs (C:\Users\Administrator\.cache\paseo-gpui-target\debug\deps\paseo_desktop-5670fe1bde
+f6cb61.exe)
+
+running 1 test
+test file_editor::tests::queued_autosave_and_normal_save_cannot_overwrite_a_conflict ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 92 filtered out; finished in 0.00s
+
+STEP=cargo_native_build
+cargo.exe :    Compiling paseo-desktop v0.14.0 (C:\Users\Administrator\.cache\paseo-gpui-src-9194f18d978d\packages\desk
+top\native)
+所在位置 C:\Users\Administrator\.cache\paseo-gpui-panes-9194f18d978d.ps1:53 字符: 3
++   & $cargo build --locked -p paseo-desktop --bin paseo-desktop 2>&1 | ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling pa...desktop\native):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+warning: unused import: `std::ffi::c_ulong`
+  --> packages\desktop\native\src\browser_webview.rs:73:9
+   |
+73 |     use std::ffi::c_ulong;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+warning: unused import: `std::sync::OnceLock`
+  --> packages\desktop\native\src\browser_webview.rs:74:9
+   |
+74 |     use std::sync::OnceLock;
+   |         ^^^^^^^^^^^^^^^^^^^
+warning: unused import: `anyhow`
+  --> packages\desktop\native\src\browser_webview.rs:76:26
+   |
+76 |     use anyhow::{Result, anyhow};
+   |                          ^^^^^^
+warning: unused imports: `HandleError`, `HasWindowHandle`, `RawWindowHandle`, `WindowHandle`, and `XlibWindowHandle`
+  --> packages\desktop\native\src\browser_webview.rs:80:9
+   |
+80 |         HandleError, HasWindowHandle, RawWindowHandle, WindowHandle, XlibWindowHandle,
+   |         ^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+warning: variant `Wayland` is never constructed
+  --> packages\desktop\native\src\browser_webview.rs:27:5
+   |
+25 | pub enum UnsupportedReason {
+   |          ----------------- variant in this enum
+26 |     /// GPUI is running on Wayland; wry's child webview is X11-only.
+27 |     Wayland,
+   |     ^^^^^^^
+   |
+   = note: `UnsupportedReason` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignore
+d during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+warning: variant `X11` is never constructed
+  --> packages\desktop\native\src\browser_webview.rs:35:5
+   |
+34 | pub enum PlatformSupport {
+   |          --------------- variant in this enum
+35 |     X11,
+   |     ^^^
+   |
+   = note: `PlatformSupport` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored
+during dead code analysis
+warning: method `set_active_turn` is never used
+   --> packages\desktop\native\src\conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+warning: `paseo-desktop` (bin "paseo-desktop") generated 7 warnings (run `cargo fix --bin "paseo-desktop" -p paseo-desk
+top` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 15.85s
+RESULT=0

@@ -1,3 +1,5 @@
+#[path = "workspace_tab_row.rs"]
+mod workspace_tab_row;
 use std::{collections::BTreeMap, collections::BTreeSet, collections::HashSet, sync::Arc};
 
 use anyhow::{Context as _, Result};
@@ -489,7 +491,7 @@ pub struct Paseo {
     explorer_drag: Option<ExplorerDrag>,
     explorer_container_width: f64,
     editors: BTreeMap<EditorKey, Entity<FileEditor>>,
-    selected_file: Option<EditorKey>,
+    tab_rail: workspace_tab_row::RailCache,
     /// Retained browser surfaces keyed by the pane tab that owns them. A pane
     /// tab keeps its page and its own page tabs for the session, so moving
     /// panes, splitting, or switching workspaces does not reload the page.
@@ -579,12 +581,6 @@ impl EditorKey {
             "file:{}",
             serde_json::to_string(&(&self.cwd, &self.path)).expect("serialize editor identity")
         )
-    }
-
-    /// Element ids must differ per workspace, or gpui reuses another
-    /// workspace's tab for the same relative path.
-    fn element_id(&self, prefix: &str) -> gpui::SharedString {
-        format!("{prefix}{}:{}", self.cwd, self.path).into()
     }
 }
 
@@ -754,9 +750,9 @@ impl Paseo {
             explorer_drag: None,
             explorer_container_width: 0.,
             editors: BTreeMap::new(),
+            tab_rail: Default::default(),
             browsers: BTreeMap::new(),
             browser_subscriptions: BTreeMap::new(),
-            selected_file: None,
             scripts_menu: None,
             _scripts_menu_subscription: None,
             scripts_bounds: gpui::Bounds::default(),
@@ -914,7 +910,6 @@ impl Paseo {
         }
         self.editors.clear();
         self.editor_subscriptions.clear();
-        self.selected_file = None;
         self.workspace_payloads.clear();
         self.workspace_form = None;
         self.history = None;
@@ -1841,13 +1836,17 @@ impl Paseo {
         self.schedule_activation(cx);
     }
 
-    /// The session the user is actually watching. A product pane or an editor
-    /// tab covers the session surface, so the selection behind it is not what
-    /// the daemon should treat as focused.
+    /// The session in the focused pane. A product pane or focused editor must
+    /// not report a previously selected Agent or terminal as watched.
     fn displayed_session(&self) -> activation::DisplayedSession<'_> {
         activation::displayed_session(
             self.pane.is_some(),
-            self.selected_file.is_some(),
+            self.selected_workspace
+                .as_ref()
+                .and_then(|id| self.splits.get(id))
+                .and_then(|layout| layout.focused_pane())
+                .and_then(|pane| pane.focused_tab.as_deref())
+                .is_some_and(|tab| self.pane_tab_kind(tab) == Some(PaneTabKind::File)),
             self.selected_agent
                 .as_deref()
                 .filter(|id| self.conversations.contains_key(*id)),
@@ -3144,7 +3143,6 @@ impl Paseo {
         self.pane_bounds.clear();
         self.tab_drag = None;
         self.selected_workspace = Some(id.clone());
-        self.selected_file = None;
         self.scripts_menu = None;
         self.workspace_menu = None;
         if let Some(tools) = &self.tools {
@@ -3217,8 +3215,8 @@ impl Paseo {
         if cwd.is_empty() || self.connection.is_none() {
             return;
         }
-        // The editor replaces the split area; other content pointers clear so
-        // navigation states stay exclusive. Open conversations stay mounted.
+        // The focused pane owns the editor; sibling terminal and Agent panes
+        // keep their content, focus history and subscriptions.
         self.close_pane(cx);
         self.selected_agent = None;
         self.selected_terminal = None;
@@ -3233,9 +3231,9 @@ impl Paseo {
                         cx.subscribe_in(
                             &editor,
                             window,
-                            move |this, _, _: &CloseRequested, _, cx| {
+                            move |this, _, _: &CloseRequested, window, cx| {
                                 // The editor resolved its close; drop the tab with it.
-                                this.forget_file(&key, cx);
+                                this.forget_file(&key, window, cx);
                             },
                         )
                     };
@@ -3258,48 +3256,38 @@ impl Paseo {
             return;
         }
         self.persist_splits();
-        self.selected_file = None;
         self.sync_active_tab(window, cx);
         cx.notify();
     }
 
-    fn select_file(&mut self, key: EditorKey, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.editors.contains_key(&key) {
-            return;
-        }
-        self.close_pane(cx);
-        self.selected_agent = None;
-        self.selected_terminal = None;
-        self.terminal = None;
-        let tab = key.tab_id();
-        if self
-            .selected_splits()
-            .is_some_and(|layout| layout.attach_tab(&tab).is_some())
-        {
-            self.persist_splits();
-            self.selected_file = None;
-            self.sync_active_tab(window, cx);
-        } else {
-            self.error = Some("This pane cannot accept another file tab.".into());
-        }
-        cx.notify();
-    }
-
-    fn close_file(&mut self, key: &EditorKey, cx: &mut Context<Self>) {
+    fn close_file(&mut self, key: &EditorKey, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(editor) = self.editors.get(key) {
             let editor = editor.clone();
             if !editor.update(cx, |editor, cx| editor.begin_close(cx)) {
-                // The editor entered its confirm state; the tab stays until
-                // its CloseRequested event resolves the tab.
+                // The editor owns its close confirmation. Reveal a modified
+                // background buffer so its existing confirmation is visible.
+                let owner = self.selected_splits().and_then(|layout| {
+                    layout
+                        .panes()
+                        .into_iter()
+                        .find(|pane| pane.tabs.contains(&key.tab_id()))
+                });
+                if let Some(pane) = owner {
+                    self.select_pane_tab(pane.id, key.tab_id(), window, cx);
+                }
                 return;
             }
         }
-        self.forget_file(key, cx);
+        self.forget_file(key, window, cx);
     }
 
     /// Drop a tab: release its host subscription, its event binding, and its
     /// selection, so a closed buffer cannot outlive the tab.
-    fn forget_file(&mut self, key: &EditorKey, cx: &mut Context<Self>) {
+    fn forget_file(&mut self, key: &EditorKey, window: &mut Window, cx: &mut Context<Self>) {
+        let restore_focus = self
+            .selected_splits()
+            .and_then(|layout| layout.focused_pane())
+            .is_some_and(|pane| pane.focused_tab.as_deref() == Some(key.tab_id().as_str()));
         if let Some(editor) = self.editors.remove(key) {
             editor.update(cx, |editor, _| editor.closed());
         }
@@ -3309,9 +3297,10 @@ impl Paseo {
             layout.prune_tabs(|id| id != tab);
         }
         self.persist_splits();
-        if self.selected_file.as_ref() == Some(key) {
-            self.selected_file = None;
+        if restore_focus {
+            self.sync_active_tab(window, cx);
         }
+        self.apply_terminal_visibility(cx);
         cx.notify();
     }
 
@@ -3650,7 +3639,7 @@ impl Paseo {
                 }
                 // Keep the previous pane's views mounted; only the active
                 // session pointer moves to the agent tab.
-                self.selected_file = None;
+
                 self.terminal = None;
                 self.selected_terminal = None;
                 self.selected_agent = Some(id.clone());
@@ -3728,7 +3717,7 @@ impl Paseo {
             self.directory
                 .remember_focus(workspace, FocusedSession::Terminal(id.clone()));
         }
-        self.selected_file = None;
+
         self.selected_agent = self
             .directory
             .terminal_agent(&id)
@@ -3772,7 +3761,6 @@ impl Paseo {
         let rendered = self.rendered_terminal_ids();
         let window_visible = self.window_visible
             && self.pane.is_none()
-            && self.selected_file.is_none()
             && self.workspace_form.is_none()
             && self.history.is_none();
         for (id, view) in self.terminals.iter() {
@@ -3855,7 +3843,6 @@ impl Paseo {
         let rendered = self.rendered_browser_ids();
         let window_visible = self.window_visible
             && self.pane.is_none()
-            && self.selected_file.is_none()
             && self.workspace_form.is_none()
             && self.history.is_none();
         // Floating menus sit outside the retained pane visibility state; a native
@@ -4055,7 +4042,6 @@ impl Paseo {
                 self.terminal = None;
                 self.selected_terminal = None;
                 self.selected_agent = None;
-                self.selected_file = None;
             }
             Some(PaneTabKind::Browser) => {
                 // The page is a native child window; GPUI focus sits on the
@@ -4073,7 +4059,6 @@ impl Paseo {
                 self.terminal = None;
                 self.selected_terminal = None;
                 self.selected_agent = None;
-                self.selected_file = None;
             }
             None => {
                 self.terminal = None;
@@ -4554,12 +4539,11 @@ impl Paseo {
         if self.selected_agent.is_some()
             || self.selected_terminal.is_some()
             || self.terminal.is_some()
-            || self.selected_file.is_some()
         {
             self.terminal = None;
             self.selected_terminal = None;
             self.selected_agent = None;
-            self.selected_file = None;
+
             cx.notify();
         }
     }
@@ -5389,77 +5373,6 @@ impl Render for Paseo {
                         .child(error),
                 )
             })
-            .when(!self.editors.is_empty(), |view| {
-                view.child(
-                    div()
-                        .h(px(36.))
-                        .flex_shrink_0()
-                        .flex()
-                        .items_center()
-                        .gap_1()
-                        .px(px(6.))
-                        .border_b_1()
-                        .border_color(rgb(palette.border))
-                        .children(self.editors.iter().map(|(key, editor)| {
-                            let key = key.clone();
-                            let close_key = key.clone();
-                            let selected = self.selected_file.as_ref() == Some(&key);
-                            let dirty = editor.read(cx).is_dirty();
-                            let title = editor.read(cx).title();
-                            div()
-                                .id(key.element_id("tab-file-"))
-                                .h(px(28.))
-                                .px_2()
-                                .rounded(px(radius::MD))
-                                .flex()
-                                .items_center()
-                                .gap_1()
-                                .cursor_pointer()
-                                .text_color(rgb(if selected {
-                                    palette.foreground
-                                } else {
-                                    palette.foreground_muted
-                                }))
-                                .when(selected, |tab| tab.bg(rgb(palette.surface2)))
-                                .hover(|tab| tab.bg(rgb(palette.surface2)))
-                                .child(icon("file-text", 14.))
-                                .child(div().min_w_0().max_w(px(140.)).truncate().child(title))
-                                .when(dirty, |tab| {
-                                    tab.child(
-                                        div()
-                                            .size(px(6.))
-                                            .rounded_full()
-                                            .bg(rgb(palette.status_warning)),
-                                    )
-                                })
-                                .child(
-                                    div()
-                                        .id(key.element_id("close-file-"))
-                                        .size(px(16.))
-                                        .rounded(px(radius::SM))
-                                        .flex()
-                                        .items_center()
-                                        .justify_center()
-                                        .hover(|close| close.bg(gpui::rgba(0xffffff14)))
-                                        .child(icon("x", 12.))
-                                        .on_mouse_down(
-                                            MouseButton::Left,
-                                            cx.listener(move |this, _, _, cx| {
-                                                cx.stop_propagation();
-                                                this.close_file(&close_key, cx);
-                                            }),
-                                        ),
-                                )
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(move |this, _, window, cx| {
-                                        cx.stop_propagation();
-                                        this.select_file(key.clone(), window, cx);
-                                    }),
-                                )
-                        })),
-                )
-            })
             .child(if let Some(pane) = pane {
                 div()
                     .flex()
@@ -5476,17 +5389,7 @@ impl Render for Paseo {
                     .flex_1()
                     .min_h_0()
                     .min_w_0()
-                    .when_some(
-                        self.selected_file
-                            .clone()
-                            .and_then(|key| self.editors.get(&key).cloned()),
-                        |area, editor| area.child(editor),
-                    )
-                    // Editors replace the split area; panes own terminal and
-                    // agent tabs and stay mounted underneath.
-                    .when(self.selected_file.is_none(), |area| {
-                        area.child(self.render_split_area(window, cx))
-                    })
+                    .child(self.render_split_area(window, cx))
                     .into_any_element()
             });
         // A focused terminal claims its wheel events before they reach the root,
@@ -5685,6 +5588,7 @@ impl Paseo {
             .unwrap_or_else(|| SplitLayout::single(MAIN_PANE_ID));
         let measure = cx.entity();
         let active_panes: BTreeSet<_> = layout.panes().into_iter().map(|pane| pane.id).collect();
+        self.tab_rail.retain(&layout);
         self.pane_bounds.retain(|id, _| active_panes.contains(id));
         div()
             .id("split-area")
@@ -5803,32 +5707,13 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> gpui::Stateful<gpui::Div> {
-        use crate::theme::radius;
         let palette = crate::settings_view::active_palette(&self.shared_settings, window);
-
         let pane = pane.clone();
         let pane_id = pane.id.clone();
         let focused_tab = pane.focused_tab.clone();
         let drop_target = self.tab_drag.as_ref().is_some_and(|drag| {
             drag.moved && drag.hovered_pane.as_deref() == Some(pane_id.as_str())
         });
-        let strip_tabs: Vec<(String, String, PaneTabKind, Option<String>)> = pane
-            .tabs
-            .iter()
-            .filter_map(|tab| {
-                let kind = self.pane_tab_kind(tab)?;
-                let title = self.pane_tab_title(tab, cx)?;
-                let provider = (kind == PaneTabKind::Agent)
-                    .then(|| {
-                        self.directory
-                            .agents
-                            .get(tab)
-                            .map(|agent| agent.provider.clone())
-                    })
-                    .flatten();
-                Some((tab.clone(), title, kind, provider))
-            })
-            .collect();
         let content: Option<gpui::AnyElement> = match focused_tab
             .as_deref()
             .and_then(|tab| self.pane_tab_kind(tab).map(|kind| (tab, kind)))
@@ -5854,115 +5739,7 @@ impl Paseo {
             _ => None,
         };
 
-        let strip = div()
-            .flex_shrink_0()
-            .h(px(28.))
-            .flex()
-            .items_center()
-            .border_b_1()
-            .border_color(rgb(palette.border))
-            .when(drop_target, |strip| strip.bg(gpui::rgba(0xffffff14)))
-            .child(
-                div()
-                    .id(SharedString::from(format!("pane-tabs-{pane_id}")))
-                    .flex_1()
-                    .min_w_0()
-                    .h_full()
-                    .px(px(4.))
-                    .flex()
-                    .items_center()
-                    .gap_1()
-                    .overflow_x_scroll()
-                    .children(
-                        strip_tabs
-                            .into_iter()
-                            .map(|(tab_id, title, kind, provider)| {
-                                let active = focused_tab.as_deref() == Some(tab_id.as_str());
-                                let pane_id = pane_id.clone();
-                                let icon_image = provider
-                                    .as_ref()
-                                    .and_then(|provider| self.provider_images.get(provider))
-                                    .cloned();
-                                let close_tab_id = tab_id.clone();
-                                let close_element_id = SharedString::from(format!(
-                                    "close-pane-tab-{pane_id}-{close_tab_id}"
-                                ));
-                                div()
-                                    .id(SharedString::from(format!("pane-tab-{pane_id}-{tab_id}")))
-                                    .h(px(22.))
-                                    .px_2()
-                                    .rounded(px(radius::MD))
-                                    .flex()
-                                    .items_center()
-                                    .gap_1()
-                                    .cursor_pointer()
-                                    .text_color(rgb(if active {
-                                        palette.foreground
-                                    } else {
-                                        palette.foreground_muted
-                                    }))
-                                    .when(active, |tab| tab.bg(rgb(palette.surface2)))
-                                    .hover(|tab| tab.bg(rgb(palette.surface2)))
-                                    .when_some(provider, |tab, provider| {
-                                        tab.child(crate::chrome::provider_icon_data(
-                                            &provider,
-                                            14.,
-                                            icon_image.as_ref(),
-                                        ))
-                                    })
-                                    .when(kind == PaneTabKind::Terminal, |tab| {
-                                        tab.child(crate::chrome::icon("square-terminal", 14.))
-                                    })
-                                    .when(kind == PaneTabKind::Browser, |tab| {
-                                        tab.child(crate::chrome::icon("eye", 14.))
-                                    })
-                                    .child(div().min_w_0().max_w(px(160.)).truncate().child(title))
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(
-                                            move |this, event: &MouseDownEvent, window, cx| {
-                                                cx.stop_propagation();
-                                                this.begin_tab_drag(
-                                                    pane_id.clone(),
-                                                    tab_id.clone(),
-                                                    event.position,
-                                                    window,
-                                                    cx,
-                                                );
-                                            },
-                                        ),
-                                    )
-                                    .when(kind == PaneTabKind::Browser, |tab| {
-                                        // A page is a native child window with no
-                                        // close control of its own, so the pane
-                                        // tab is the only place to release it.
-                                        tab.child(
-                                            div()
-                                                .id(close_element_id)
-                                                .w(px(16.))
-                                                .h(px(16.))
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .rounded(px(radius::SM))
-                                                .hover(|button| button.bg(rgb(palette.surface3)))
-                                                .on_mouse_down(
-                                                    MouseButton::Left,
-                                                    cx.listener(move |this, _, window, cx| {
-                                                        cx.stop_propagation();
-                                                        this.forget_browser(
-                                                            &close_tab_id,
-                                                            window,
-                                                            cx,
-                                                        );
-                                                    }),
-                                                )
-                                                .child(crate::chrome::icon("x", 10.)),
-                                        )
-                                    })
-                            }),
-                    ),
-            );
+        let strip = self.render_workspace_tab_row(&pane, drop_target, window, cx);
 
         let measure = cx.entity();
         let measured_pane_id = pane_id.clone();
@@ -5989,8 +5766,15 @@ impl Paseo {
             .child(
                 canvas(
                     move |bounds, _, cx| {
-                        measure.update(cx, |this, _| {
+                        measure.update(cx, |this, cx| {
+                            let resized =
+                                this.pane_bounds.get(&measured_pane_id).is_none_or(|old| {
+                                    (old.size.width - bounds.size.width).abs() > px(1.)
+                                });
                             this.pane_bounds.insert(measured_pane_id.clone(), bounds);
+                            if resized {
+                                cx.notify();
+                            }
                         });
                     },
                     |_, _, _, _| {},
@@ -6037,14 +5821,10 @@ mod tests {
         // file, not reuse (and save over) the first workspace's buffer.
         assert!(!tabs.contains_key(&EditorKey::new("/repos/b", "README.md")));
         assert_eq!(tabs[&EditorKey::new("/repos/a", "README.md")], "a's buffer");
-        // Element ids carry the workspace too, or gpui reuses the tab element.
+        // Pane tabs retain the directory in their identity across navigation.
         assert_ne!(
-            EditorKey::new("/repos/a", "README.md").element_id("tab-file-"),
-            EditorKey::new("/repos/b", "README.md").element_id("tab-file-")
-        );
-        assert_eq!(
-            EditorKey::new("/repos/a", "README.md").element_id("close-file-"),
-            gpui::SharedString::from("close-file-/repos/a:README.md")
+            EditorKey::new("/repos/a", "README.md").tab_id(),
+            EditorKey::new("/repos/b", "README.md").tab_id()
         );
     }
 }

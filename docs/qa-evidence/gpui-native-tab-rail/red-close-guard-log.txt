@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/home/ltlly/.cache/paseo-native-qa/panes-20261102/qa-close.py", line 7, in <module>
+    run('hover',798,154);run('click',798,154);assert 'dirty.txt'in active()['focusedTab'];text=snap('dirty-close-confirmation.png');assert 'unsaved changes'in text,text;assert Path(m['cwd']+'/dirty.txt').read_text()=='EXTERNAL HOST CONTENT\n'
+                                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
