@@ -53,7 +53,7 @@
     "reopen": "native-reopened.png",
     "retainedPTY": "before-client-reopen.json",
     "closedClientsRetainPTY": "final-client-close.json",
-    "redrawDefect": "redraw-regression.json"
+    "drawStability": "redraw-regression.json"
   },
   "visualComparison": "pixel-comparison.json",
   "producers": {
@@ -68,7 +68,7 @@
   "limitations": [
     "NOT_PASSED: Files toolbar, plus launcher, icons, row/tab geometry and glyph rendering still differ from Electron.",
     "Shared Explorer PanelHost, additional panel tabs, tab menus/dragging and selected-view persistence remain pending. This shell stores visibility and width only.",
-    "Missing static glyphs reproduced on exact prior checkpoint binary as well as current binary under software Xvfb; window resizing restores them. Root cause and hardware/other OS interaction remain pending.",
+    "The earlier static-glyph disappearance claim is retracted by exact pixel comparisons; see redraw-regression.json. Hardware and other OS interaction remain pending.",
     "Below600px geometry has focused model coverage only; complete compact UI, macOS traffic-light geometry and OS interactions are unaccepted.",
     "No hardware CPU/RSS/latency acceptance, packaging, deployment or daemon/protocol change. Existing disabled_manually CI workflows were not enabled."
   ],

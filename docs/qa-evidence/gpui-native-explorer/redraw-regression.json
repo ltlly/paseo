@@ -1,8 +1,180 @@
 {
-  "status": "REPRODUCED_UNRESOLVED",
-  "baselineBinarySha256": "0c4e871d0ca10a612360c5a47dc0c0d7636acc9d3eb8e0cf922e521072f5a70a",
-  "baselineSourceArchiveSha256": "4cf0011995fda16b19bfd720d8ceb3e7e99becf3fd65554408bb8f0cd9fc46e3",
-  "baselineScenario": "Select retained terminal workspace, toggle Explorer twice via header button. Static glyphs vanish until window resize.",
-  "currentScenario": "After dock resize, unchanged terminal/sidebar/header glyphs vanish. Window resize restores them.",
-  "environment": "Xvfb :99, software Vulkan/Mesa; hardware and other OS unverified"
+  "status": "RETRACTED",
+  "reason": "Visual inspection was wrong. The original alleged missing-glyph frame and recovered frame have identical RGB pixels across the entire window. Baseline before/after differs only in the hovered Explorer button. No glyph disappearance is demonstrated.",
+  "originalCurrentWindowComparison": {
+    "differentPixels": 0,
+    "boundingBox": null
+  },
+  "originalBaselineWindowComparison": {
+    "differentPixels": 656,
+    "boundingBox": [1142, 4, 1168, 30]
+  },
+  "originalBaselineTerminalCropComparison": {
+    "differentPixels": 0,
+    "boundingBox": null
+  },
+  "repeatScope": "Isolated Xvfb software rendering; real PTY, current and prior native binaries. Repeated mouse/keyboard toggles and resizing. This does not establish other terminal/OS/hardware acceptance.",
+  "terminalCrop": [320, 64, 640, 780],
+  "repeatFrames": [
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/keyboard-toggle-0.png",
+      "sha256": "6277598b3c39b7da7f2212301dbf3aac2d1c4dfb06e82d08e91092a6823d76bb",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/keyboard-toggle-1.png",
+      "sha256": "13c251c5b9449f4c3c7b978a4e857544181bf4044556e8a6c2d39e0b8b498308",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/keyboard-toggle-2.png",
+      "sha256": "6277598b3c39b7da7f2212301dbf3aac2d1c4dfb06e82d08e91092a6823d76bb",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/keyboard-toggle-3.png",
+      "sha256": "13c251c5b9449f4c3c7b978a4e857544181bf4044556e8a6c2d39e0b8b498308",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/keyboard-toggle-4.png",
+      "sha256": "6277598b3c39b7da7f2212301dbf3aac2d1c4dfb06e82d08e91092a6823d76bb",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/keyboard-toggle-5.png",
+      "sha256": "13c251c5b9449f4c3c7b978a4e857544181bf4044556e8a6c2d39e0b8b498308",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-toggle-0.png",
+      "sha256": "6277598b3c39b7da7f2212301dbf3aac2d1c4dfb06e82d08e91092a6823d76bb",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-toggle-1.png",
+      "sha256": "13c251c5b9449f4c3c7b978a4e857544181bf4044556e8a6c2d39e0b8b498308",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-toggle-2.png",
+      "sha256": "6277598b3c39b7da7f2212301dbf3aac2d1c4dfb06e82d08e91092a6823d76bb",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-toggle-3.png",
+      "sha256": "13c251c5b9449f4c3c7b978a4e857544181bf4044556e8a6c2d39e0b8b498308",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-toggle-4.png",
+      "sha256": "6277598b3c39b7da7f2212301dbf3aac2d1c4dfb06e82d08e91092a6823d76bb",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-toggle-5.png",
+      "sha256": "13c251c5b9449f4c3c7b978a4e857544181bf4044556e8a6c2d39e0b8b498308",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-drag-0.png",
+      "sha256": "b7f00dc54fbb0f9d2a9afb85daa6e4da9c5eef2dcc0877d738a24e5f0aa08392",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-drag-1.png",
+      "sha256": "6277598b3c39b7da7f2212301dbf3aac2d1c4dfb06e82d08e91092a6823d76bb",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-drag-2.png",
+      "sha256": "b7f00dc54fbb0f9d2a9afb85daa6e4da9c5eef2dcc0877d738a24e5f0aa08392",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-drag-3.png",
+      "sha256": "6277598b3c39b7da7f2212301dbf3aac2d1c4dfb06e82d08e91092a6823d76bb",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-drag-4.png",
+      "sha256": "b7f00dc54fbb0f9d2a9afb85daa6e4da9c5eef2dcc0877d738a24e5f0aa08392",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-drag-5.png",
+      "sha256": "6277598b3c39b7da7f2212301dbf3aac2d1c4dfb06e82d08e91092a6823d76bb",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-drag-6.png",
+      "sha256": "b7f00dc54fbb0f9d2a9afb85daa6e4da9c5eef2dcc0877d738a24e5f0aa08392",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    },
+    {
+      "file": "/home/ltlly/.cache/paseo-native-qa/redraw-20261102/old-drag-7.png",
+      "sha256": "6277598b3c39b7da7f2212301dbf3aac2d1c4dfb06e82d08e91092a6823d76bb",
+      "comparison": {
+        "differentPixels": 0,
+        "boundingBox": null
+      }
+    }
+  ]
 }
