@@ -1,0 +1,10 @@
+{
+  "privateHomeRemoved": true,
+  "privatePortClosed": true,
+  "production6767Listening": true,
+  "fixtureStopped": true,
+  "nativeStopped": true,
+  "workerStopped": true,
+  "ptyStopped": true,
+  "xvfbStopped": true
+}

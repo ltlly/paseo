@@ -374,6 +374,124 @@ async function authoredStyles(file, keys) {
   if (selected.size !== keys.length) throw new Error(`Missing native UI styles in ${file}`);
   return [...selected.values()].join(",\n");
 }
+// Evaluate only authored scalar styles; native framework imports stay outside the generator.
+const filesStyle = await authoredStyles("packages/app/src/components/file-explorer-pane.tsx", [
+  "sortTrigger",
+  "sortTriggerText",
+  "entriesContent",
+]);
+const toolbarControlsStyle = await authoredStyles(
+  "packages/app/src/components/ui/pane-content-toolbar.tsx",
+  ["controls"],
+);
+const explorerPresentationScript = ts.transpileModule(
+  `
+${await authoredNode("packages/app/src/components/ui/icon-button-chrome.ts", "SMALL_ICON_BUTTON_SIZE")}
+${await authoredNode("packages/app/src/components/ui/icon-button-chrome.ts", "iconButtonChromeGlyphSize")}
+${await authoredNode("packages/app/src/components/ui/icon-button-chrome.ts", "smallIconButtonChromeFrameSize")}
+${await authoredNode("packages/app/src/components/ui/pane-content-toolbar.tsx", "paneContentToolbarIconSize")}
+${await authoredNode("packages/app/src/components/ui/pane-content-toolbar.tsx", "paneContentToolbarTrailingPadding")}
+${await authoredNode("packages/app/src/constants/layout.ts", "WORKSPACE_SECONDARY_HEADER_HEIGHT")}
+${await authoredNode("packages/app/src/components/tree-primitives.tsx", "TREE_INDENT_PER_LEVEL")}
+${await authoredNode("packages/app/src/components/tree-primitives.tsx", "WORKSPACE_FILE_ROW_VERTICAL_PADDING")}
+${await authoredNode("packages/app/src/components/tree-primitives.tsx", "WORKSPACE_TREE_ICON_SIZE")}
+${await authoredNode("packages/app/src/components/tree-primitives.tsx", "WORKSPACE_TREE_ICON_LABEL_GAP")}
+${await authoredNode("packages/app/src/components/tree-primitives.tsx", "WORKSPACE_PANE_TRAILING_GLYPH_RAIL")}
+${await authoredNode("packages/app/src/components/tree-primitives.tsx", "treeRowPaddingLeft")}
+const fileStyles=({${filesStyle}});
+const toolbarControls=({${toolbarControlsStyle}});
+const glyphSize=iconButtonChromeGlyphSize("small",false);
+globalThis.values={
+ TOOLBAR_HEIGHT:WORKSPACE_SECONDARY_HEADER_HEIGHT, CONTROL_SIZE:SMALL_ICON_BUTTON_SIZE,
+ CONTROL_GAP:toolbarControls.controls.gap, GLYPH_SIZE:glyphSize,
+ TRAILING_PADDING:paneContentToolbarTrailingPadding(false,"glyph"),
+ SORT_HEIGHT:fileStyles.sortTrigger.height,SORT_MARGIN_LEFT:fileStyles.sortTrigger.marginLeft,
+ SORT_PADDING_X:fileStyles.sortTrigger.paddingHorizontal,SORT_GAP:fileStyles.sortTrigger.gap,
+ SORT_RADIUS:fileStyles.sortTrigger.borderRadius,SORT_FONT:fileStyles.sortTriggerText.fontSize,
+ TREE_TOP:fileStyles.entriesContent.paddingTop,TREE_BOTTOM:fileStyles.entriesContent.paddingBottom,
+ TREE_LEFT:treeRowPaddingLeft(0),TREE_RIGHT:WORKSPACE_PANE_TRAILING_GLYPH_RAIL,
+ TREE_INDENT:treeRowPaddingLeft(1)-treeRowPaddingLeft(0),TREE_ICON:WORKSPACE_TREE_ICON_SIZE,
+ TREE_GAP:WORKSPACE_TREE_ICON_LABEL_GAP,TREE_PADDING_Y:WORKSPACE_FILE_ROW_VERTICAL_PADDING
+};`,
+  { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
+).outputText;
+const explorerPresentationContext = { theme, SPACING: theme.spacing, exports: {} };
+runInNewContext(explorerPresentationScript, explorerPresentationContext, { timeout: 1000 });
+await output(
+  "packages/desktop/native/src/explorer_presentation.rs",
+  `// Generated from authored Files toolbar and tree presentation. Do not edit.\n#![allow(dead_code)]\n${Object.entries(
+    explorerPresentationContext.values,
+  )
+    .map(([key, value]) => `pub const ${key}:f32=${Number(value).toFixed(1)};`)
+    .join("\n")}\n`,
+);
+const fileIconBundle = await bundle({
+  stdin: {
+    contents:
+      'export {getFileIconSvg} from "./packages/app/src/components/file-icon-svg.ts"; export {getRawFileIconSvg} from "./packages/app/src/components/material-file-icons.ts";',
+    resolveDir: root,
+  },
+  bundle: true,
+  write: false,
+  format: "esm",
+  platform: "node",
+  alias: { "@": path.join(root, "packages/app/src") },
+});
+const { getFileIconSvg, getRawFileIconSvg } = await import(
+  `data:text/javascript;base64,${Buffer.from(fileIconBundle.outputFiles[0].text).toString("base64")}`
+);
+const vendorFile = "packages/app/src/components/material-file-icons.ts";
+const fileIconContext = { exports: {} };
+runInNewContext(
+  ts.transpileModule(
+    `${await authoredNode(vendorFile, "SVG_ICONS")}\n${await authoredNode(vendorFile, "EXTENSION_TO_ICON")}\nglobalThis.icons=SVG_ICONS;globalThis.extensions=EXTENSION_TO_ICON;`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
+  ).outputText,
+  fileIconContext,
+  { timeout: 1000 },
+);
+const representatives = new Map([["_default", "unmapped"]]);
+for (const [ext, iconName] of Object.entries(fileIconContext.extensions))
+  if (!representatives.has(iconName)) representatives.set(iconName, `icon.${ext}`);
+if (representatives.size !== Object.keys(fileIconContext.icons).length)
+  throw new Error("Unmapped authored file icon requires a representative filename");
+const fileIconData = `// Generated from the app's material icon table and canonical desaturation. Do not edit.\npub fn extension_icon(extension:&str)->Option<&'static str>{match extension{${Object.entries(
+  fileIconContext.extensions,
+)
+  .map(([ext, iconName]) => `${JSON.stringify(ext)}=>Some(${JSON.stringify(iconName)}),`)
+  .join(
+    "\n",
+  )}_=>None}}\npub fn svg(name:&str)->&'static str{match name{${[...representatives].map(([iconName, file]) => `${JSON.stringify(iconName)}=>r###"${getFileIconSvg(file)}"###,`).join("\n")}_=>unreachable!("generated file icon name")}}\n`;
+await output("packages/desktop/native/src/file_icon_data.rs", fileIconData);
+const fileIconCases = [
+  "",
+  "unmapped",
+  "trailing.",
+  ".gitignore",
+  "README",
+  "README.MD",
+  "foo.tar.gz",
+  "目录/图.Ts",
+  "foo.bar.TSX",
+  ...Object.keys(fileIconContext.extensions).flatMap((ext) => [
+    `icon.${ext}`,
+    `icon.${ext.toUpperCase()}`,
+  ]),
+].map((file) => [
+  file,
+  Object.entries(fileIconContext.icons).find(([, svg]) => svg === getRawFileIconSvg(file))?.[0],
+]);
+if (fileIconCases.some(([, iconName]) => !iconName)) throw new Error("Unknown authored file icon");
+const fileIconOracle = JSON.stringify({ cases: fileIconCases });
+const fileIconOraclePath = path.join(root, "packages/desktop/native/src/testdata/file-icons.json");
+if (check) {
+  if (JSON.stringify(JSON.parse(await fs.readFile(fileIconOraclePath, "utf8"))) !== fileIconOracle)
+    throw new Error("Native file-icon oracle is stale");
+} else
+  await fs.writeFile(
+    fileIconOraclePath,
+    JSON.stringify(JSON.parse(fileIconOracle), null, 2) + "\n",
+  );
 const syncStyles = await authoredStyles("packages/app/src/panels/agent-panel.tsx", [
   "timelineSyncCalloutRail",
   "timelineSyncCalloutContent",

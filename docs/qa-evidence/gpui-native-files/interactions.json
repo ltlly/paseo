@@ -1,0 +1,14 @@
+{
+  "createdFile": "/tmp/paseo-home-oSSZ9r/.paseo/native-keys-project/created.txt",
+  "createdDirectory": "/tmp/paseo-home-oSSZ9r/.paseo/native-keys-project/createddir",
+  "fileAndDirectoryExist": true,
+  "noToolbarInputLeakedToPTY": true,
+  "hiddenAndSortAndSearchScreenshots": [
+    "files-created-and-hidden.png",
+    "files-hidden-off.png",
+    "files-sort-modified.png",
+    "files-sort-size.png",
+    "files-sort-name.png",
+    "files-search.png"
+  ]
+}

@@ -15,6 +15,8 @@ Two files:
 
 Render with `<MaterialFileIcon fileName size />` rather than reaching for `SvgXml` yourself.
 
+The GPUI generator runs the same selector and tone transform into its checked-in table. Keep the authored files as the source of truth; native builds do not run JavaScript. Cache native rasters at the current display scale so moving between displays does not retain a separate image set for every previous scale.
+
 ## Why the colours are toned down
 
 material-icon-theme picks its palette for VS Code's file tree, where the icon is the only colour on

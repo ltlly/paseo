@@ -1,0 +1,25 @@
+import subprocess,time,json,base64
+from pathlib import Path
+q=Path(__file__).parent;m=json.loads((q/'fixture.json').read_text());root=Path(m['cwd'])
+def run(*a):subprocess.run(['python3',str(q/'input.py'),*map(str,a)],check=True);time.sleep(.25)
+def snap(n):subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-draw_mouse','0','-video_size','1280x800','-f','x11grab','-i',':99+162,100','-frames:v','1','-y',str(q/n)],check=True)
+def raw():return b''.join(base64.b64decode(json.loads(l)['base64']) for l in Path(m['input']).read_text().splitlines())
+before=raw()
+for x,name,folder in [(1343,'created.txt',False),(1364,'createddir',True)]:
+ run('click',x,154);run('type',name);run('key','Return')
+ for i in range(30):
+  if (root/name).exists():break
+  time.sleep(.1)
+ assert (root/name).is_dir() if folder else (root/name).is_file(),name
+assert raw()==before,raw()[len(before):]
+(root/'.hidden.txt').write_text('hidden')
+run('click',1427,154);snap('files-created-and-hidden.png')
+run('click',1406,154);snap('files-hidden-off.png')
+run('click',1406,154)
+for name in ['modified','size','name']:
+ run('click',1160,154);snap('files-sort-'+name+'.png')
+# Existing quick-open remains reachable while Command Center migration is pending.
+run('click',1385,154);run('type','created');time.sleep(.3);snap('files-search.png');run('key','Escape')
+assert raw()==before,raw()[len(before):]
+(q/'files-interactions.json').write_text(json.dumps({'createdFile':str(root/'created.txt'),'createdDirectory':str(root/'createddir'),'fileAndDirectoryExist':True,'noToolbarInputLeakedToPTY':True,'hiddenAndSortAndSearchScreenshots':['files-created-and-hidden.png','files-hidden-off.png','files-sort-modified.png','files-sort-size.png','files-sort-name.png','files-search.png']},indent=2)+'\n')
+print('Files interaction checks passed')

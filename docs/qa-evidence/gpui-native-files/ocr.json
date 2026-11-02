@@ -1,0 +1,20 @@
+{
+  "observations": {
+    "files-created-and-hidden.png": "Name v AoQeeg\n> createddir\n\n .hidden.txt\n\n& created.txt\n\n\u00a9 input.jsont\n\n(\u00a7 keyboard.cjs\n\nf] mode.txt\n",
+    "files-hidden-off.png": "Name v AOQeeg\n> createddir\n\n& created.txt\n\n\u00a9 input.jsont\n\n(\u00a7 keyboard.cjs\n\nf] mode.txt\n",
+    "files-sort-modified.png": "Modified v HBoQoedg\n> createddir\n\n .hidden.txt\n\n) created.txt\n\nf] mode.txt\n\n\u00a9 input.jsont\n\n(\u00a7 keyboard.cjs\n",
+    "files-sort-size.png": "Size ~ ABQeg\n> createddir\n\n(\u00a7 keyboard.cjs\n\nf] mode.txt\n\nf] .hidden.txt\n\n(] created.txt\n\n\u00a9 input.jsont\n",
+    "files-sort-name.png": "Name v AoBQeeg\n> createddir\n\n .hidden.txt\n\n& created.txt\n\n\u00a9 input.jsont\n\n(\u00a7 keyboard.cjs\n\nf] mode.txt\n",
+    "files-search.png": "Name v HAoQeg\nQ created x\n(=) created.txt\n"
+  },
+  "sortLabelsVerified": true,
+  "hiddenToggleVerified": true,
+  "searchResultVerified": true,
+  "method": "Tesseract6psm, 3x cropped screenshot, tessdata_fast English in isolated QA cache",
+  "verifiedFileOrderSubset": {
+    "files-sort-name.png": [".hidden.txt", "created.txt", "keyboard.cjs", "mode.txt"],
+    "files-sort-size.png": ["keyboard.cjs", "mode.txt", ".hidden.txt", "created.txt"],
+    "files-sort-modified.png": [".hidden.txt", "created.txt", "mode.txt", "keyboard.cjs"]
+  },
+  "ocrLimitations": "input.jsonl is misrecognized as input.jsont. Its position is not asserted. Four other real filenames retain the expected filesystem order in each sort mode."
+}

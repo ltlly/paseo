@@ -22,8 +22,11 @@ use crate::{
 };
 use paseo_desktop::editing::Editing;
 
-const TREE_INDENT: f32 = 12.;
-const ROW_HEIGHT: f32 = 24.;
+#[path = "explorer_presentation.rs"]
+mod explorer_presentation;
+use explorer_presentation as files_style;
+const TREE_INDENT: f32 = files_style::TREE_INDENT;
+const ROW_HEIGHT: f32 = files_style::TREE_ICON + 2. * files_style::TREE_PADDING_Y;
 /// The authored diff band is the palette's diff colour at 15% alpha.
 const DIFF_WASH_ALPHA: u32 = 0x26;
 
@@ -41,6 +44,7 @@ const SUCCESS_DISPLAY: Duration = Duration::from_millis(1000);
 #[derive(Clone, Copy, Default)]
 pub struct Features {
     pub discard_changes: bool,
+    pub fs_entry_ops: bool,
     pub forge_providers: bool,
     pub forge_set_auto_merge: bool,
     pub forge_check_details: bool,
@@ -51,6 +55,7 @@ impl Features {
         let enabled = |name: &str| features.get(name) == Some(&Value::Bool(true));
         Self {
             discard_changes: enabled("checkoutDiscardChanges"),
+            fs_entry_ops: enabled("fsEntryOps"),
             forge_providers: enabled("forgeProviders"),
             forge_set_auto_merge: enabled("checkoutForgeSetAutoMerge"),
             forge_check_details: enabled("forgeCheckDetails"),
@@ -688,8 +693,8 @@ pub struct WorkspaceTools {
     entry_error: Option<String>,
     pub sort: Sort,
     pub show_hidden: bool,
-    pub sort_menu: Option<gpui::Entity<crate::choice_menu::ChoiceMenu>>,
-    sort_bounds: Bounds<Pixels>,
+    file_icon_size: i32,
+    file_images: BTreeMap<&'static str, Arc<gpui::RenderImage>>,
     menu: Option<Menu>,
     input: Option<EntryInput>,
     search: Search,
@@ -762,9 +767,9 @@ impl WorkspaceTools {
             loading: BTreeSet::new(),
             entry_error: None,
             sort: Sort::Name,
-            show_hidden: false,
-            sort_menu: None,
-            sort_bounds: Bounds::default(),
+            show_hidden: true,
+            file_icon_size: 0,
+            file_images: BTreeMap::new(),
             menu: None,
             input: None,
             search: Search::default(),
@@ -861,7 +866,6 @@ impl WorkspaceTools {
         self.entry_error = None;
         self.menu = None;
         self.input = None;
-        self.sort_menu = None;
         self.status = None;
         self.status_error = None;
         self.status_pending = false;
@@ -906,7 +910,6 @@ impl WorkspaceTools {
         self.diff_loading = false;
         self.restart = None;
         self.script_pending = None;
-        self.sort_menu = None;
         self.input = None;
         self.menu = None;
         self.git_menu = None;
@@ -944,7 +947,6 @@ impl WorkspaceTools {
     pub fn toggle_tab(&mut self, tab: DockTab, cx: &mut Context<Self>) {
         self.tab = tab;
         self.selected_diff = None;
-        self.sort_menu = None;
         self.menu = None;
         self.git_menu = None;
         self.confirm = None;
@@ -1359,7 +1361,6 @@ impl WorkspaceTools {
         input.query.select(0, false);
         self.input = Some(input);
         self.menu = None;
-        self.sort_menu = None;
         if let Some(input) = &self.input {
             input.focus.clone().focus(window, cx);
         }
@@ -1557,7 +1558,6 @@ impl WorkspaceTools {
         input.query.select(0, false);
         self.input = Some(input);
         self.menu = None;
-        self.sort_menu = None;
         self.search.generation += 1;
         self.reset_search_results();
         if let Some(input) = &self.input {
@@ -2919,7 +2919,7 @@ impl Render for WorkspaceTools {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let palette = active_palette(&self.shared, window);
         let content = match self.tab {
-            DockTab::Files => self.render_files(&palette, cx),
+            DockTab::Files => self.render_files(&palette, window, cx),
             DockTab::Changes => self.render_changes(&palette, cx),
         };
         fn dock_tab(
@@ -2970,126 +2970,7 @@ impl Render for WorkspaceTools {
                 )
                 .child(div().min_w_0().truncate().child(label))
         }
-        fn header_buttons(
-            this: &mut WorkspaceTools,
-            files_selected: bool,
-            palette: &Palette,
-            cx: &mut Context<WorkspaceTools>,
-        ) -> gpui::Div {
-            let entity = cx.entity();
-            div()
-                .flex_shrink_0()
-                .flex()
-                .items_center()
-                .gap_px()
-                .child(
-                    div()
-                        .id("dock-refresh")
-                        .size(px(24.))
-                        .rounded(px(radius::MD))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .cursor_pointer()
-                        .hover(|v| v.bg(rgb(palette.surface_sidebar_hover)))
-                        .child(icon("refresh-cw", 14.).text_color(rgb(palette.foreground_muted)))
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                cx.stop_propagation();
-                                this.refresh(cx);
-                            }),
-                        ),
-                )
-                .when(files_selected, |header| {
-                    header
-                        .child(
-                            div()
-                                .id("dock-search")
-                                .size(px(24.))
-                                .rounded(px(radius::MD))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .cursor_pointer()
-                                .hover(|v| v.bg(rgb(palette.surface_sidebar_hover)))
-                                .child(
-                                    icon("search", 14.).text_color(rgb(palette.foreground_muted)),
-                                )
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(|this, _, window, cx| {
-                                        cx.stop_propagation();
-                                        this.begin_search(window, cx);
-                                    }),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .id("dock-hidden")
-                                .size(px(24.))
-                                .rounded(px(radius::MD))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .cursor_pointer()
-                                .hover(|v| v.bg(rgb(palette.surface_sidebar_hover)))
-                                .child(
-                                    icon(if this.show_hidden { "eye-off" } else { "eye" }, 14.)
-                                        .text_color(rgb(palette.foreground_muted)),
-                                )
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(|this, _, _, cx| {
-                                        cx.stop_propagation();
-                                        this.show_hidden = !this.show_hidden;
-                                        cx.notify();
-                                    }),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .id("dock-sort")
-                                .relative()
-                                .size(px(24.))
-                                .rounded(px(radius::MD))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .cursor_pointer()
-                                .hover(|v| v.bg(rgb(palette.surface_sidebar_hover)))
-                                .child(
-                                    icon("arrow-up-down", 14.)
-                                        .text_color(rgb(palette.foreground_muted)),
-                                )
-                                .child(
-                                    canvas(
-                                        move |bounds, _, cx| {
-                                            entity.update(cx, |this, _| {
-                                                this.sort_bounds = bounds;
-                                            })
-                                        },
-                                        |_, (), _, _| {},
-                                    )
-                                    .absolute()
-                                    .size_full(),
-                                )
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(|this, _, window, cx| {
-                                        cx.stop_propagation();
-                                        if this.sort_menu.is_some() {
-                                            this.sort_menu = None;
-                                        } else {
-                                            this.open_sort_menu(window, cx);
-                                        }
-                                        cx.notify();
-                                    }),
-                                ),
-                        )
-                })
-        }
-        let header_buttons = header_buttons(self, self.tab == DockTab::Files, &palette, cx);
+        let files_toolbar = self.render_files_toolbar(&palette, cx);
         div()
             .id("workspace-tools")
             .track_focus(&self.focus)
@@ -3098,8 +2979,6 @@ impl Render for WorkspaceTools {
             .flex_shrink_0()
             .flex()
             .flex_col()
-            .border_l_1()
-            .border_color(rgb(palette.border))
             .bg(rgb(palette.surface_sidebar))
             .text_color(rgb(palette.foreground))
             .on_mouse_down(
@@ -3159,18 +3038,7 @@ impl Render for WorkspaceTools {
                         |rail| rail.child(crate::window_chrome::controls(window)),
                     ),
             )
-            .child(
-                div()
-                    .h(px(36.))
-                    .flex_shrink_0()
-                    .px_2()
-                    .flex()
-                    .items_center()
-                    .justify_end()
-                    .border_b_1()
-                    .border_color(rgb(palette.border))
-                    .child(header_buttons),
-            )
+            .when(self.tab == DockTab::Files, |dock| dock.child(files_toolbar))
             .child(content)
             .when_some(self.confirm.clone(), |dock, confirm| {
                 dock.child(
@@ -3272,21 +3140,6 @@ impl Render for WorkspaceTools {
                                     }),
                                 ),
                         ),
-                )
-            })
-            .when_some(self.sort_menu.clone(), |dock, menu| {
-                dock.child(
-                    gpui::deferred(
-                        gpui::anchored()
-                            .position(point(
-                                self.sort_bounds.right(),
-                                self.sort_bounds.bottom() + px(4.),
-                            ))
-                            .anchor(gpui::Anchor::TopRight)
-                            .snap_to_window_with_margin(px(8.))
-                            .child(div().w(px(160.)).pt_1().child(menu)),
-                    )
-                    .with_priority(1),
                 )
             })
             .when_some(self.git_menu.clone(), |dock, menu| {
@@ -3412,66 +3265,182 @@ impl Render for WorkspaceTools {
 }
 
 impl WorkspaceTools {
-    fn open_sort_menu(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let rows = vec![
-            paseo_desktop::agent_controls::OptionRow {
-                id: "name".into(),
-                label: "Name".into(),
-                description: None,
-                icon: None,
-                is_default: true,
-            },
-            paseo_desktop::agent_controls::OptionRow {
-                id: "modified".into(),
-                label: "Modified".into(),
-                description: None,
-                icon: None,
-                is_default: false,
-            },
-            paseo_desktop::agent_controls::OptionRow {
-                id: "size".into(),
-                label: "Size".into(),
-                description: None,
-                icon: None,
-                is_default: false,
-            },
-        ];
-        let selected = match self.sort {
-            Sort::Name => "name",
-            Sort::Modified => "modified",
-            Sort::Size => "size",
+    fn render_files_toolbar(&mut self, palette: &Palette, cx: &mut Context<Self>) -> gpui::Div {
+        #[derive(Clone, Copy)]
+        enum Action {
+            NewFile,
+            NewFolder,
+            Search,
+            Hidden,
+            Refresh,
+        }
+        let mut controls = div()
+            .flex()
+            .items_center()
+            .gap(px(files_style::CONTROL_GAP));
+        for (id, glyph, label, action) in [
+            ("files-new-file", "file-plus", "New file", Action::NewFile),
+            (
+                "files-new-folder",
+                "folder-plus",
+                "New folder",
+                Action::NewFolder,
+            ),
+            // Retain filename search until the Command Center owns that entrypoint.
+            ("files-search", "search", "Search files", Action::Search),
+            (
+                "files-hidden",
+                if self.show_hidden { "eye" } else { "eye-off" },
+                if self.show_hidden {
+                    "Hide hidden files"
+                } else {
+                    "Show hidden files"
+                },
+                Action::Hidden,
+            ),
+            ("files-refresh", "refresh-cw", "Refresh", Action::Refresh),
+        ] {
+            if matches!(action, Action::NewFile | Action::NewFolder) && !self.features.fs_entry_ops
+            {
+                continue;
+            }
+            let refreshing = matches!(action, Action::Refresh) && self.loading.contains(".");
+            controls = controls.child(
+                div()
+                    .id(id)
+                    .size(px(files_style::CONTROL_SIZE))
+                    .flex_shrink_0()
+                    .rounded(px(radius::MD))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .when(!refreshing, |button| {
+                        button
+                            .cursor_pointer()
+                            .hover(|button| button.bg(rgb(palette.surface_sidebar_hover)))
+                    })
+                    .when(
+                        matches!(action, Action::Hidden) && !self.show_hidden,
+                        |button| button.bg(rgb(palette.surface_sidebar_hover)),
+                    )
+                    .tooltip(move |_, cx| cx.new(|_| crate::chrome::Tooltip(label.into())).into())
+                    .child(if refreshing {
+                        loading_spinner(files_style::GLYPH_SIZE, palette.foreground_extra_muted)
+                            .into_any_element()
+                    } else {
+                        icon(glyph, files_style::GLYPH_SIZE)
+                            .text_color(rgb(palette.foreground_extra_muted))
+                            .into_any_element()
+                    })
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(move |this, _, window, cx| {
+                            cx.stop_propagation();
+                            match action {
+                                Action::NewFile | Action::NewFolder => this.begin_create(
+                                    ".".into(),
+                                    matches!(action, Action::NewFolder),
+                                    window,
+                                    cx,
+                                ),
+                                Action::Search => this.begin_search(window, cx),
+                                Action::Hidden => {
+                                    this.show_hidden = !this.show_hidden;
+                                    cx.notify();
+                                }
+                                Action::Refresh if !refreshing => this.refresh(cx),
+                                Action::Refresh => {}
+                            }
+                        }),
+                    ),
+            );
+        }
+        let label = match self.sort {
+            Sort::Name => "Name",
+            Sort::Modified => "Modified",
+            Sort::Size => "Size",
         };
-        let menu = cx.new(|cx| {
-            crate::choice_menu::ChoiceMenu::new(
-                rows,
-                Some(selected.into()),
-                "sort order",
-                false,
-                self.shared.clone(),
-                cx,
+        div()
+            .h(px(files_style::TOOLBAR_HEIGHT))
+            .flex_shrink_0()
+            .pr(px(files_style::TRAILING_PADDING))
+            .flex()
+            .items_center()
+            .justify_between()
+            .border_b_1()
+            .border_color(rgb(palette.border))
+            .bg(rgb(palette.surface_sidebar))
+            .child(
+                div()
+                    .id("files-sort")
+                    .h(px(files_style::SORT_HEIGHT))
+                    .ml(px(files_style::SORT_MARGIN_LEFT))
+                    .px(px(files_style::SORT_PADDING_X))
+                    .rounded(px(files_style::SORT_RADIUS))
+                    .flex()
+                    .items_center()
+                    .gap(px(files_style::SORT_GAP))
+                    .text_size(px(files_style::SORT_FONT))
+                    .text_color(rgb(palette.foreground_muted))
+                    .cursor_pointer()
+                    .hover(|button| button.bg(rgb(palette.surface_sidebar_hover)))
+                    .child(label)
+                    .child(icon("chevron-down", 12.).text_color(rgb(palette.foreground_muted)))
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(|this, _, _, cx| {
+                            cx.stop_propagation();
+                            this.sort = match this.sort {
+                                Sort::Name => Sort::Modified,
+                                Sort::Modified => Sort::Size,
+                                Sort::Size => Sort::Name,
+                            };
+                            cx.notify();
+                        }),
+                    ),
             )
-        });
-        cx.subscribe_in(
-            &menu,
-            window,
-            |this, _, event: &crate::choice_menu::Pick, _, cx| {
-                this.sort_menu = None;
-                if let Some(value) = &event.0 {
-                    this.sort = match value.as_str() {
-                        "modified" => Sort::Modified,
-                        "size" => Sort::Size,
-                        _ => Sort::Name,
-                    };
-                }
-                cx.notify();
-            },
-        )
-        .detach();
-        menu.read(cx).focus_handle(cx).focus(window, cx);
-        self.sort_menu = Some(menu);
+            .child(controls)
     }
 
-    fn render_files(&mut self, palette: &Palette, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn render_file_icon(&mut self, file_name: &str, window: &Window, cx: &App) -> gpui::AnyElement {
+        let pixels = (files_style::TREE_ICON * window.scale_factor())
+            .ceil()
+            .clamp(1., 128.) as i32;
+        if self.file_icon_size != pixels {
+            self.file_images.clear();
+            self.file_icon_size = pixels;
+        }
+        let (name, svg) = paseo_desktop::file_icons::lookup(file_name);
+        if !self.file_images.contains_key(name) {
+            let renderer = cx.svg_renderer();
+            let image = renderer.parse_svg(svg.as_bytes()).and_then(|svg| {
+                renderer.render_parsed(
+                    &svg,
+                    gpui::SvgSize::ExactSize(size(
+                        gpui::DevicePixels(pixels),
+                        gpui::DevicePixels(pixels),
+                    )),
+                )
+            });
+            if let Ok(image) = image {
+                self.file_images.insert(name, image);
+            }
+        }
+        if let Some(image) = self.file_images.get(name) {
+            gpui::img(image.clone())
+                .size(px(files_style::TREE_ICON))
+                .into_any_element()
+        } else {
+            icon("file-text", files_style::TREE_ICON).into_any_element()
+        }
+    }
+
+    fn render_files(
+        &mut self,
+        palette: &Palette,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
         // Search replaces the tree while it is open: the field answers a query,
         // and its hits are the only rows that can be opened.
         if self
@@ -3486,8 +3455,8 @@ impl WorkspaceTools {
             .flex_1()
             .min_h_0()
             .overflow_y_scroll()
-            .px_1()
-            .py_1()
+            .pt(px(files_style::TREE_TOP))
+            .pb(px(files_style::TREE_BOTTOM))
             .flex()
             .flex_col();
         if !self.directories.contains_key(".") {
@@ -3517,13 +3486,11 @@ impl WorkspaceTools {
                 div()
                     .h(px(ROW_HEIGHT))
                     .flex_shrink_0()
-                    .mb(px(1.))
-                    .pl(px(8. + depth as f32 * TREE_INDENT))
-                    .pr_1()
-                    .rounded(px(radius::SM))
+                    .pl(px(files_style::TREE_LEFT + depth as f32 * TREE_INDENT))
+                    .pr(px(files_style::TREE_RIGHT))
                     .flex()
                     .items_center()
-                    .gap_1()
+                    .gap(px(files_style::TREE_GAP))
                     .child(self.render_input_row(palette, cx)),
             );
         }
@@ -3542,13 +3509,11 @@ impl WorkspaceTools {
                     div()
                         .h(px(ROW_HEIGHT))
                         .flex_shrink_0()
-                        .mb(px(1.))
-                        .pl(px(8. + depth as f32 * TREE_INDENT))
-                        .pr_1()
-                        .rounded(px(radius::SM))
+                        .pl(px(files_style::TREE_LEFT + depth as f32 * TREE_INDENT))
+                        .pr(px(files_style::TREE_RIGHT))
                         .flex()
                         .items_center()
-                        .gap_1()
+                        .gap(px(files_style::TREE_GAP))
                         .child(self.render_input_row(palette, cx)),
                 );
                 continue;
@@ -3567,15 +3532,21 @@ impl WorkspaceTools {
                 .id(gpui::SharedString::from(format!("entry-{path}")))
                 .h(px(ROW_HEIGHT))
                 .flex_shrink_0()
-                .mb(px(1.))
-                .pl(px(8. + depth as f32 * TREE_INDENT))
-                .pr_1()
-                .rounded(px(radius::SM))
+                .pl(px(files_style::TREE_LEFT + depth as f32 * TREE_INDENT))
+                .pr(px(files_style::TREE_RIGHT))
                 .flex()
                 .items_center()
-                .gap_1()
+                .gap(px(files_style::TREE_GAP))
+                .text_color(rgb(crate::chrome::control_color(
+                    palette.foreground,
+                    palette.surface_sidebar,
+                    0.76,
+                )))
                 .cursor_pointer()
-                .hover(|row| row.bg(rgb(palette.surface_sidebar_hover)))
+                .hover(|row| {
+                    row.bg(rgb(palette.surface_sidebar_hover))
+                        .text_color(rgb(palette.foreground))
+                })
                 .on_mouse_down(
                     MouseButton::Left,
                     cx.listener(move |this, _, _, cx| {
@@ -3588,37 +3559,43 @@ impl WorkspaceTools {
                         }
                     }),
                 );
-            if directory {
-                row = row
-                    .child(if loading {
-                        loading_spinner(14., palette.foreground_muted).into_any_element()
-                    } else {
-                        icon(
-                            if expanded {
-                                "chevron-down"
-                            } else {
-                                "chevron-right"
-                            },
-                            12.,
-                        )
-                        .text_color(rgb(palette.foreground_muted))
-                        .into_any_element()
-                    })
-                    .child(
-                        icon(if expanded { "folder-open" } else { "folder" }, 14.)
-                            .text_color(rgb(palette.foreground_muted)),
-                    );
+            let file_icon = if directory {
+                if loading {
+                    loading_spinner(14., palette.foreground_extra_muted).into_any_element()
+                } else {
+                    icon(
+                        if expanded {
+                            "chevron-down"
+                        } else {
+                            "chevron-right"
+                        },
+                        files_style::TREE_ICON,
+                    )
+                    .text_color(rgb(palette.foreground_extra_muted))
+                    .into_any_element()
+                }
             } else {
-                row = row.child(icon("file-text", 14.).text_color(rgb(palette.foreground_muted)));
-            }
-            row = row.child(
-                div()
-                    .min_w_0()
-                    .flex_1()
-                    .truncate()
-                    .text_size(px(font_size::SM))
-                    .child(entry.name.clone()),
-            );
+                self.render_file_icon(&entry.name, window, cx)
+            };
+            row = row
+                .child(
+                    div()
+                        .size(px(files_style::TREE_ICON))
+                        .flex_shrink_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(file_icon),
+                )
+                .child(
+                    div()
+                        .min_w_0()
+                        .flex_1()
+                        .truncate()
+                        .line_height(px(files_style::TREE_ICON))
+                        .text_size(px(font_size::BASE))
+                        .child(entry.name.clone()),
+                );
             // The row itself reports its geometry so the context menu anchors to it.
             let entity = cx.entity();
             let menu_path = path.clone();
@@ -3704,6 +3681,10 @@ impl WorkspaceTools {
         div()
             .flex_1()
             .h(px(22.))
+            .when_some(
+                self.input.as_ref().map(|input| input.focus.clone()),
+                |row, focus| row.track_focus(&focus),
+            )
             .px_2()
             .rounded(px(radius::SM))
             .bg(rgb(palette.input))

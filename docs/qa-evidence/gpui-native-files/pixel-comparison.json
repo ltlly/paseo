@@ -1,0 +1,30 @@
+{
+  "status": "NOT_PASSED",
+  "viewport": [1280, 800],
+  "theme": "dark",
+  "scale": 1,
+  "reference": "reference-files.png",
+  "before": "native-before.png",
+  "after": "native-files.png",
+  "masks": [],
+  "regions": {
+    "explorer": {
+      "box": [960, 0, 1280, 800],
+      "pixels": 256000,
+      "before": 4903,
+      "after": 4692
+    },
+    "tree": {
+      "box": [960, 72, 1280, 180],
+      "pixels": 34560,
+      "before": 2642,
+      "after": 1646
+    },
+    "toolbar": {
+      "box": [960, 36, 1280, 72],
+      "pixels": 11520,
+      "before": 793,
+      "after": 873
+    }
+  }
+}

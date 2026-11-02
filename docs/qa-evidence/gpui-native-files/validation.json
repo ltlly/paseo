@@ -1,0 +1,72 @@
+{
+  "scope": "Native Files toolbar/row presentation and canonical colored file icons; actual file/directory creation with Enter. Android, installed clients, daemon and real sessions unchanged.",
+  "finalSource": {
+    "manifest": "source-identity.json",
+    "archiveSha256": "3fd53c9e7b60a4f203581e4b1d548a5106bf35c494deff630a02226fc7cc5d6a",
+    "fileCount": 228,
+    "archiveByteMatchesCheckout": true
+  },
+  "linuxBinary": {
+    "pid": 2715270,
+    "args": ["/home/ltlly/.cache/paseo-native-qa/redraw-20261102/paseo-files-focus"],
+    "sha256": "178a3def9e9c057166dadc39a0bf791336a0696b0d836a757653014fb830d9ad"
+  },
+  "checks": {
+    "linuxNativeCheck": true,
+    "linuxNativeBuild": true,
+    "macOSNativeCheckAndBuild": true,
+    "macOSFeature": "runtime-shaders",
+    "windowsNativeCheckAndBuild": true,
+    "windowsToolchain": "MSVC",
+    "iconSelectorTests": {
+      "platforms": ["Linux", "macOS", "Windows"],
+      "testsPerPlatform": 1,
+      "authoredFilenameCasesPerTest": 139,
+      "sourceArchiveSha256": "55cf4080447c691c491e05c4992e4aa56c64344f027fcdbfbc616ee7ebaae55b",
+      "testedModuleAndGeneratedDataByteIdenticalToFinalArchive": true,
+      "testFiles": [
+        "packages/desktop/native/src/file_icons.rs",
+        "packages/desktop/native/src/file_icon_data.rs",
+        "packages/desktop/native/src/testdata/file-icons.json"
+      ]
+    },
+    "npmLint": true,
+    "npmTypecheck": true,
+    "nativeGeneratorFresh": true,
+    "fullSuiteRun": false,
+    "ciRun": false
+  },
+  "linuxGUI": {
+    "realPTY": true,
+    "fileAndDirectoryCreationAndInputIsolation": "interactions.json",
+    "sortLabelsAndHiddenAndSearchObservations": "ocr.json",
+    "closingClientRetainsOriginalPTY": "client-close.json",
+    "keyboardRegression": "Before the input row tracked its own focus handle, typing succeeded but Return never reached its handler and no file was created. The final OS-input run creates both entries with Return.",
+    "glyphAlarmCorrection": "../gpui-native-explorer/redraw-regression.json"
+  },
+  "visual": "pixel-comparison.json",
+  "iconAssets": {
+    "canonicalSVGCount": 54,
+    "source": "packages/app/src/components/material-file-icons.ts and file-icon-svg.ts",
+    "runtimeJavaScript": false,
+    "rasterCache": "Per icon name at current device pixel size; previous scale set is dropped. No file-by-file raster duplication."
+  },
+  "producers": {
+    "fixture": "../gpui-native-workspace-header/fixture.mts",
+    "reference": "reference.mts",
+    "gui": "gui-qa.py.txt",
+    "input": "x11-input.py.txt",
+    "clientInspection": "../gpui-native-explorer/lifecycle.mts",
+    "instructions": "Use a fresh isolated daemon/home/display :99 and private dark/English config. Select the retained terminal workspace and open Files at320px before gui-qa. Reference is a real Electron renderer against the same fixture and unmodified header-checkpoint app export. Capture parity BEFORE gui-qa mutates the private filesystem. GUI scripts are copied into the QA directory, using its fixture.json.",
+    "referenceExport": "/home/ltlly/.cache/paseo-native-qa/header-20261102/reference-dist"
+  },
+  "limitations": [
+    "NOT_PASSED: font rasterization, tab sizing/corners, launcher and other pixel differences remain. The extra prototype filename-search button accounts for a known toolbar difference until Command Center migration.",
+    "File selector matching does not prove rasterization of all54 icons or OS/DPI display changes. Only the captured file types were rendered in this QA.",
+    "Sort and hidden-file preferences are not persisted across native client restart. Complete Files selection/context menus, creation form presentation, search/command center, panel host and drag/drop still need acceptance.",
+    "OCR validates mode labels, hidden toggle and search result plus four known file orders. input.jsonl is misrecognized and excluded from order assertions; see raw observations.",
+    "macOS/Windows evidence is source-verified compilation/core tests, not native GUI interaction or performance. No hardware CPU/RSS/latency, packaging or deployment acceptance."
+  ],
+  "cleanup": "cleanup.json",
+  "logNormalization": "Stored logs normalize CRLF/trailing whitespace and final newline."
+}

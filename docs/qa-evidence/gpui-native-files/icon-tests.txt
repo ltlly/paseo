@@ -1,0 +1,9 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.85s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 1 test
+test file_icons::tests::matches_the_authored_file_icon_selector ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 385 filtered out; finished in 0.00s
+

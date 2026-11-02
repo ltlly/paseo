@@ -8,6 +8,7 @@ pub mod client;
 pub mod composer;
 pub mod editing;
 pub mod explorer_layout;
+pub mod file_icons;
 pub mod font_selection;
 pub mod history;
 pub mod hosts;
