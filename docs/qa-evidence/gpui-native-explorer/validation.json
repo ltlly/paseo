@@ -1,0 +1,77 @@
+{
+  "scope": "Native Explorer shell: right placement, window-control corner ownership, per-host/workspace saved visible/width state, resize constraints and authored shortcuts. Android and installed production clients unchanged.",
+  "source": {
+    "archiveSha256": "5bf455d30f0a519a0962c655cf1f976c4c6d246add7c4e28303df3d3e58eb4a2",
+    "fileCount": 224,
+    "archive": "/home/ltlly/.cache/paseo-native-qa/explorer-20261102/native-source.tar.gz",
+    "manifest": "source-identity.json",
+    "archiveByteMatchesCheckout": true
+  },
+  "linuxBinary": {
+    "pid": 2634624,
+    "args": ["/home/ltlly/.cache/paseo-native-qa/explorer-20261102/paseo-explorer-focus"],
+    "sha256": "839f88699795dfb980978eac5746a2188e63ec4da338ae56073870dcb3014f37"
+  },
+  "baselineBinary": {
+    "pid": 2658751,
+    "args": ["/home/ltlly/.cache/paseo-native-qa/explorer-20261102/paseo-baseline-exact"],
+    "sha256": "0c4e871d0ca10a612360c5a47dc0c0d7636acc9d3eb8e0cf922e521072f5a70a"
+  },
+  "checks": {
+    "linux": {
+      "nativeBuild": true,
+      "nativeCheck": true,
+      "geometryTests": 2,
+      "storageTests": 13,
+      "splitTests": 15
+    },
+    "macOS": {
+      "nativeBuild": true,
+      "nativeCheck": true,
+      "feature": "runtime-shaders",
+      "geometryTests": 2,
+      "storageTests": 13,
+      "splitTests": 15
+    },
+    "windows": {
+      "nativeBuild": true,
+      "nativeCheck": true,
+      "toolchain": "MSVC",
+      "geometryTests": 2,
+      "storageTests": 13,
+      "splitTests": 15
+    },
+    "npmTypecheck": true,
+    "npmLint": true,
+    "nativeUIOracleFresh": true,
+    "fullSuiteRun": false,
+    "ciRun": false
+  },
+  "linuxGUI": {
+    "keyboard": "keyboard.json",
+    "workspaceWidthMouseIsolation": "interactions.json",
+    "reopen": "native-reopened.png",
+    "retainedPTY": "before-client-reopen.json",
+    "closedClientsRetainPTY": "final-client-close.json",
+    "redrawDefect": "redraw-regression.json"
+  },
+  "visualComparison": "pixel-comparison.json",
+  "producers": {
+    "fixture": "../gpui-native-workspace-header/fixture.mts",
+    "reference": "reference.mts",
+    "lifecycle": "lifecycle.mts",
+    "x11": "x11-input.py.txt",
+    "sequence": "Fresh private fixture/display :99; launch native with private config; copy/run keys.py.txt in QA directory, click Files then Ctrl+E and type probe to verify focus return; reopen and drag to400px; lifecycle create; interactions.py.txt; close/inspect/reopen native; capture; run reference against same private fixture. Reference reuses the unmodified Electron app export from the header checkpoint.",
+    "crossPlatform": "check-mac.sh.txt and check-win.ps1.txt verify archive identity before checks, changed-file suites and full native builds.",
+    "referenceExport": "/home/ltlly/.cache/paseo-native-qa/header-20261102/reference-dist"
+  },
+  "limitations": [
+    "NOT_PASSED: Files toolbar, plus launcher, icons, row/tab geometry and glyph rendering still differ from Electron.",
+    "Shared Explorer PanelHost, additional panel tabs, tab menus/dragging and selected-view persistence remain pending. This shell stores visibility and width only.",
+    "Missing static glyphs reproduced on exact prior checkpoint binary as well as current binary under software Xvfb; window resizing restores them. Root cause and hardware/other OS interaction remain pending.",
+    "Below600px geometry has focused model coverage only; complete compact UI, macOS traffic-light geometry and OS interactions are unaccepted.",
+    "No hardware CPU/RSS/latency acceptance, packaging, deployment or daemon/protocol change. Existing disabled_manually CI workflows were not enabled."
+  ],
+  "cleanup": "cleanup.json",
+  "logNormalization": "Stored logs normalize CRLF/trailing whitespace and final newline."
+}

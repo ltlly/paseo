@@ -22,7 +22,6 @@ use crate::{
 };
 use paseo_desktop::editing::Editing;
 
-const DOCK_WIDTH: f32 = 264.;
 const TREE_INDENT: f32 = 12.;
 const ROW_HEIGHT: f32 = 24.;
 /// The authored diff band is the palette's diff colour at 15% alpha.
@@ -681,6 +680,7 @@ pub struct WorkspaceTools {
     local_endpoint: bool,
     features: Features,
     pub tab: DockTab,
+    owns_window_corner: bool,
     // Explorer
     directories: BTreeMap<String, Directory>,
     expanded: BTreeSet<String>,
@@ -756,6 +756,7 @@ impl WorkspaceTools {
             local_endpoint,
             features: Features::default(),
             tab: DockTab::Files,
+            owns_window_corner: false,
             directories: BTreeMap::new(),
             expanded: BTreeSet::from([".".to_owned()]),
             loading: BTreeSet::new(),
@@ -804,6 +805,12 @@ impl WorkspaceTools {
         tools
     }
 
+    pub fn set_window_corner(&mut self, owned: bool, cx: &mut Context<Self>) {
+        if self.owns_window_corner != owned {
+            self.owns_window_corner = owned;
+            cx.notify();
+        }
+    }
     pub fn host(&self) -> &str {
         &self.host
     }
@@ -2931,7 +2938,10 @@ impl Render for WorkspaceTools {
                 .flex()
                 .items_center()
                 .cursor_pointer()
-                .text_size(px(font_size::SM))
+                .text_size(px(font_size::BASE))
+                .min_w_0()
+                .flex_shrink(1.)
+                .gap_1()
                 .text_color(rgb(if selected {
                     palette.foreground
                 } else {
@@ -2941,12 +2951,24 @@ impl Render for WorkspaceTools {
                 .hover(|tab| tab.bg(rgb(palette.surface2)))
                 .on_mouse_down(
                     MouseButton::Left,
-                    cx.listener(move |this, _, _, cx| {
+                    cx.listener(move |this, _, window, cx| {
                         cx.stop_propagation();
+                        this.focus.focus(window, cx);
                         this.toggle_tab(this_tab, cx);
                     }),
                 )
-                .child(label)
+                .child(
+                    icon(
+                        if this_tab == DockTab::Files {
+                            "files"
+                        } else {
+                            "file-diff"
+                        },
+                        14.,
+                    )
+                    .flex_shrink_0(),
+                )
+                .child(div().min_w_0().truncate().child(label))
         }
         fn header_buttons(
             this: &mut WorkspaceTools,
@@ -3070,12 +3092,13 @@ impl Render for WorkspaceTools {
         let header_buttons = header_buttons(self, self.tab == DockTab::Files, &palette, cx);
         div()
             .id("workspace-tools")
-            .w(px(DOCK_WIDTH))
+            .track_focus(&self.focus)
+            .w_full()
             .h_full()
             .flex_shrink_0()
             .flex()
             .flex_col()
-            .border_r_1()
+            .border_l_1()
             .border_color(rgb(palette.border))
             .bg(rgb(palette.surface_sidebar))
             .text_color(rgb(palette.foreground))
@@ -3091,27 +3114,61 @@ impl Render for WorkspaceTools {
                 div()
                     .h(px(36.))
                     .flex_shrink_0()
-                    .px_2()
+                    .pl_2()
+                    .pr(px(
+                        if self.owns_window_corner
+                            && !cfg!(target_os = "macos")
+                            && !window.is_fullscreen()
+                        {
+                            0.
+                        } else {
+                            8.
+                        },
+                    ))
                     .flex()
                     .items_center()
                     .gap_1()
                     .border_b_1()
                     .border_color(rgb(palette.border))
-                    .child(dock_tab(
-                        "Files",
-                        DockTab::Files,
-                        self.tab == DockTab::Files,
-                        &palette,
-                        cx,
-                    ))
-                    .child(dock_tab(
-                        "Changes",
-                        DockTab::Changes,
-                        self.tab == DockTab::Changes,
-                        &palette,
-                        cx,
-                    ))
-                    .child(div().flex_1())
+                    .child(
+                        div()
+                            .min_w_0()
+                            .flex_1()
+                            .flex()
+                            .items_center()
+                            .gap_1()
+                            .child(dock_tab(
+                                "Files",
+                                DockTab::Files,
+                                self.tab == DockTab::Files,
+                                &palette,
+                                cx,
+                            ))
+                            .child(dock_tab(
+                                "Changes",
+                                DockTab::Changes,
+                                self.tab == DockTab::Changes,
+                                &palette,
+                                cx,
+                            )),
+                    )
+                    .when(
+                        self.owns_window_corner
+                            && !cfg!(target_os = "macos")
+                            && !window.is_fullscreen(),
+                        |rail| rail.child(crate::window_chrome::controls(window)),
+                    ),
+            )
+            .child(
+                div()
+                    .h(px(36.))
+                    .flex_shrink_0()
+                    .px_2()
+                    .flex()
+                    .items_center()
+                    .justify_end()
+                    .border_b_1()
+                    .border_color(rgb(palette.border))
                     .child(header_buttons),
             )
             .child(content)

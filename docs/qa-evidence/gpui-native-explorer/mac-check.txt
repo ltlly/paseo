@@ -1,0 +1,190 @@
+archive=/Users/nmsl/.cache/paseo-gpui-current-5bf455d30f0a.tar.gz
+expected_sha256=5bf455d30f0a519a0962c655cf1f976c4c6d246add7c4e28303df3d3e58eb4a2
+actual_sha256=5bf455d30f0a519a0962c655cf1f976c4c6d246add7c4e28303df3d3e58eb4a2
+extracted=/Users/nmsl/.cache/paseo-gpui-src-5bf455d30f0a
+cargo=cargo 1.99.0 (5f94df478 2026-08-27)
+rustc=rustc 1.99.0 (b940084d7 2026-09-28)
+STEP=cargo_clean
+     Removed 1639 files, 856.8MiB total
+STEP=cargo_check
+   Compiling paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-src-5bf455d30f0a/packages/desktop/native)
+warning: unused import: `std::ffi::c_ulong`
+  --> packages/desktop/native/src/browser_webview.rs:73:9
+   |
+73 |     use std::ffi::c_ulong;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::sync::OnceLock`
+  --> packages/desktop/native/src/browser_webview.rs:74:9
+   |
+74 |     use std::sync::OnceLock;
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `anyhow`
+  --> packages/desktop/native/src/browser_webview.rs:76:26
+   |
+76 |     use anyhow::{Result, anyhow};
+   |                          ^^^^^^
+
+warning: unused imports: `HandleError`, `HasWindowHandle`, `RawWindowHandle`, `WindowHandle`, and `XlibWindowHandle`
+  --> packages/desktop/native/src/browser_webview.rs:80:9
+   |
+80 |         HandleError, HasWindowHandle, RawWindowHandle, WindowHandle, XlibWindowHandle,
+   |         ^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: variant `Wayland` is never constructed
+  --> packages/desktop/native/src/browser_webview.rs:27:5
+   |
+25 | pub enum UnsupportedReason {
+   |          ----------------- variant in this enum
+26 |     /// GPUI is running on Wayland; wry's child webview is X11-only.
+27 |     Wayland,
+   |     ^^^^^^^
+   |
+   = note: `UnsupportedReason` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variant `X11` is never constructed
+  --> packages/desktop/native/src/browser_webview.rs:35:5
+   |
+34 | pub enum PlatformSupport {
+   |          --------------- variant in this enum
+35 |     X11,
+   |     ^^^
+   |
+   = note: `PlatformSupport` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `set_active_turn` is never used
+   --> packages/desktop/native/src/conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: `paseo-desktop` (bin "paseo-desktop") generated 7 warnings (run `cargo fix --bin "paseo-desktop" -p paseo-desktop` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.62s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+TEST_FILTER=explorer_layout::tests
+   Compiling paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-src-5bf455d30f0a/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.28s
+     Running unittests src/lib.rs (/Users/nmsl/.cache/paseo-gpui-target/debug/deps/paseo_desktop-0c5dfe097bfe2c87)
+
+running 2 tests
+test explorer_layout::tests::narrow_docks_yield_navigation_without_changing_intent ... ok
+test explorer_layout::tests::widths_match_the_authored_explorer_resolver ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 383 filtered out; finished in 0.00s
+
+TEST_FILTER=workspace_layout_storage::tests
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running unittests src/lib.rs (/Users/nmsl/.cache/paseo-gpui-target/debug/deps/paseo_desktop-0c5dfe097bfe2c87)
+
+running 13 tests
+test workspace_layout_storage::tests::a_failed_write_keeps_the_previous_document_and_the_next_save_retries ... ok
+test workspace_layout_storage::tests::corrupt_and_oversized_stores_are_moved_aside ... ok
+test workspace_layout_storage::tests::explorer_intent_round_trips_per_host_and_workspace ... ok
+test workspace_layout_storage::tests::invalid_trees_are_refused_instead_of_half_restored ... ok
+test workspace_layout_storage::tests::layouts_are_scoped_by_host_and_workspace_and_survive_reload ... ok
+test workspace_layout_storage::tests::old_layouts_default_closed_and_invalid_widths_do_not_replace_the_tree ... ok
+test workspace_layout_storage::tests::one_window_keeps_the_layouts_another_window_wrote ... ok
+test workspace_layout_storage::tests::restore_refuses_trees_over_the_pane_bound ... ok
+test workspace_layout_storage::tests::restore_repairs_tab_ownership_and_clamps_sizes ... ok
+test workspace_layout_storage::tests::save_refuses_a_layout_it_cannot_store_without_loss ... ok
+test workspace_layout_storage::tests::save_refuses_a_new_key_at_capacity_before_touching_the_file ... ok
+test workspace_layout_storage::tests::save_refuses_invalid_identity_instead_of_dropping_the_layout ... ok
+test workspace_layout_storage::tests::saving_replaces_the_previous_document_atomically ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 372 filtered out; finished in 0.17s
+
+TEST_FILTER=split_layout::tests
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.25s
+     Running unittests src/lib.rs (/Users/nmsl/.cache/paseo-gpui-target/debug/deps/paseo_desktop-0c5dfe097bfe2c87)
+
+running 15 tests
+test split_layout::tests::a_restored_maximum_id_exhausts_the_counter_instead_of_overflowing ... ok
+test split_layout::tests::adopting_tabs_keeps_them_reachable_without_moving_pane_focus ... ok
+test split_layout::tests::close_pane_keeps_the_last_pane_and_rebalances ... ok
+test split_layout::tests::closing_a_browser_tab_leaves_the_terminal_tab_in_its_pane ... ok
+test split_layout::tests::focus_traversal_walks_a_grid_spatially ... ok
+test split_layout::tests::generated_ids_never_collide_with_a_restored_layout ... ok
+test split_layout::tests::group_extent_is_derived_from_the_split_area_for_drag_math ... ok
+test split_layout::tests::moving_a_tab_between_panes_transfers_ownership_and_focus ... ok
+test split_layout::tests::pruning_dead_tabs_releases_empty_panes_but_keeps_the_last_one ... ok
+test split_layout::tests::repeated_splits_beside_one_pane_keep_every_id_unique ... ok
+test split_layout::tests::resize_clamps_to_min_split_size ... ok
+test split_layout::tests::split_refuses_beyond_max_depth ... ok
+test split_layout::tests::split_right_then_down_halves_sizes_and_moves_focus ... ok
+test split_layout::tests::tab_limit_rejects_the_operation_instead_of_dropping_a_tab_later ... ok
+test split_layout::tests::tab_ownership_moves_between_panes_and_survives_a_persistence_roundtrip ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 370 filtered out; finished in 0.00s
+
+STEP=cargo_native_build
+   Compiling paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-src-5bf455d30f0a/packages/desktop/native)
+warning: unused import: `std::ffi::c_ulong`
+  --> packages/desktop/native/src/browser_webview.rs:73:9
+   |
+73 |     use std::ffi::c_ulong;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::sync::OnceLock`
+  --> packages/desktop/native/src/browser_webview.rs:74:9
+   |
+74 |     use std::sync::OnceLock;
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `anyhow`
+  --> packages/desktop/native/src/browser_webview.rs:76:26
+   |
+76 |     use anyhow::{Result, anyhow};
+   |                          ^^^^^^
+
+warning: unused imports: `HandleError`, `HasWindowHandle`, `RawWindowHandle`, `WindowHandle`, and `XlibWindowHandle`
+  --> packages/desktop/native/src/browser_webview.rs:80:9
+   |
+80 |         HandleError, HasWindowHandle, RawWindowHandle, WindowHandle, XlibWindowHandle,
+   |         ^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: variant `Wayland` is never constructed
+  --> packages/desktop/native/src/browser_webview.rs:27:5
+   |
+25 | pub enum UnsupportedReason {
+   |          ----------------- variant in this enum
+26 |     /// GPUI is running on Wayland; wry's child webview is X11-only.
+27 |     Wayland,
+   |     ^^^^^^^
+   |
+   = note: `UnsupportedReason` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variant `X11` is never constructed
+  --> packages/desktop/native/src/browser_webview.rs:35:5
+   |
+34 | pub enum PlatformSupport {
+   |          --------------- variant in this enum
+35 |     X11,
+   |     ^^^
+   |
+   = note: `PlatformSupport` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `set_active_turn` is never used
+   --> packages/desktop/native/src/conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: `paseo-desktop` (bin "paseo-desktop") generated 7 warnings (run `cargo fix --bin "paseo-desktop" -p paseo-desktop` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.84s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+RESULT=0

@@ -1,0 +1,17 @@
+{
+  "perWorkspace": {
+    "first": {
+      "visible": true,
+      "width": 399.9969482421875
+    },
+    "second": {
+      "visible": false,
+      "width": 240.0
+    }
+  },
+  "minimum": 240,
+  "maximumAt1280": 600,
+  "mouseReportingDoesNotConsumeDockDrag": true,
+  "narrowWindowKeepsSavedWidth": true,
+  "closeReturnsPTYInputHex": "70726f6265"
+}

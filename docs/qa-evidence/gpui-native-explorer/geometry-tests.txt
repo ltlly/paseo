@@ -1,0 +1,10 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 9.40s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 2 tests
+test explorer_layout::tests::narrow_docks_yield_navigation_without_changing_intent ... ok
+test explorer_layout::tests::widths_match_the_authored_explorer_resolver ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 383 filtered out; finished in 0.00s
+

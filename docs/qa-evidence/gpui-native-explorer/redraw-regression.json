@@ -1,0 +1,8 @@
+{
+  "status": "REPRODUCED_UNRESOLVED",
+  "baselineBinarySha256": "0c4e871d0ca10a612360c5a47dc0c0d7636acc9d3eb8e0cf922e521072f5a70a",
+  "baselineSourceArchiveSha256": "4cf0011995fda16b19bfd720d8ceb3e7e99becf3fd65554408bb8f0cd9fc46e3",
+  "baselineScenario": "Select retained terminal workspace, toggle Explorer twice via header button. Static glyphs vanish until window resize.",
+  "currentScenario": "After dock resize, unchanged terminal/sidebar/header glyphs vanish. Window resize restores them.",
+  "environment": "Xvfb :99, software Vulkan/Mesa; hardware and other OS unverified"
+}

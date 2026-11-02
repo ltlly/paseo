@@ -1,0 +1,22 @@
+{
+  "status": "NOT_PASSED",
+  "reference": "reference-files.png",
+  "native": "native-files.png",
+  "viewport": [1280, 800],
+  "scale": 1,
+  "theme": "dark",
+  "masks": [],
+  "nativeCapturePreparation": "After observing missing glyphs following a drag, resize 1280->1279->1280 to force complete redraw. This recovery is not accepted as normal behavior.",
+  "regions": {
+    "explorer": {
+      "box": [960, 0, 1280, 800],
+      "differentPixels": 5521,
+      "totalPixels": 256000
+    },
+    "tabRail": {
+      "box": [960, 0, 1280, 36],
+      "differentPixels": 1468,
+      "totalPixels": 11520
+    }
+  }
+}

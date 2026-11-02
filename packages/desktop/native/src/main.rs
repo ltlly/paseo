@@ -131,6 +131,8 @@ fn main() {
                 None,
             ),
             KeyBinding::new(&format!("{pane_modifier}-n"), ui::NewWindow, None),
+            KeyBinding::new(&format!("{pane_modifier}-e"), ui::ToggleExplorer, None),
+            KeyBinding::new("ctrl-`", ui::ToggleExplorerTerminal, None),
         ]);
         cx.text_system()
             .add_fonts(fonts::terminal_faces())

@@ -334,6 +334,7 @@ pub fn validate_layout(layout: SplitLayout) -> Option<SplitLayout> {
     let mut restored = SplitLayout {
         root,
         focused_pane_id: layout.focused_pane_id,
+        explorer: layout.explorer.normalized(),
     };
     let panes = restored.panes();
     let focused = restored
@@ -556,6 +557,38 @@ mod tests {
     }
 
     #[test]
+    fn explorer_intent_round_trips_per_host_and_workspace() {
+        let path = temporary_path("explorer-intent");
+        let mut first = SplitLayoutStore::load(&path).unwrap();
+        let mut second = SplitLayoutStore::load(&path).unwrap();
+        let mut a = SplitLayout::single("main");
+        a.explorer.visible = true;
+        a.explorer.width = 480.5;
+        first.save("host-a", "workspace-a", a.clone()).unwrap();
+        let mut b = SplitLayout::single("main");
+        b.explorer.width = 360.;
+        second.save("host-a", "workspace-b", b.clone()).unwrap();
+        second.save("host-b", "workspace-a", b.clone()).unwrap();
+        let restored = SplitLayoutStore::load(&path).unwrap();
+        assert_eq!(restored.layout("host-a", "workspace-a"), Some(&a));
+        assert_eq!(restored.layout("host-a", "workspace-b"), Some(&b));
+        assert_eq!(restored.layout("host-b", "workspace-a"), Some(&b));
+        fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn old_layouts_default_closed_and_invalid_widths_do_not_replace_the_tree() {
+        let old = serde_json::json!({"root":{"kind":"pane","pane":{"id":"main","tabs":[]}},"focusedPaneId":"main"});
+        let mut layout: SplitLayout = serde_json::from_value(old).unwrap();
+        assert!(!layout.explorer.visible);
+        assert_eq!(layout.explorer.width, 320.);
+        layout.explorer.width = f64::NAN;
+        let restored = validate_layout(layout).unwrap();
+        assert_eq!(restored.explorer.width, 320.);
+        assert_eq!(restored.focused_pane_id.as_deref(), Some("main"));
+    }
+
+    #[test]
     fn layouts_are_scoped_by_host_and_workspace_and_survive_reload() {
         let path = temporary_path("scope");
         let mut store = SplitLayoutStore::load(&path).unwrap();
@@ -648,6 +681,7 @@ mod tests {
             validate_layout(SplitLayout {
                 root: node,
                 focused_pane_id: Some("main".into()),
+                explorer: Default::default(),
             }),
             None
         );
@@ -704,6 +738,7 @@ mod tests {
                 },
             },
             focused_pane_id: Some("pane-0".into()),
+            explorer: Default::default(),
         };
         assert_eq!(validate_layout(layout), None);
     }
@@ -812,6 +847,7 @@ mod tests {
                 },
             },
             focused_pane_id: Some(MAIN_PANE_ID.into()),
+            explorer: Default::default(),
         };
         // The live model refuses the 257th tab instead of accepting it and
         // letting the save drop it.

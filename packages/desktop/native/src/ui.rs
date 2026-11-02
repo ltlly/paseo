@@ -345,6 +345,8 @@ actions!(
         MoveTabDown,
         CloseFocusedPane,
         NewWindow,
+        ToggleExplorer,
+        ToggleExplorerTerminal,
     ]
 );
 
@@ -395,6 +397,13 @@ enum PaneTabKind {
     Agent,
     File,
     Browser,
+}
+
+#[derive(Clone)]
+struct ExplorerDrag {
+    start_x: f64,
+    start_width: f64,
+    preview_width: f64,
 }
 
 pub struct Paseo {
@@ -472,7 +481,8 @@ pub struct Paseo {
     tools: Option<Entity<WorkspaceTools>>,
     /// Raw workspace descriptors, so tools can read scripts without widening the Directory model.
     workspace_payloads: BTreeMap<String, Value>,
-    dock_open: bool,
+    explorer_drag: Option<ExplorerDrag>,
+    explorer_container_width: f64,
     editors: BTreeMap<EditorKey, Entity<FileEditor>>,
     selected_file: Option<EditorKey>,
     /// Retained browser surfaces keyed by the pane tab that owns them. A pane
@@ -602,6 +612,9 @@ impl Paseo {
         });
         let activation = cx.observe_window_activation(window, |this, window, cx| {
             this.window_active = window.is_window_active();
+            if !this.window_active && this.explorer_drag.take().is_some() {
+                cx.notify();
+            }
             if this.window_active {
                 this.note_user_activity();
             }
@@ -730,7 +743,8 @@ impl Paseo {
             composers: BTreeMap::new(),
             tools: None,
             workspace_payloads: BTreeMap::new(),
-            dock_open: false,
+            explorer_drag: None,
+            explorer_container_width: 0.,
             editors: BTreeMap::new(),
             browsers: BTreeMap::new(),
             browser_subscriptions: BTreeMap::new(),
@@ -913,6 +927,7 @@ impl Paseo {
         self.browsers.clear();
         self.browser_subscriptions.clear();
         self.split_drag = None;
+        self.explorer_drag = None;
         self.pane_bounds.clear();
         self.tab_drag = None;
         self.composers.clear();
@@ -2002,6 +2017,90 @@ impl Paseo {
             .any(|view| view.read(cx).focus_handle(cx).is_focused(window))
     }
 
+    fn toggle_explorer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let return_focus = self
+            .tools
+            .as_ref()
+            .is_some_and(|tools| tools.read(cx).focus_handle(cx).is_focused(window));
+        if let Some(layout) = self.selected_splits() {
+            layout.explorer.visible = !layout.explorer.visible;
+            let closing = !layout.explorer.visible;
+            let tab = layout
+                .focused_pane()
+                .and_then(|pane| pane.focused_tab.clone());
+            if closing && return_focus {
+                let focus = tab
+                    .and_then(|tab| match self.pane_tab_kind(&tab) {
+                        Some(PaneTabKind::Terminal) => self
+                            .terminals
+                            .iter()
+                            .find(|(id, _)| id.as_str() == tab)
+                            .map(|(_, view)| view.read(cx).focus_handle(cx)),
+                        Some(PaneTabKind::Agent) => self
+                            .composers
+                            .get(&tab)
+                            .map(|view| view.read(cx).focus_handle(cx)),
+                        Some(PaneTabKind::File) => self
+                            .editors
+                            .iter()
+                            .find(|(key, _)| key.tab_id() == tab)
+                            .map(|(_, view)| view.read(cx).focus_handle(cx)),
+                        Some(PaneTabKind::Browser) => self
+                            .browsers
+                            .get(&tab)
+                            .map(|view| view.read(cx).focus_handle(cx)),
+                        None => None,
+                    })
+                    .unwrap_or_else(|| self.focus.clone());
+                focus.focus(window, cx);
+            }
+            self.persist_splits();
+            cx.notify();
+        }
+    }
+    fn on_toggle_explorer(
+        &mut self,
+        _: &ToggleExplorer,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if cfg!(target_os = "macos") || !self.terminal_view_focused(window, cx) {
+            self.toggle_explorer(window, cx);
+        } else {
+            cx.propagate();
+        }
+    }
+    fn on_toggle_explorer_terminal(
+        &mut self,
+        _: &ToggleExplorerTerminal,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.toggle_explorer(window, cx);
+    }
+    fn move_explorer_drag(&mut self, position: gpui::Point<gpui::Pixels>, cx: &mut Context<Self>) {
+        if let Some(drag) = &mut self.explorer_drag {
+            let requested = drag.start_width + drag.start_x - position.x.to_f64();
+            let next = paseo_desktop::explorer_layout::resolve_width(
+                requested,
+                self.explorer_container_width,
+            );
+            if drag.preview_width != next {
+                drag.preview_width = next;
+                cx.notify();
+            }
+        }
+    }
+    fn finish_explorer_drag(&mut self, cx: &mut Context<Self>) {
+        if let Some(drag) = self.explorer_drag.take() {
+            if let Some(layout) = self.selected_splits() {
+                layout.explorer.width = drag.preview_width;
+            }
+            self.persist_splits();
+            cx.notify();
+        }
+    }
+
     fn on_new_window(&mut self, _: &NewWindow, window: &mut Window, cx: &mut Context<Self>) {
         // Windows/Linux hand Ctrl+N to a focused terminal program; only the
         // client surface opens an additional window, like the desktop app.
@@ -2742,6 +2841,7 @@ impl Paseo {
         self.hide_terminal(cx);
         self.terminals.clear();
         self.split_drag = None;
+        self.explorer_drag = None;
         self.pane_bounds.clear();
         self.tab_drag = None;
         self.selected_workspace = Some(id.clone());
@@ -3458,8 +3558,8 @@ impl Paseo {
             && self.selected_file.is_none()
             && self.workspace_form.is_none()
             && self.history.is_none();
-        // The scripts menu is the one overlay the terminal visibility rule does
-        // not model, and a native page would paint over it.
+        // Floating menus sit outside the retained pane visibility state; a native
+        // page would otherwise paint over them.
         let obscured = self.scripts_menu.is_some() || self.workspace_menu.is_some();
         for (tab_id, browser) in self.browsers.iter() {
             let presented = window_visible && rendered.contains(tab_id);
@@ -4325,6 +4425,34 @@ impl Render for Paseo {
                 .snapshot(matches!(self.hosts.phase, Some(HostPhase::Online)));
             panel.update(cx, |panel, cx| panel.set_snapshot(snapshot, cx));
         }
+        let explorer_state = self
+            .selected_workspace
+            .as_ref()
+            .and_then(|id| self.splits.get(id))
+            .map(|layout| layout.explorer.clone())
+            .unwrap_or_default();
+        let explorer_presented = explorer_state.visible
+            && self.selected_workspace.is_some()
+            && self.pane.is_none()
+            && self.tools.is_some();
+        let requested_width = self
+            .explorer_drag
+            .as_ref()
+            .map_or(explorer_state.width, |drag| drag.preview_width);
+        let explorer_geometry = paseo_desktop::explorer_layout::geometry(
+            window.viewport_size().width.to_f64(),
+            self.sidebar_open,
+            f64::from(crate::window_geometry::DEFAULT_SIDEBAR_WIDTH),
+            explorer_presented,
+            requested_width,
+        );
+        self.explorer_container_width = explorer_geometry.container_width;
+        let sidebar_presented = explorer_geometry.navigation_visible;
+        if let Some(tools) = &self.tools {
+            tools.update(cx, |tools, cx| {
+                tools.set_window_corner(explorer_presented, cx)
+            });
+        }
         let mut projects = self
             .directory
             .projects
@@ -4713,7 +4841,14 @@ impl Render for Paseo {
                     .h(px(36.))
                     .flex_shrink_0()
                     .pl(px(4.))
-                    .pr(px(if cfg!(target_os = "macos") { 12. } else { 0. }))
+                    .pr(px(
+                        if cfg!(target_os = "macos") || explorer_presented || window.is_fullscreen()
+                        {
+                            4.
+                        } else {
+                            0.
+                        },
+                    ))
                     .flex()
                     .items_center()
                     .gap_2()
@@ -4867,7 +5002,9 @@ impl Render for Paseo {
                             .size(px(26.))
                             .flex_shrink_0()
                             .when(
-                                !cfg!(target_os = "macos") && !window.is_fullscreen(),
+                                !cfg!(target_os = "macos")
+                                    && !window.is_fullscreen()
+                                    && !explorer_presented,
                                 |button| button.mr(px(-4.)),
                             )
                             .flex()
@@ -4879,15 +5016,16 @@ impl Render for Paseo {
                             .child(icon("panel-right", 16.))
                             .on_mouse_down(
                                 MouseButton::Left,
-                                cx.listener(|this, _, _, cx| {
+                                cx.listener(|this, _, window, cx| {
                                     cx.stop_propagation();
-                                    this.dock_open = !this.dock_open;
-                                    cx.notify();
+                                    this.toggle_explorer(window, cx);
                                 }),
                             ),
                     )
                     .when(
-                        !cfg!(target_os = "macos") && !window.is_fullscreen(),
+                        !cfg!(target_os = "macos")
+                            && !window.is_fullscreen()
+                            && !explorer_presented,
                         |header| header.child(crate::window_chrome::controls(window)),
                     ),
             )
@@ -5007,6 +5145,28 @@ impl Render for Paseo {
             |_, _, _| {},
             move |_, _, window, _cx| {
                 let entity = presence_entity.clone();
+                let drag_entity = entity.clone();
+                window.on_mouse_event(move |event: &MouseMoveEvent, phase, _, cx| {
+                    if phase.capture() {
+                        let _ = drag_entity.update(cx, |this, cx| {
+                            if this.explorer_drag.is_some() {
+                                this.move_explorer_drag(event.position, cx);
+                                cx.stop_propagation();
+                            }
+                        });
+                    }
+                });
+                let drag_entity = entity.clone();
+                window.on_mouse_event(move |event: &MouseUpEvent, phase, _, cx| {
+                    if phase.capture() && event.button == MouseButton::Left {
+                        let _ = drag_entity.update(cx, |this, cx| {
+                            if this.explorer_drag.is_some() {
+                                this.finish_explorer_drag(cx);
+                                cx.stop_propagation();
+                            }
+                        });
+                    }
+                });
                 window.on_mouse_event(move |_: &gpui::ScrollEvent, phase, _, cx| {
                     if phase.capture() {
                         let _ = entity.update(cx, |this, _| this.note_user_activity());
@@ -5039,15 +5199,49 @@ impl Render for Paseo {
             .on_action(cx.listener(Self::on_move_tab_down))
             .on_action(cx.listener(Self::on_close_focused_pane))
             .on_action(cx.listener(Self::on_new_window))
+            .on_action(cx.listener(Self::on_toggle_explorer))
+            .on_action(cx.listener(Self::on_toggle_explorer_terminal))
             .on_mouse_move(cx.listener(Self::on_root_mouse_move))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_root_pointer_down))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_root_mouse_up))
             .child(presence)
-            .when(self.sidebar_open, |root| root.child(sidebar))
-            .when(self.dock_open, |root| {
-                root.children(self.tools.clone().map(|tools| tools.into_any_element()))
-            })
+            .when(sidebar_presented, |root| root.child(sidebar))
             .child(content)
+            .when(explorer_presented, |root| {
+                let frame = div()
+                    .id("explorer-frame")
+                    .relative()
+                    .w(px(explorer_geometry.width as f32))
+                    .h_full()
+                    .flex_shrink_0()
+                    .child(self.tools.clone().unwrap())
+                    .when(!explorer_geometry.overlay, |frame| {
+                        frame.child(
+                            div()
+                                .id("explorer-resize")
+                                .absolute()
+                                .left(px(-4.))
+                                .top_0()
+                                .bottom_0()
+                                .w(px(8.))
+                                .cursor(CursorStyle::ResizeLeftRight)
+                                .on_mouse_down(
+                                    MouseButton::Left,
+                                    cx.listener(move |this, event: &MouseDownEvent, _, cx| {
+                                        cx.stop_propagation();
+                                        this.explorer_drag = Some(ExplorerDrag {
+                                            start_x: event.position.x.to_f64(),
+                                            start_width: explorer_geometry.width,
+                                            preview_width: explorer_geometry.width,
+                                        });
+                                    }),
+                                ),
+                        )
+                    });
+                root.child(frame.when(explorer_geometry.overlay, |frame| {
+                    frame.absolute().top_0().bottom_0().right_0()
+                }))
+            })
             .when_some(self.workspace_form.clone(), |root, form| {
                 root.child(
                     // Occlude the whole surface: hit-testing stops here so the

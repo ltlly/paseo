@@ -1,0 +1,20 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 13 tests
+test workspace_layout_storage::tests::a_failed_write_keeps_the_previous_document_and_the_next_save_retries ... ok
+test workspace_layout_storage::tests::corrupt_and_oversized_stores_are_moved_aside ... ok
+test workspace_layout_storage::tests::explorer_intent_round_trips_per_host_and_workspace ... ok
+test workspace_layout_storage::tests::invalid_trees_are_refused_instead_of_half_restored ... ok
+test workspace_layout_storage::tests::layouts_are_scoped_by_host_and_workspace_and_survive_reload ... ok
+test workspace_layout_storage::tests::old_layouts_default_closed_and_invalid_widths_do_not_replace_the_tree ... ok
+test workspace_layout_storage::tests::one_window_keeps_the_layouts_another_window_wrote ... ok
+test workspace_layout_storage::tests::restore_refuses_trees_over_the_pane_bound ... ok
+test workspace_layout_storage::tests::restore_repairs_tab_ownership_and_clamps_sizes ... ok
+test workspace_layout_storage::tests::save_refuses_a_layout_it_cannot_store_without_loss ... ok
+test workspace_layout_storage::tests::save_refuses_a_new_key_at_capacity_before_touching_the_file ... ok
+test workspace_layout_storage::tests::save_refuses_invalid_identity_instead_of_dropping_the_layout ... ok
+test workspace_layout_storage::tests::saving_replaces_the_previous_document_atomically ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 372 filtered out; finished in 0.44s
+

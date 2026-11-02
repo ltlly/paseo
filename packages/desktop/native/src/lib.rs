@@ -7,6 +7,7 @@ pub mod browser_model;
 pub mod client;
 pub mod composer;
 pub mod editing;
+pub mod explorer_layout;
 pub mod font_selection;
 pub mod history;
 pub mod hosts;

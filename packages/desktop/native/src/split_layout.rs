@@ -94,6 +94,11 @@ pub struct SplitLayout {
     pub root: SplitNode,
     #[serde(default)]
     pub focused_pane_id: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "crate::explorer_layout::ExplorerState::is_default"
+    )]
+    pub explorer: crate::explorer_layout::ExplorerState,
 }
 
 /// Generates persisted pane/group ids the same way the original app's
@@ -238,6 +243,7 @@ impl SplitLayout {
                 },
             },
             focused_pane_id: Some(pane_id.to_owned()),
+            explorer: Default::default(),
         }
     }
 
@@ -1139,6 +1145,7 @@ mod tests {
                 },
             },
             focused_pane_id: Some(MAIN_PANE_ID.into()),
+            explorer: Default::default(),
         };
         let mut ids = SplitIds::for_layout(&layout.root);
         assert_eq!(ids.create("pane"), None);

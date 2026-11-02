@@ -1,0 +1,23 @@
+import subprocess,time,json,base64
+from pathlib import Path
+q=Path(__file__).parent;m=json.loads((q/'fixture.json').read_text());second=json.loads((q/'second-workspace.json').read_text())
+def run(*a):subprocess.run(['python3',str(q/'input.py'),*map(str,a)],check=True);time.sleep(.25)
+def raw():return b''.join(base64.b64decode(json.loads(l)['base64']) for l in Path(m['input']).read_text().splitlines())
+def state(w):
+ v=json.loads((Path(m['home'])/'native-workspace-layouts.json').read_text());e=next(e for e in v['layouts'] if e['workspaceId']==w);return e['layout'].get('explorer',{'visible':False,'width':320})
+def check(w,visible,width):
+ s=state(w);assert s['visible']==visible and abs(s['width']-width)<.02,s;return s
+check(m['workspaceId'],True,400)
+run('click',302,362);run('click',1317,118);run('drag',1122,500,1202,500);check(second['workspaceId'],True,240)
+run('key','Control_L','grave');check(second['workspaceId'],False,240)
+run('click',302,400);check(m['workspaceId'],True,400)
+# Capture mouse reports must not steal the dock resize gesture.
+Path(m['mode']).write_text('\x1b[?1003h\x1b[?1006h');time.sleep(.3);before=raw()
+run('drag',1042,500,802,500);check(m['workspaceId'],True,600);assert raw()==before,raw()[len(before):]
+run('drag',842,500,1042,500);check(m['workspaceId'],True,400);assert raw()==before,raw()[len(before):]
+Path(m['mode']).write_text('\x1b[?1003l\x1b[?1006l');time.sleep(.3)
+run('resize',800,800);time.sleep(.4);check(m['workspaceId'],True,400)
+subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-draw_mouse','0','-video_size','800x800','-f','x11grab','-i',':99+162,100','-frames:v','1','-y',str(q/'narrow.png')],check=True)
+run('resize',1280,800);check(m['workspaceId'],True,400)
+(q/'interactions.json').write_text(json.dumps({'perWorkspace':{'first':state(m['workspaceId']),'second':state(second['workspaceId'])},'minimum':240,'maximumAt1280':600,'mouseReportingDoesNotConsumeDockDrag':True,'narrowWindowKeepsSavedWidth':True,'closeReturnsPTYInputHex':'70726f6265'},indent=2)+'\n')
+print('Interaction checks passed')

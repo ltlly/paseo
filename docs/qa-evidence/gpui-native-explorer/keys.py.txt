@@ -1,0 +1,10 @@
+import json,base64,subprocess,time
+from pathlib import Path
+q=Path(__file__).parent;m=json.loads((q/'fixture.json').read_text())
+def raw():return b''.join(base64.b64decode(json.loads(l)['base64']) for l in Path(m['input']).read_text().splitlines())
+def key(*args):subprocess.run(['python3',str(q/'input.py'),'key',*args],check=True);time.sleep(.15)
+def click(x,y):subprocess.run(['python3',str(q/'input.py'),'click',str(x),str(y)],check=True);time.sleep(.2)
+def snap(name):subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-draw_mouse','0','-video_size','1280x800','-f','x11grab','-i',':99+162,100','-frames:v','1','-y',str(q/name)],check=True)
+click(302,362);click(1062,400);snap('closed.png');before=raw();key('Control_L','e');assert raw()[len(before):]==b'\x05',raw()[len(before):];before=raw();key('Control_L','grave');assert raw()==before;time.sleep(.2);snap('open.png')
+p=Path(m['home'])/'native-workspace-layouts.json';v=json.loads(p.read_text());entry=next(e for e in v['layouts'] if e['workspaceId']==m['workspaceId']);assert entry['layout']['explorer']['visible'],v
+(q/'keyboard.json').write_text(json.dumps({'ctrlEWhileTerminalFocused':'05','ctrlBacktickOpensExplorer':True,'noToggleInputLeak':True},indent=2)+'\n');print('Hotkey checks passed')

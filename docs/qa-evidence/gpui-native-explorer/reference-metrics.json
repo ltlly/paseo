@@ -1,0 +1,114 @@
+[
+  {
+    "id": "workspace-explorer-toggle",
+    "text": "",
+    "x": 930,
+    "y": 4.5,
+    "w": 26,
+    "h": 26
+  },
+  {
+    "id": "file-explorer-backdrop",
+    "text": "",
+    "x": 0,
+    "y": 0,
+    "w": 0,
+    "h": 0
+  },
+  {
+    "id": "workspace-explorer-sidebar-resize-handle",
+    "text": "",
+    "x": 960,
+    "y": 0,
+    "w": 1,
+    "h": 800
+  },
+  {
+    "id": "workspace-explorer-sidebar",
+    "text": "FilesChangesFilesChangesNamesecondinput.jsonlkeyboard.cjsmode.txtNot a git repos",
+    "x": 960,
+    "y": 0,
+    "w": 320,
+    "h": 800
+  },
+  {
+    "id": "file-explorer-tree-scroll",
+    "text": "secondinput.jsonlkeyboard.cjsmode.txt",
+    "x": 960,
+    "y": 72,
+    "w": 320,
+    "h": 728
+  },
+  {
+    "id": "file-explorer-row-0",
+    "text": "second",
+    "x": 960,
+    "y": 80,
+    "w": 320,
+    "h": 28
+  },
+  {
+    "id": "file-explorer-row-0-name",
+    "text": "second",
+    "x": 996,
+    "y": 86,
+    "w": 276,
+    "h": 16
+  },
+  {
+    "id": "file-explorer-row-1",
+    "text": "input.jsonl",
+    "x": 960,
+    "y": 108,
+    "w": 320,
+    "h": 28
+  },
+  {
+    "id": "file-explorer-row-1-name",
+    "text": "input.jsonl",
+    "x": 996,
+    "y": 114,
+    "w": 276,
+    "h": 16
+  },
+  {
+    "id": "file-explorer-row-2",
+    "text": "keyboard.cjs",
+    "x": 960,
+    "y": 136,
+    "w": 320,
+    "h": 28
+  },
+  {
+    "id": "file-explorer-row-2-name",
+    "text": "keyboard.cjs",
+    "x": 996,
+    "y": 142,
+    "w": 276,
+    "h": 16
+  },
+  {
+    "id": "file-explorer-row-3",
+    "text": "mode.txt",
+    "x": 960,
+    "y": 164,
+    "w": 320,
+    "h": 28
+  },
+  {
+    "id": "file-explorer-row-3-name",
+    "text": "mode.txt",
+    "x": 996,
+    "y": 170,
+    "w": 276,
+    "h": 16
+  },
+  {
+    "id": "desktop-window-controls",
+    "text": "",
+    "x": 1172,
+    "y": 0,
+    "w": 108,
+    "h": 35
+  }
+]

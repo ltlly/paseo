@@ -1,0 +1,22 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 15 tests
+test split_layout::tests::a_restored_maximum_id_exhausts_the_counter_instead_of_overflowing ... ok
+test split_layout::tests::adopting_tabs_keeps_them_reachable_without_moving_pane_focus ... ok
+test split_layout::tests::close_pane_keeps_the_last_pane_and_rebalances ... ok
+test split_layout::tests::closing_a_browser_tab_leaves_the_terminal_tab_in_its_pane ... ok
+test split_layout::tests::focus_traversal_walks_a_grid_spatially ... ok
+test split_layout::tests::generated_ids_never_collide_with_a_restored_layout ... ok
+test split_layout::tests::group_extent_is_derived_from_the_split_area_for_drag_math ... ok
+test split_layout::tests::moving_a_tab_between_panes_transfers_ownership_and_focus ... ok
+test split_layout::tests::pruning_dead_tabs_releases_empty_panes_but_keeps_the_last_one ... ok
+test split_layout::tests::repeated_splits_beside_one_pane_keep_every_id_unique ... ok
+test split_layout::tests::resize_clamps_to_min_split_size ... ok
+test split_layout::tests::split_refuses_beyond_max_depth ... ok
+test split_layout::tests::split_right_then_down_halves_sizes_and_moves_focus ... ok
+test split_layout::tests::tab_limit_rejects_the_operation_instead_of_dropping_a_tab_later ... ok
+test split_layout::tests::tab_ownership_moves_between_panes_and_survives_a_persistence_roundtrip ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 370 filtered out; finished in 0.01s
+
