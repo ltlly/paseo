@@ -56,6 +56,9 @@ pub struct ImageCache {
     ready_order: VecDeque<String>,
     ready_bytes: usize,
     generation: u64,
+    /// Invalidates in-flight decodes on disconnect/root changes independently
+    /// of per-request timeout generations.
+    decode_epoch: u64,
 }
 
 impl ImageCache {
@@ -68,15 +71,17 @@ impl ImageCache {
             ready_order: VecDeque::new(),
             ready_bytes: 0,
             generation: 0,
+            decode_epoch: 0,
         }
     }
     pub fn state(&self, key: &str) -> ImageState {
         self.states.get(key).cloned().unwrap_or(ImageState::Missing)
     }
     pub fn clear(&mut self, cx: &mut Context<Self>) {
+        self.decode_epoch = self.decode_epoch.wrapping_add(1);
+        forget_loading(&mut self.states);
         for transfer in self.requests.values() {
-            self.states
-                .insert(transfer.path.clone(), ImageState::Missing);
+            self.states.remove(&transfer.path);
         }
         self.requests.clear();
         self.by_request.clear();
@@ -84,6 +89,7 @@ impl ImageCache {
     }
     /// Forget unresolved requests when the workspace root changes so they are retried.
     pub fn retry_unresolved(&mut self, cx: &mut Context<Self>) {
+        self.decode_epoch = self.decode_epoch.wrapping_add(1);
         self.requests.clear();
         self.by_request.clear();
         self.states
@@ -329,9 +335,13 @@ impl ImageCache {
         decode: impl FnOnce() -> Result<Arc<RenderImage>> + Send + 'static,
         cx: &mut Context<Self>,
     ) {
+        let epoch = self.decode_epoch;
         cx.spawn(async move |this, cx| {
             let decoded = cx.background_spawn(async move { decode() }).await;
             let _ = this.update(cx, |this, cx| {
+                if this.decode_epoch != epoch {
+                    return;
+                }
                 let state = match decoded {
                     Ok(image) => ImageState::Ready(image),
                     Err(error) => ImageState::Failed(error.to_string()),
@@ -360,6 +370,10 @@ impl ImageCache {
             MAX_READY_BYTES,
         );
     }
+}
+
+fn forget_loading(states: &mut BTreeMap<String, ImageState>) {
+    states.retain(|_, state| !matches!(state, ImageState::Loading | ImageState::Missing));
 }
 
 fn state_bytes(state: &ImageState) -> Option<usize> {
@@ -562,6 +576,19 @@ fn image_placeholder(label: &'static str, style: &MessageStyle) -> gpui::AnyElem
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interrupted_images_leave_the_key_available_for_reconnect() {
+        let mut states = BTreeMap::from([
+            ("active".to_owned(), ImageState::Loading),
+            ("missing".to_owned(), ImageState::Missing),
+            ("failed".to_owned(), ImageState::Failed("bad format".into())),
+        ]);
+        forget_loading(&mut states);
+        assert!(!states.contains_key("active"));
+        assert!(!states.contains_key("missing"));
+        assert!(matches!(states.get("failed"), Some(ImageState::Failed(_))));
+    }
 
     #[test]
     fn image_keys_resolve_relative_sources_and_keep_absolute_paths() {
