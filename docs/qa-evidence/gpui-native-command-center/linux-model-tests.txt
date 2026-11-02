@@ -1,0 +1,11 @@
+Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.87s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 4 tests
+test command_center_model::tests::a_query_keeps_results_but_stale_replies_cannot_settle_loading ... ok
+test command_center_model::tests::file_paths_match_the_authored_name_and_directory_projection ... ok
+test command_center_model::tests::reopening_the_same_query_never_adopts_a_closed_modal_reply ... ok
+test command_center_model::tests::root_empty_query_has_no_file_demand_and_file_navigation_wraps ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 387 filtered out; finished in 0.00s

@@ -1,0 +1,8 @@
+{
+  "terminalCtrlPHex": "10",
+  "terminalCtrlKHex": "0b",
+  "cancelRestoresPTYInput": "resume",
+  "rootEmptyHasNoFileRequest": true,
+  "fileEmptyRequestsRealFiles": true,
+  "modalInputDoesNotLeakToPTY": true
+}

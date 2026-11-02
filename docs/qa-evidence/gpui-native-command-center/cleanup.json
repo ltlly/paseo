@@ -1,0 +1,36 @@
+{
+  "clientClose": "client-close.json",
+  "processes": {
+    "native": {
+      "pid": 2853278,
+      "stopped": true
+    },
+    "proxy": {
+      "pid": 2761253,
+      "stopped": true
+    },
+    "fixture": {
+      "pid": 2758560,
+      "stopped": true
+    },
+    "worker": {
+      "pid": 2758658,
+      "stopped": true
+    },
+    "pty": {
+      "pid": 2758805,
+      "stopped": true
+    },
+    "xvfb": {
+      "pid": 2758559,
+      "stopped": true
+    }
+  },
+  "privateHomeRemoved": true,
+  "privatePortsClosed": [37011, 34951],
+  "production6767": {
+    "pid": 999,
+    "stillListening": true,
+    "restarted": false
+  }
+}

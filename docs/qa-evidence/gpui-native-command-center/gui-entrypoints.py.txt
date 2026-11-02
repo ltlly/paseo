@@ -1,0 +1,17 @@
+import subprocess,time,json,base64
+from pathlib import Path
+started=time.time();q=Path(__file__).parent;m=json.loads((q/'fixture.json').read_text())
+def run(*a):subprocess.run(['python3',str(q/'input.py'),*map(str,a)],check=True);time.sleep(.22)
+def raw():return b''.join(base64.b64decode(json.loads(l)['base64']) for l in Path(m['input']).read_text().splitlines())
+def requests():return [json.loads(l)for l in (q/'requests.jsonl').read_text().splitlines()]
+def snap(n):subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-draw_mouse','0','-video_size','1280x800','-f','x11grab','-i',':99+162,100','-frames:v','1','-y',str(q/n)],check=True)
+run('click',302,362);run('click',540,184);run('click',1062,400)
+layouts=json.loads((Path(m['home'])/'native-workspace-layouts.json').read_text())['layouts']
+if any(e['workspaceId']==m['workspaceId'] and e['layout'].get('explorer',{}).get('visible') for e in layouts):run('key','Control_L','grave')
+before=raw();run('key','Control_L','p');run('key','Control_L','k');assert raw()[len(before):]==b'\x10\x0b',raw()[len(before):]
+start=len(requests());run('click',260,182);snap('all-empty.png');assert len(requests())==start
+run('key','Escape');run('type','resume');assert raw()[len(before):]==b'\x10\x0bresume',raw()[len(before):]
+run('key','Control_L','grave');run('click',1164,118);before=raw();run('key','Control_L','p');time.sleep(.3);snap('files-empty.png');r=requests();assert r and r[-1]['query']=='',r
+assert r[-1]['includeFiles'] and not r[-1]['includeDirectories'] and r[-1]['limit']==100
+run('type','alpha');time.sleep(.3);snap('files-alpha.png');assert raw()==before,raw()[len(before):];assert requests()[-1]['at']>=int(started*1000) and requests()[-1]['query']=='alpha'
+(q/'first-checks.json').write_text(json.dumps({'terminalCtrlPHex':'10','terminalCtrlKHex':'0b','cancelRestoresPTYInput':'resume','rootEmptyHasNoFileRequest':True,'fileEmptyRequestsRealFiles':True,'modalInputDoesNotLeakToPTY':True},indent=2)+'\n');print('First GUI checks passed')

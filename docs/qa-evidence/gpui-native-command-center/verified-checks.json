@@ -1,0 +1,15 @@
+{
+  "startedAt": 1793601885.861259,
+  "currentRequestQueriesVerified": true,
+  "loadingResultsCannotOpenOldFile": true,
+  "lateReplyCannotReplaceCurrentQuery": true,
+  "cursorEditsDoNotSendRequests": true,
+  "closedModalLateErrorStaysOwned": true,
+  "errorAndEmptyPresentationVerified": true,
+  "wrappedFirstAndLastRowsVerifiedAgainstActualDaemon": true,
+  "manualScrollResultCropChangedPixels": 0,
+  "reopenCycles": 8,
+  "fileOpenedInFocusedMainPane": true,
+  "originalPTYStillInLayout": true,
+  "noModalInputLeakedToPTY": true
+}

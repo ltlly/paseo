@@ -1,0 +1,18 @@
+{
+  "root": {
+    "kind": "pane",
+    "pane": {
+      "id": "main",
+      "tabs": [
+        "0f218300-8f86-40f7-8a75-e8a22ebb3349",
+        "file:[\"/tmp/paseo-home-s0g7U9/.paseo/native-keys-project\",\"src/alpha.rs\"]"
+      ],
+      "focusedTab": "file:[\"/tmp/paseo-home-s0g7U9/.paseo/native-keys-project\",\"src/alpha.rs\"]"
+    }
+  },
+  "focusedPaneId": "main",
+  "explorer": {
+    "visible": true,
+    "width": 320.0
+  }
+}

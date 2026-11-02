@@ -28,6 +28,7 @@ pub struct InlineInput {
     scroll_x: Pixels,
     selecting: bool,
     shared: SharedSettings,
+    plain: bool,
 }
 
 impl EventEmitter<InlineInputEvent> for InlineInput {}
@@ -43,7 +44,16 @@ impl InlineInput {
             scroll_x: px(0.),
             selecting: false,
             shared,
+            plain: false,
         }
+    }
+    pub fn command_center(shared: SharedSettings, cx: &mut Context<Self>) -> Self {
+        let mut input = Self::new("Search files...".into(), shared, cx);
+        input.plain = true;
+        input
+    }
+    pub fn is_composing(&self) -> bool {
+        self.editing.marked.is_some()
     }
     fn style(&self, window: &Window) -> MessageStyle {
         MessageStyle::resolve(&self.shared.get(), active_palette(&self.shared, window))
@@ -120,6 +130,14 @@ impl InlineInput {
         } else {
             match key.key.as_str() {
                 "enter" => cx.emit(InlineInputEvent::Submit),
+                "backspace"
+                    if self.plain
+                        && paseo_desktop::command_center_match::query_is_empty(
+                            &self.editing.text,
+                        ) =>
+                {
+                    return;
+                }
                 "backspace" | "delete" => {
                     self.editing.delete(key.key == "delete");
                     self.edited(window, cx);
@@ -253,6 +271,11 @@ impl Focusable for InlineInput {
 impl Render for InlineInput {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let style = self.style(window);
+        let line_height = if self.plain {
+            crate::fonts::strut_for(window, crate::theme::font_size::BASE, &style.ui_family)
+        } else {
+            px(20.)
+        };
         let measure = cx.entity();
         let paint = cx.entity();
         div()
@@ -293,17 +316,25 @@ impl Render for InlineInput {
                 }
             }))
             .w_full()
-            .h(px(38.))
-            .px_3()
-            .py_2()
-            .rounded(px(crate::theme::radius::LG))
-            .border_1()
-            .border_color(rgb(if self.focus.is_focused(window) {
-                style.palette.border_accent
+            .h(if self.plain {
+                line_height + px(8.)
             } else {
-                style.palette.border
-            }))
-            .bg(rgb(style.palette.surface2))
+                px(38.)
+            })
+            .when(self.plain, |input| input.py_1())
+            .when(!self.plain, |input| {
+                input
+                    .px_3()
+                    .py_2()
+                    .rounded(px(crate::theme::radius::LG))
+                    .border_1()
+                    .border_color(rgb(if self.focus.is_focused(window) {
+                        style.palette.border_accent
+                    } else {
+                        style.palette.border
+                    }))
+                    .bg(rgb(style.palette.surface2))
+            })
             .font_family(style.ui_family.clone())
             .text_size(px(crate::theme::font_size::BASE))
             .child(
@@ -377,7 +408,7 @@ impl Render for InlineInput {
                                                         ) - line.x_for_index(
                                                             this.editing.selection.start,
                                                         ),
-                                                        px(20.),
+                                                        line_height,
                                                     ),
                                                 ),
                                                 rgb(style.palette.surface3),
@@ -385,7 +416,7 @@ impl Render for InlineInput {
                                         }
                                         let _ = line.paint(
                                             bounds.origin - point(this.scroll_x, px(0.)),
-                                            px(20.),
+                                            line_height,
                                             gpui::TextAlign::Left,
                                             None,
                                             window,
@@ -394,7 +425,8 @@ impl Render for InlineInput {
                                         if let Some(mark) = &this.editing.marked {
                                             window.paint_quad(fill(
                                                 Bounds::new(
-                                                    this.caret(mark.start) + point(px(0.), px(19.)),
+                                                    this.caret(mark.start)
+                                                        + point(px(0.), line_height - px(1.)),
                                                     size(
                                                         line.x_for_index(mark.end)
                                                             - line.x_for_index(mark.start),
@@ -408,7 +440,7 @@ impl Render for InlineInput {
                                             window.paint_quad(fill(
                                                 Bounds::new(
                                                     this.caret(this.editing.cursor()),
-                                                    size(px(1.), px(20.)),
+                                                    size(px(1.), line_height),
                                                 ),
                                                 rgb(style.palette.foreground),
                                             ));
@@ -420,7 +452,7 @@ impl Render for InlineInput {
                     },
                 )
                 .w_full()
-                .h(px(20.)),
+                .h(line_height),
             )
     }
 }

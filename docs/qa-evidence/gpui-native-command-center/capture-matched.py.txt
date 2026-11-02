@@ -1,0 +1,10 @@
+import subprocess,time,json
+from pathlib import Path
+q=Path(__file__).parent
+def run(*a):subprocess.run(['python3',str(q/'input.py'),*map(str,a)],check=True);time.sleep(.25)
+def snap(name):subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-draw_mouse','0','-video_size','1280x800','-f','x11grab','-i',':99+162,100','-frames:v','1','-y',str(q/name)],check=True)
+run('click',540,184);run('click',1164,118);snap('native-toolbar.png')
+run('key','Control_L','p');time.sleep(.5);snap('native-command-empty.png')
+run('type','alpha');time.sleep(.5);snap('native-command-alpha.png')
+run('key','Control_L','a');run('type','rpcerror');time.sleep(.5);snap('native-command-error.png')
+run('key','Escape')

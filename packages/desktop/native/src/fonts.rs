@@ -170,8 +170,12 @@ fn resolved_family(custom: &str, default: &str) -> gpui::SharedString {
 // inherited 20px chrome line box otherwise makes a spinner toast two pixels taller.
 // Fonts with extra line gap and the other platform backends still need matched QA.
 pub fn ui_strut(window: &gpui::Window, size: f32) -> gpui::Pixels {
+    strut_for(window, size, ui_family())
+}
+
+pub fn strut_for(window: &gpui::Window, size: f32, family: &str) -> gpui::Pixels {
     let system = window.text_system();
-    let id = system.resolve_font(&gpui::font(ui_family()));
+    let id = system.resolve_font(&gpui::font(family.to_owned()));
     system.ascent(id, gpui::px(size)).round() + system.descent(id, gpui::px(size)).abs().round()
 }
 

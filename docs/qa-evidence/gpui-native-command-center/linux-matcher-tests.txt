@@ -1,0 +1,9 @@
+Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.74s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 2 tests
+test command_center_match::tests::matches_the_authored_non_fuzzy_matcher ... ok
+test command_center_match::tests::utf16_highlights_map_to_complete_utf8_scalars ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 390 filtered out; finished in 0.00s

@@ -1,0 +1,44 @@
+import subprocess,time,json,base64
+from pathlib import Path
+from PIL import Image,ImageChops
+q=Path(__file__).parent;m=json.loads((q/'fixture.json').read_text());observations={};started=time.time()
+def run(*a):subprocess.run(['python3',str(q/'input.py'),*map(str,a)],check=True);time.sleep(.16)
+def raw():return b''.join(base64.b64decode(json.loads(l)['base64'])for l in Path(m['input']).read_text().splitlines())
+def requests():return [json.loads(l)for l in (q/'requests.jsonl').read_text().splitlines()]
+def query(text):
+ index=len(requests());run('key','Control_L','a');run('type',text)
+ for _ in range(60):
+  found=[r for r in requests()[index:]if r['query']==text]
+  if found:return found[-1]
+  time.sleep(.05)
+ raise AssertionError(('No actual search request',text,requests()[index:]))
+def snap(name,whole=False):
+ subprocess.run(['ffmpeg','-hide_banner','-loglevel','error','-draw_mouse','0','-video_size','1280x800','-f','x11grab','-i',':99+162,100','-frames:v','1','-y',str(q/name)],check=True)
+ im=Image.open(q/name);im=im if whole else im.crop((320,48,960,608));im.resize((im.width*2,im.height*2)).save(q/(name+'.ocr.png'))
+ text=subprocess.run(['tesseract',str(q/(name+'.ocr.png')),'stdout','--tessdata-dir',str(q),'--psm','6'],check=True,capture_output=True,text=True).stdout;observations[name]=text;return text
+
+def layout():return next(e['layout']for e in json.loads((Path(m['home'])/'native-workspace-layouts.json').read_text())['layouts']if e['workspaceId']==m['workspaceId'])
+assert requests()[-1]['query']=='alpha';assert 'alpha' in snap('alpha-start.png').lower();before=raw()
+slow=query('slow');run('key','Return');text=snap('slow-loading.png');assert 'alpha' in text.lower(),text;assert layout()['root']['pane']['focusedTab']==m['terminalId']
+query('fast');time.sleep(.3);text=snap('fast-ready.png');assert 'fast-new' in text.lower(),text
+time.sleep(max(0,(slow['at']/1000+3.2)-time.time()));text=snap('fast-after-stale.png');assert 'fast-new' in text.lower() and 'slow-one' not in text.lower(),text
+count=len(requests());run('key','Left');run('key','Right');assert len(requests())==count
+late=query('slowerror');run('key','Escape');run('key','Control_L','p');time.sleep(max(0,(late['at']/1000+2.0)-time.time()));text=snap('after-late-error.png');assert 'Injected' not in text
+run('key','Escape');assert 'Injected' not in snap('outside-after-late-error.png',True);run('key','Control_L','p');query('rpcerror');time.sleep(.2);text=snap('search-error.png');assert 'Injected search error' in text,text
+query('nomatchingfilename');time.sleep(.25);assert 'No matches' in snap('no-matches.png')
+query('entry');time.sleep(.25);expected=json.loads((q/'expected-entry-paths.json').read_text());assert len(expected)==100
+run('key','Up');text=snap('wrap-last.png');assert Path(expected[-1]).name in text,text
+run('key','Down');text=snap('wrap-first.png');assert Path(expected[0]).name in text,text
+# Preserve manual scroll across a delayed result with the same100 entries.
+index=len(requests());run('key','space')
+for _ in range(60):
+ if any(r['query']=='entry 'for r in requests()[index:]):break
+ time.sleep(.05)
+else:raise AssertionError('Trailing-space query did not reach the daemon')
+run('wheel',4);snap('manual-scroll-before-reply.png');time.sleep(2.4);snap('manual-scroll-after-reply.png')
+a=Image.open(q/'manual-scroll-before-reply.png').convert('RGB').crop((321,134,959,606));b=Image.open(q/'manual-scroll-after-reply.png').convert('RGB').crop((321,134,959,606));difference=ImageChops.difference(a,b);changed=sum(any(v for v in p)for p in difference.get_flattened_data());assert changed==0,changed
+run('key','Control_L','a');run('key','BackSpace');time.sleep(.2);run('key','BackSpace');assert 'Actions' in snap('scope-cleared.png');run('key','Escape')
+for i in range(8):run('key','Control_L','p');run('key','Escape')
+run('key','Control_L','p');query('alpha');time.sleep(.2);run('key','Return');time.sleep(.6);text=snap('opened-alpha.png',True);assert 'COMMAND CENTER OPENED REAL FILE' in text,text
+saved=layout();assert saved['focusedPaneId']=='main';assert 'alpha.rs' in saved['root']['pane']['focusedTab'];assert m['terminalId']in saved['root']['pane']['tabs'];assert raw()==before
+(q/'verified-ocr.json').write_text(json.dumps(observations,indent=2)+'\n');(q/'verified-layout.json').write_text(json.dumps(saved,indent=2)+'\n');(q/'verified-checks.json').write_text(json.dumps({'startedAt':started,'currentRequestQueriesVerified':True,'loadingResultsCannotOpenOldFile':True,'lateReplyCannotReplaceCurrentQuery':True,'cursorEditsDoNotSendRequests':True,'closedModalLateErrorStaysOwned':True,'errorAndEmptyPresentationVerified':True,'wrappedFirstAndLastRowsVerifiedAgainstActualDaemon':True,'manualScrollResultCropChangedPixels':changed,'reopenCycles':8,'fileOpenedInFocusedMainPane':True,'originalPTYStillInLayout':True,'noModalInputLeakedToPTY':True},indent=2)+'\n');print('Verified GUI checks passed')

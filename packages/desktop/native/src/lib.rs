@@ -5,6 +5,8 @@ pub mod attachment_geometry;
 pub mod attachments;
 pub mod browser_model;
 pub mod client;
+pub mod command_center_match;
+pub mod command_center_model;
 pub mod composer;
 pub mod editing;
 pub mod explorer_layout;

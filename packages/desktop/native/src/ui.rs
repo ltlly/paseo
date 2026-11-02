@@ -24,6 +24,9 @@ use paseo_desktop::activation::{
     self, ActivationStep, ActivationTarget, ActivationWindow, AttentionDecision, PendingActivation,
 };
 use paseo_desktop::browser_model::BrowserFocusOwner;
+use paseo_desktop::command_center_model::{
+    Row as CommandRow, Scope as CommandScope, Target as CommandTarget,
+};
 use paseo_desktop::hosts::{
     HostClient, HostConnection, HostPhase, HostProfile, HostRuntimeEvent, HostTarget, UpsertInput,
     connection_from_target, daemon_registrations, grammar_for_connection, parse_host_target,
@@ -347,6 +350,8 @@ actions!(
         NewWindow,
         ToggleExplorer,
         ToggleExplorerTerminal,
+        SearchFiles,
+        ToggleCommandCenter,
     ]
 );
 
@@ -496,6 +501,11 @@ pub struct Paseo {
     scripts_bounds: gpui::Bounds<gpui::Pixels>,
     workspace_menu: Option<WorkspaceMenu>,
     workspace_menu_bounds: gpui::Bounds<gpui::Pixels>,
+    command_center: Option<Entity<crate::command_center::CommandCenter>>,
+    command_center_events: Option<gpui::Subscription>,
+    command_center_restore: Option<FocusHandle>,
+    command_center_snapshot: Option<Arc<Vec<CommandRow>>>,
+    command_center_snapshot_dirty: bool,
     sidebar_open: bool,
     window_visible: bool,
     /// Whether this window has keyboard focus. Visibility alone means the frame
@@ -543,8 +553,6 @@ enum SidebarAction {
     Pane(Pane),
     NewWorkspace,
     History,
-    /// Shown like the app's sidebar row, but the native client has no search
-    /// surface to open yet.
     Search,
     Browser,
 }
@@ -754,6 +762,11 @@ impl Paseo {
             scripts_bounds: gpui::Bounds::default(),
             workspace_menu: None,
             workspace_menu_bounds: gpui::Bounds::default(),
+            command_center: None,
+            command_center_events: None,
+            command_center_restore: None,
+            command_center_snapshot: None,
+            command_center_snapshot_dirty: true,
             sidebar_open: true,
             window_visible: window.is_visible(),
             window_active: window.is_window_active(),
@@ -889,6 +902,11 @@ impl Paseo {
         }
         self.close_pane(cx);
         self.connection = None;
+        self.command_center = None;
+        self.command_center_events = None;
+        self.command_center_restore = None;
+        self.command_center_snapshot = None;
+        self.command_center_snapshot_dirty = true;
         self.tools = None;
         self._tools.clear();
         for editor in self.editors.values() {
@@ -1034,6 +1052,9 @@ impl Paseo {
     }
 
     fn on_disconnected(&mut self, cx: &mut Context<Self>) {
+        if let Some(view) = &self.command_center {
+            view.update(cx, |view, cx| view.disconnected(cx));
+        }
         // The transport reset dropped every subscription, so a captured
         // terminals request id can never be answered again.
         self.terminal_inventory_workspace = None;
@@ -1302,6 +1323,11 @@ impl Paseo {
         }
         self.tools = None;
         self._tools.clear();
+        self.command_center = None;
+        self.command_center_events = None;
+        self.command_center_restore = None;
+        self.command_center_snapshot = None;
+        self.command_center_snapshot_dirty = true;
         self.connection = None;
         self.connecting_server_id = None;
         self.local_discovery = target.is_local_discovery();
@@ -1451,6 +1477,9 @@ impl Paseo {
                     tools.update(cx, |tools, _| tools.set_features(&info.features));
                 }
                 self.info = Some(info);
+                if let Some(view) = &self.command_center {
+                    view.update(cx, |view, cx| view.reconnected(cx));
+                }
                 if let Some(tools) = &self.tools {
                     tools.update(cx, |tools, cx| tools.reconnected(cx));
                 }
@@ -1621,6 +1650,9 @@ impl Paseo {
     /// Appearance, font, or layout settings changed. Every visible consumer
     /// reads the shared settings during render, so notify the live entities.
     fn apply_settings_changed(&mut self, cx: &mut Context<Self>) {
+        if let Some(view) = &self.command_center {
+            view.update(cx, |_, cx| cx.notify());
+        }
         for terminal in self.terminals.values() {
             terminal.update(cx, |view, cx| view.settings_changed(cx));
         }
@@ -2017,6 +2049,244 @@ impl Paseo {
             .any(|view| view.read(cx).focus_handle(cx).is_focused(window))
     }
 
+    fn command_center_open(&self, cx: &App) -> bool {
+        self.command_center
+            .as_ref()
+            .is_some_and(|view| view.read(cx).is_open())
+    }
+    fn command_center_cwd(&self) -> Option<String> {
+        self.selected_workspace
+            .as_ref()
+            .and_then(|id| self.directory.workspaces.get(id))
+            .map(|workspace| {
+                workspace
+                    .workspace_directory
+                    .clone()
+                    .unwrap_or_else(|| workspace.project_root_path.clone())
+            })
+    }
+    fn command_center_rows(&mut self) -> Arc<Vec<CommandRow>> {
+        if self.command_center_snapshot_dirty || self.command_center_snapshot.is_none() {
+            self.command_center_snapshot = Some(Arc::new(self.build_command_center_rows()));
+            self.command_center_snapshot_dirty = false;
+        }
+        self.command_center_snapshot.as_ref().unwrap().clone()
+    }
+    fn build_command_center_rows(&self) -> Vec<CommandRow> {
+        let mut rows = vec![];
+        for (id, title, icon, keywords, query_only) in [
+            (
+                "new-workspace",
+                "New workspace",
+                "plus",
+                "new workspace worktree branch",
+                false,
+            ),
+            (
+                "history",
+                "History",
+                "history",
+                "history sessions recent",
+                false,
+            ),
+            (
+                "schedules",
+                "Schedules",
+                "calendar-clock",
+                "schedules scheduled automation recurring",
+                false,
+            ),
+            (
+                "settings",
+                "Settings",
+                "settings",
+                "settings preferences appearance",
+                false,
+            ),
+            (
+                "toggle-left-sidebar",
+                "Toggle left sidebar",
+                "panel-left",
+                "toggle sidebar left panel workspaces",
+                true,
+            ),
+            (
+                "toggle-explorer",
+                "Toggle Explorer sidebar",
+                "panel-right",
+                "toggle explorer right sidebar files changes",
+                true,
+            ),
+        ] {
+            rows.push(CommandRow {
+                id: format!("action:{id}"),
+                title: title.into(),
+                subtitle: String::new(),
+                target: CommandTarget::Action(id.into()),
+                icon: icon.into(),
+                keywords: keywords.split_whitespace().map(str::to_owned).collect(),
+                activity: 0,
+                query_only,
+            });
+        }
+        for workspace in self
+            .directory
+            .workspaces
+            .values()
+            .filter(|workspace| workspace.available())
+        {
+            let payload = self.workspace_payloads.get(&workspace.id);
+            let branch = payload.and_then(|payload| payload["currentBranch"].as_str());
+            let subtitle = [Some(workspace.project_display_name.as_str()), branch]
+                .into_iter()
+                .flatten()
+                .filter(|part| !part.is_empty())
+                .collect::<Vec<_>>()
+                .join(" · ");
+            let activity = payload
+                .and_then(|payload| payload["statusEnteredAt"].as_str())
+                .and_then(|date| chrono::DateTime::parse_from_rfc3339(date).ok())
+                .map(|date| date.timestamp_millis())
+                .unwrap_or(0);
+            rows.push(CommandRow {
+                id: format!("workspace:{}", workspace.id),
+                title: self
+                    .directory
+                    .workspace_title(&workspace.id, &workspace.name),
+                subtitle,
+                target: CommandTarget::Workspace(workspace.id.clone()),
+                icon: "folder".into(),
+                keywords: vec![],
+                activity,
+                query_only: false,
+            });
+        }
+        for agent in self
+            .directory
+            .agents
+            .values()
+            .filter(|agent| !agent.internal && agent.archived_at.is_none())
+        {
+            let workspace = agent
+                .workspace_id
+                .as_ref()
+                .and_then(|id| self.directory.workspaces.get(id));
+            rows.push(CommandRow {
+                id: format!("agent:{}", agent.id),
+                title: agent.display_title().into(),
+                subtitle: workspace
+                    .map(|w| self.directory.workspace_title(&w.id, &w.name))
+                    .unwrap_or_default(),
+                target: CommandTarget::Agent(agent.id.clone()),
+                icon: agent.provider.clone(),
+                keywords: vec![],
+                activity: agent
+                    .updated_at
+                    .as_ref()
+                    .or(agent.created_at.as_ref())
+                    .and_then(|date| chrono::DateTime::parse_from_rfc3339(date).ok())
+                    .map(|date| date.timestamp_millis())
+                    .unwrap_or(0),
+                query_only: false,
+            });
+        }
+        rows
+    }
+    fn close_command_center(&mut self, restore: bool, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(view) = &self.command_center {
+            view.update(cx, |view, cx| view.close(cx));
+        }
+        if let Some(focus) = self.command_center_restore.take().filter(|_| restore) {
+            focus.focus(window, cx);
+        }
+        cx.notify();
+    }
+    fn open_command_center(
+        &mut self,
+        scope: CommandScope,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.command_center.is_none() {
+            let Some(connection) = self.connection.clone() else {
+                return;
+            };
+            let shared = self.shared_settings.clone();
+            let view =
+                cx.new(|cx| crate::command_center::CommandCenter::new(connection, shared, cx));
+            self.command_center_events = Some(cx.subscribe_in(
+                &view,
+                window,
+                |this, _, event: &crate::command_center::Command, window, cx| {
+                    let cancel = matches!(event, crate::command_center::Command::Cancel) || matches!(event,crate::command_center::Command::Pick(CommandTarget::Action(id)) if matches!(id.as_str(),"toggle-left-sidebar"|"toggle-explorer"));
+                    this.close_command_center(cancel, window, cx);
+                    if let crate::command_center::Command::Pick(target) = event {
+                        match target {
+                            CommandTarget::File(path) => this.open_file(path.clone(), window, cx),
+                            CommandTarget::Workspace(id) => this.select_workspace(id.clone(), cx),
+                            CommandTarget::Agent(id) => this.select_agent(id.clone(), window, cx),
+                            CommandTarget::Action(id) => match id.as_str() {
+                                "new-workspace" => this.open_workspace_form(
+                                    crate::workspace_form::FormMode::NewWorkspace,
+                                    window,
+                                    cx,
+                                ),
+                                "history" => this.open_history(window, cx),
+                                "settings" => this.open_pane(Pane::Settings, window, cx),
+                                "schedules" => this.open_pane(Pane::Schedules, window, cx),
+                                "toggle-left-sidebar" => {
+                                    this.sidebar_open = !this.sidebar_open;
+                                    cx.notify();
+                                }
+                                "toggle-explorer" => this.toggle_explorer(window, cx),
+                                _ => {}
+                            },
+                        }
+                    }
+                },
+            ));
+            self.command_center = Some(view);
+        }
+        if !self.command_center_open(cx) {
+            self.command_center_restore = window.focused(cx);
+        }
+        self.workspace_menu = None;
+        self.scripts_menu = None;
+        let cwd = self.command_center_cwd();
+        let rows = self.command_center_rows();
+        self.command_center
+            .as_ref()
+            .unwrap()
+            .update(cx, |view, cx| view.open(scope, cwd, rows, window, cx));
+        cx.notify();
+    }
+    fn on_search_files(&mut self, _: &SearchFiles, window: &mut Window, cx: &mut Context<Self>) {
+        if self.command_center_open(cx) {
+            return;
+        }
+        if cfg!(target_os = "macos") || !self.terminal_view_focused(window, cx) {
+            self.open_command_center(CommandScope::Files, window, cx);
+        } else {
+            cx.propagate();
+        }
+    }
+    fn on_toggle_command_center(
+        &mut self,
+        _: &ToggleCommandCenter,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if !cfg!(target_os = "macos") && self.terminal_view_focused(window, cx) {
+            cx.propagate();
+            return;
+        }
+        if self.command_center_open(cx) {
+            self.close_command_center(true, window, cx);
+        } else {
+            self.open_command_center(CommandScope::All, window, cx);
+        }
+    }
+
     fn toggle_explorer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let return_focus = self
             .tools
@@ -2064,6 +2334,9 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.command_center_open(cx) {
+            return;
+        }
         if cfg!(target_os = "macos") || !self.terminal_view_focused(window, cx) {
             self.toggle_explorer(window, cx);
         } else {
@@ -2076,6 +2349,9 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.toggle_explorer(window, cx);
     }
     fn move_explorer_drag(&mut self, position: gpui::Point<gpui::Pixels>, cx: &mut Context<Self>) {
@@ -2102,6 +2378,9 @@ impl Paseo {
     }
 
     fn on_new_window(&mut self, _: &NewWindow, window: &mut Window, cx: &mut Context<Self>) {
+        if self.command_center_open(cx) {
+            return;
+        }
         // Windows/Linux hand Ctrl+N to a focused terminal program; only the
         // client surface opens an additional window, like the desktop app.
         if !cfg!(target_os = "macos") && self.terminal_view_focused(window, cx) {
@@ -2115,6 +2394,11 @@ impl Paseo {
         mut payload: Value,
         cx: &mut Context<Self>,
     ) -> Result<()> {
+        if let Some(view) = &self.command_center {
+            if view.update(cx, |view, cx| view.receive(kind, &payload, cx)) {
+                return Ok(());
+            }
+        }
         if kind == "fetch_agents_response" {
             let _: AgentPage = serde_json::from_value(payload.clone())?;
         } else if kind == "fetch_workspaces_response" {
@@ -2477,6 +2761,20 @@ impl Paseo {
         let terminal_inventory = arrival.loaded;
         let directory_ready =
             kind == "fetch_workspaces_response" && payload["pageInfo"]["hasMore"] == false;
+        if matches!(
+            kind,
+            "fetch_agents_response"
+                | "agent_update"
+                | "agent_status"
+                | "project.list.response"
+                | "project.update"
+                | "fetch_workspaces_response"
+                | "workspace_update"
+                | "list_terminals_response"
+                | "terminals_changed"
+        ) {
+            self.command_center_snapshot_dirty = true;
+        }
         self.directory.apply(kind, payload)?;
         let available = self.startup_workspace.as_ref().is_some_and(|id| {
             self.directory
@@ -2822,6 +3120,7 @@ impl Paseo {
     }
 
     fn select_workspace(&mut self, id: String, cx: &mut Context<Self>) {
+        self.command_center_snapshot_dirty = true;
         if self.selected_workspace.as_ref() == Some(&id) {
             return;
         }
@@ -3355,6 +3654,7 @@ impl Paseo {
                 self.terminal = None;
                 self.selected_terminal = None;
                 self.selected_agent = Some(id.clone());
+                self.command_center_snapshot_dirty = true;
                 self.directory
                     .remember_focus(&workspace, FocusedSession::Agent(id.clone()));
                 self.error = None;
@@ -3560,7 +3860,9 @@ impl Paseo {
             && self.history.is_none();
         // Floating menus sit outside the retained pane visibility state; a native
         // page would otherwise paint over them.
-        let obscured = self.scripts_menu.is_some() || self.workspace_menu.is_some();
+        let obscured = self.scripts_menu.is_some()
+            || self.workspace_menu.is_some()
+            || self.command_center_open(cx);
         for (tab_id, browser) in self.browsers.iter() {
             let presented = window_visible && rendered.contains(tab_id);
             browser.update(cx, |browser, cx| {
@@ -3712,6 +4014,7 @@ impl Paseo {
                     return;
                 };
                 if let Some(workspace) = &self.selected_workspace {
+                    self.command_center_snapshot_dirty = true;
                     self.directory
                         .remember_focus(workspace, FocusedSession::Terminal(tab.clone()));
                 }
@@ -3729,6 +4032,7 @@ impl Paseo {
                 }
                 self.sync_timeline_subscription();
                 if let Some(workspace) = &self.selected_workspace {
+                    self.command_center_snapshot_dirty = true;
                     self.directory
                         .remember_focus(workspace, FocusedSession::Agent(tab.clone()));
                 }
@@ -4222,6 +4526,7 @@ impl Paseo {
         } else if let Some((tab, view)) = focused_terminal {
             if self.selected_terminal.as_ref() != Some(&tab) {
                 if let Some(workspace) = &self.selected_workspace {
+                    self.command_center_snapshot_dirty = true;
                     self.directory
                         .remember_focus(workspace, FocusedSession::Terminal(tab.clone()));
                 }
@@ -4265,6 +4570,9 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.split_focused_pane(SplitPosition::Right, window, cx);
     }
 
@@ -4274,6 +4582,9 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.split_focused_pane(SplitPosition::Bottom, window, cx);
     }
 
@@ -4283,6 +4594,9 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.focus_adjacent_pane(FocusDirection::Left, window, cx);
     }
 
@@ -4292,10 +4606,16 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.focus_adjacent_pane(FocusDirection::Right, window, cx);
     }
 
     fn on_focus_pane_up(&mut self, _: &FocusPaneUp, window: &mut Window, cx: &mut Context<Self>) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.focus_adjacent_pane(FocusDirection::Up, window, cx);
     }
 
@@ -4305,22 +4625,37 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.focus_adjacent_pane(FocusDirection::Down, window, cx);
     }
 
     fn on_move_tab_left(&mut self, _: &MoveTabLeft, window: &mut Window, cx: &mut Context<Self>) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.move_focused_tab(FocusDirection::Left, window, cx);
     }
 
     fn on_move_tab_right(&mut self, _: &MoveTabRight, window: &mut Window, cx: &mut Context<Self>) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.move_focused_tab(FocusDirection::Right, window, cx);
     }
 
     fn on_move_tab_up(&mut self, _: &MoveTabUp, window: &mut Window, cx: &mut Context<Self>) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.move_focused_tab(FocusDirection::Up, window, cx);
     }
 
     fn on_move_tab_down(&mut self, _: &MoveTabDown, window: &mut Window, cx: &mut Context<Self>) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.move_focused_tab(FocusDirection::Down, window, cx);
     }
     fn on_close_focused_pane(
@@ -4329,6 +4664,9 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.command_center_open(cx) {
+            return;
+        }
         self.close_focused_pane(window, cx);
     }
 
@@ -4424,6 +4762,19 @@ impl Render for Paseo {
                 .hosts
                 .snapshot(matches!(self.hosts.phase, Some(HostPhase::Online)));
             panel.update(cx, |panel, cx| panel.set_snapshot(snapshot, cx));
+        }
+        if self.command_center_open(cx) {
+            let cwd = self.command_center_cwd();
+            let rows = self.command_center_rows();
+            if let Some(view) = &self.command_center {
+                view.update(cx, |view, cx| {
+                    view.update_context(cwd, rows, cx);
+                    view.set_providers(&self.provider_images, cx);
+                });
+                if !view.read(cx).focus_handle(cx).is_focused(window) {
+                    view.read(cx).focus_handle(cx).focus(window, cx);
+                }
+            }
         }
         let explorer_state = self
             .selected_workspace
@@ -4561,7 +4912,7 @@ impl Render for Paseo {
                                     }),
                                 )
                                 .into_any_element(),
-                            SidebarAction::Search => row.into_any_element(),
+                            SidebarAction::Search => row.cursor_pointer().on_mouse_down(MouseButton::Left,cx.listener(|this,_,window,cx|{cx.stop_propagation();this.open_command_center(CommandScope::All,window,cx);})).into_any_element(),
                         }
                     })),
             )
@@ -5201,6 +5552,8 @@ impl Render for Paseo {
             .on_action(cx.listener(Self::on_new_window))
             .on_action(cx.listener(Self::on_toggle_explorer))
             .on_action(cx.listener(Self::on_toggle_explorer_terminal))
+            .on_action(cx.listener(Self::on_search_files))
+            .on_action(cx.listener(Self::on_toggle_command_center))
             .on_mouse_move(cx.listener(Self::on_root_mouse_move))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_root_pointer_down))
             .on_mouse_up(MouseButton::Left, cx.listener(Self::on_root_mouse_up))
@@ -5303,6 +5656,12 @@ impl Render for Paseo {
                             ),
                     )
                 },
+            )
+            .when_some(
+                self.command_center
+                    .clone()
+                    .filter(|view| view.read(cx).is_open()),
+                |root, view| root.child(gpui::deferred(view).with_priority(5)),
             )
             .children(crate::window_chrome::resize_handles(window))
     }

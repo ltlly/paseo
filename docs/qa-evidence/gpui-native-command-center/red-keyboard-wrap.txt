@@ -1,0 +1,22 @@
+Traceback (most recent call last):
+  File "/home/ltlly/.cache/paseo-native-qa/command-20261102/verified-qa.py", line 30, in <module>
+    run('key','Up');text=snap('wrap-last.png');assert Path(expected[-1]).name in text,text
+                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: © Files x entry|
+
+&  entry-002.txt many
+&  entry-003.txt many
+©  entry-004.txt many
+© entry-005.txt many
+&  entry-006.txt many
+©  entry-007.txt many
+&  entry-008.txt many
+&  entry-009.txt many
+© entry-010.txt many
+& entry-011.txt many
+© entry-012.txt many
+&  entry-013.txt many
+© entry-014.txt many
+© entry-015.txt many
+©  entry-016.txt many
+&  entry-017.txt many

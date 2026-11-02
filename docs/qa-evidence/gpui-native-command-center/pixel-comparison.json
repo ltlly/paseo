@@ -1,0 +1,80 @@
+{
+  "status": "NOT_PASSED",
+  "viewport": [1280, 800],
+  "scale": 1,
+  "theme": "dark",
+  "uiFont": "Noto Sans 14px",
+  "contentFontSize": 15,
+  "codeFontSize": 12,
+  "masks": [],
+  "scenes": {
+    "command-empty": {
+      "window": {
+        "box": [0, 0, 1280, 800],
+        "changedPixels": 105838
+      },
+      "panel": {
+        "box": [320, 48, 960, 608],
+        "changedPixels": 4178
+      },
+      "header": {
+        "box": [320, 48, 960, 101],
+        "changedPixels": 861
+      },
+      "results": {
+        "box": [321, 101, 959, 607],
+        "changedPixels": 3288
+      }
+    },
+    "command-alpha": {
+      "window": {
+        "box": [0, 0, 1280, 800],
+        "changedPixels": 103056
+      },
+      "panel": {
+        "box": [320, 48, 960, 608],
+        "changedPixels": 1396
+      },
+      "header": {
+        "box": [320, 48, 960, 101],
+        "changedPixels": 687
+      },
+      "results": {
+        "box": [321, 101, 959, 607],
+        "changedPixels": 680
+      }
+    },
+    "command-error": {
+      "window": {
+        "box": [0, 0, 1280, 800],
+        "changedPixels": 103336
+      },
+      "panel": {
+        "box": [320, 48, 960, 608],
+        "changedPixels": 1676
+      },
+      "header": {
+        "box": [320, 48, 960, 101],
+        "changedPixels": 765
+      },
+      "results": {
+        "box": [321, 101, 959, 607],
+        "changedPixels": 882
+      }
+    },
+    "toolbar": {
+      "window": {
+        "box": [0, 0, 1280, 800],
+        "changedPixels": 105956
+      },
+      "explorer": {
+        "box": [960, 0, 1280, 800],
+        "changedPixels": 10235
+      },
+      "toolbar": {
+        "box": [960, 36, 1280, 72],
+        "changedPixels": 682
+      }
+    }
+  }
+}

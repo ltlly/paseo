@@ -1,0 +1,85 @@
+{
+  "scope": "Native Command Center file entrypoint, retained virtual search results and initial root navigation. Android, daemon/protocol product code and installed clients unchanged.",
+  "finalSource": {
+    "manifest": "source-identity.json",
+    "archiveSha256": "d5b80de997511dbadb209ba726475690943294a0c992e34102aa8437129acb66",
+    "fileCount": 234,
+    "archiveByteMatchesCheckout": true
+  },
+  "linuxBinary": {
+    "pid": 2853278,
+    "args": ["/home/ltlly/.cache/paseo-native-qa/command-20261102/paseo-command-final-source"],
+    "sha256": "d629ac2a7ced97430593f9591e8b47132995fd17f735c1c71266eea43168a63d"
+  },
+  "checks": {
+    "linuxNativeCheckAndFullBinaryBuild": true,
+    "macOSNativeCheckAndFullBinaryBuild": true,
+    "macOSFeature": "runtime-shaders",
+    "windowsNativeCheckAndFullBinaryBuild": true,
+    "windowsToolchain": "MSVC",
+    "focusedTestsPerPlatform": {
+      "command_center_model": 4,
+      "command_center_match": 2
+    },
+    "matcherOracle": {
+      "scoringCases": 162,
+      "highlightCases": 234,
+      "producer": "packages/desktop/scripts/sync-native-ui.mjs"
+    },
+    "npmLint": true,
+    "npmTypecheck": true,
+    "generatedSourcesFresh": true,
+    "fullSuiteRun": false,
+    "ciRun": false
+  },
+  "linuxGUI": {
+    "fixture": "Real isolated daemon and raw Node PTY; no real provider/model invocation",
+    "entrypoints": "first-checks.json",
+    "searchAndLifecycle": "verified-checks.json",
+    "observations": "verified-ocr.json",
+    "originalPTYRetainedAfterClientClose": "client-close.json",
+    "regressions": {
+      "closeAndReopen": "red-close-crash.txt: stale ListState count outlived cleared items. Reset list to zero and tolerate a previously prepared range. Eight final close/reopen cycles pass.",
+      "offscreenKeyboardWrap": "red-keyboard-wrap.txt: Up from first result did not reveal daemon result100. Exact authored row offsets now reveal it without eager full-list measurement; manual wheel scroll also survives a delayed same-result reply with zero changed result pixels."
+    }
+  },
+  "visual": {
+    "comparison": "pixel-comparison.json",
+    "reference": "Unmodified Electron-targeted Expo export from workspace-header checkpoint, same isolated daemon/workspace/files,1280x800,scale1,default dark,14/15/12px,explicit GTK Noto Sans10",
+    "referenceFontProof": "command-reference-fonts.json",
+    "status": "NOT_PASSED",
+    "matchedPanelBounds": [320, 48, 960, 608],
+    "masks": [],
+    "limitations": "Header chip/icon/text rasterization, highlights, fractional metrics/corners remain. Whole-window counts include pre-existing sidebar/root/tab/grid differences and are not a before/after performance comparison. No fonts or UI are hidden behind masks."
+  },
+  "discardedRuns": [
+    "An early harness sent input before the X11 window was viewable. Later scripts require a mapped window and actual RPC/layout/OCR assertions.",
+    "The old extended-qa exit status lacked semantic preconditions; it is not acceptance evidence.",
+    "A fresh native config omitted dark settings; the light/native vs dark/reference pixel comparison is invalid.",
+    "Private native config initially omitted GTK settings and selected Adwaita Sans. Final runs explicitly seed the same Noto Sans setting on both clients.",
+    "The first empty web-modal capture preceded its entrance animation; final reference waits for the animation before capture."
+  ],
+  "producers": {
+    "fixture": "../gpui-native-workspace-header/fixture.mts",
+    "datasetAndRules": "prepare.mts",
+    "delayedRealDaemonProxy": "proxy.mts",
+    "daemonSearchOracle": "expectations.mts",
+    "reference": "reference.mts",
+    "referenceExport": "/home/ltlly/.cache/paseo-native-qa/header-20261102/reference-dist",
+    "nativeLauncher": "launch.py.txt",
+    "nativeOSInput": "x11-input.py.txt",
+    "gui": ["gui-entrypoints.py.txt", "gui-lifecycle.py.txt", "capture-matched.py.txt"],
+    "clientInspection": "lifecycle.mts",
+    "instructions": "Use a fresh isolated daemon/home/display :99. Set PASEO_NATIVE_QA to its private output directory and TSX_TSCONFIG_PATH=packages/app/tsconfig.json for TypeScript producers. Run fixture, prepare, proxy, expectations; use reference-dist from an unmodified Electron export. Copy scripts and the hashed native executable to that output directory. launch.py seeds dark/en and Noto Sans GTK settings. OS scripts assume a1280x800 native window at162,100, the selected fixture workspace, a retained terminal and320px Files dock; the semantic assertions fail if the setup differs. Run entrypoints then lifecycle then matched captures sequentially. Close clients, inspect retained PTY, then stop only the owned fixture/proxy/display.",
+    "crossPlatform": ["check-mac.sh.txt", "check-windows.ps1.txt"]
+  },
+  "limitations": [
+    "Full Command Center root contributions, PR matching, plugins, multi-host/routed navigation, workspace/Agent subtitles/icons/status and recency parity remain pending. Root navigation is partial and not GUI-accepted by these file-search checks.",
+    "Full shortcuts/input-method/IME and custom appearance/localization matrix, request overload, actual30s timeout/disconnect/reconnect and mouse selection during a pending query are unaccepted. The model and bounded ownership code do not substitute for those interactions.",
+    "The UI-family resolver and RN default font stack can differ for other platform/settings combinations; the explicit Noto Sans fixture only accepts the recorded geometry comparison.",
+    "Mac/Windows are source-verified builds and six core tests each; GUI, IME, hardware rendering/latency/CPU/RSS, packaging and deployment remain unaccepted.",
+    "Complete desktop migration, Explorer panel host/tab persistence, terminal fidelity and original UI pixel parity remain incomplete."
+  ],
+  "cleanup": "cleanup.json",
+  "logNormalization": "Stored text logs normalize CRLF/trailing whitespace and final newline."
+}

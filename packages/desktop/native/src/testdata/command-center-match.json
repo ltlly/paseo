@@ -1,0 +1,1405 @@
+{
+  "cases": [
+    {
+      "query": "",
+      "fields": ["Auto mode", "Mode"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": "",
+      "fields": ["Label as Design"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": "",
+      "fields": ["workspace file sidebar"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": "",
+      "fields": ["foo-bar.ts"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": "",
+      "fields": ["你好 世界", "😀file"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": "",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": "",
+      "fields": ["x file auto y"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": "",
+      "fields": ["lab des"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": "",
+      "fields": ["é", "文件"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": " ",
+      "fields": ["Auto mode", "Mode"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": " ",
+      "fields": ["Label as Design"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": " ",
+      "fields": ["workspace file sidebar"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": " ",
+      "fields": ["foo-bar.ts"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": " ",
+      "fields": ["你好 世界", "😀file"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": " ",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": " ",
+      "fields": ["x file auto y"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": " ",
+      "fields": ["lab des"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": " ",
+      "fields": ["é", "文件"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": "﻿",
+      "fields": ["Auto mode", "Mode"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": "﻿",
+      "fields": ["Label as Design"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": "﻿",
+      "fields": ["workspace file sidebar"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": "﻿",
+      "fields": ["foo-bar.ts"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": "﻿",
+      "fields": ["你好 世界", "😀file"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": "﻿",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": "﻿",
+      "fields": ["x file auto y"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": "﻿",
+      "fields": ["lab des"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[]]
+    },
+    {
+      "query": "﻿",
+      "fields": ["é", "文件"],
+      "score": {
+        "tier": 0,
+        "offset": 0,
+        "spread": 0
+      },
+      "highlights": [[], []]
+    },
+    {
+      "query": "auto",
+      "fields": ["Auto mode", "Mode"],
+      "score": {
+        "tier": 1,
+        "offset": 0,
+        "spread": 4
+      },
+      "highlights": [
+        [
+          {
+            "start": 0,
+            "length": 4
+          }
+        ],
+        []
+      ]
+    },
+    {
+      "query": "auto",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "auto",
+      "fields": ["workspace file sidebar"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "auto",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "auto",
+      "fields": ["你好 世界", "😀file"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "auto",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "auto",
+      "fields": ["x file auto y"],
+      "score": {
+        "tier": 1,
+        "offset": 7,
+        "spread": 4
+      },
+      "highlights": [
+        [
+          {
+            "start": 7,
+            "length": 4
+          }
+        ]
+      ]
+    },
+    {
+      "query": "auto",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "auto",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "aut",
+      "fields": ["Auto mode", "Mode"],
+      "score": {
+        "tier": 2,
+        "offset": 0,
+        "spread": 3
+      },
+      "highlights": [
+        [
+          {
+            "start": 0,
+            "length": 3
+          }
+        ],
+        []
+      ]
+    },
+    {
+      "query": "aut",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "aut",
+      "fields": ["workspace file sidebar"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "aut",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "aut",
+      "fields": ["你好 世界", "😀file"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "aut",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "aut",
+      "fields": ["x file auto y"],
+      "score": {
+        "tier": 3,
+        "offset": 7,
+        "spread": 3
+      },
+      "highlights": [
+        [
+          {
+            "start": 7,
+            "length": 3
+          }
+        ]
+      ]
+    },
+    {
+      "query": "aut",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "aut",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "file",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "file",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "file",
+      "fields": ["workspace file sidebar"],
+      "score": {
+        "tier": 1,
+        "offset": 10,
+        "spread": 4
+      },
+      "highlights": [
+        [
+          {
+            "start": 10,
+            "length": 4
+          }
+        ]
+      ]
+    },
+    {
+      "query": "file",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "file",
+      "fields": ["你好 世界", "😀file"],
+      "score": {
+        "tier": 1,
+        "offset": 2,
+        "spread": 4
+      },
+      "highlights": [
+        [],
+        [
+          {
+            "start": 2,
+            "length": 4
+          }
+        ]
+      ]
+    },
+    {
+      "query": "file",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "file",
+      "fields": ["x file auto y"],
+      "score": {
+        "tier": 1,
+        "offset": 2,
+        "spread": 4
+      },
+      "highlights": [
+        [
+          {
+            "start": 2,
+            "length": 4
+          }
+        ]
+      ]
+    },
+    {
+      "query": "file",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "file",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "work",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "work",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "work",
+      "fields": ["workspace file sidebar"],
+      "score": {
+        "tier": 2,
+        "offset": 0,
+        "spread": 4
+      },
+      "highlights": [
+        [
+          {
+            "start": 0,
+            "length": 4
+          }
+        ]
+      ]
+    },
+    {
+      "query": "work",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "work",
+      "fields": ["你好 世界", "😀file"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "work",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "work",
+      "fields": ["x file auto y"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "work",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "work",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "rk",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "rk",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "rk",
+      "fields": ["workspace file sidebar"],
+      "score": {
+        "tier": 4,
+        "offset": 2,
+        "spread": 2
+      },
+      "highlights": [
+        [
+          {
+            "start": 2,
+            "length": 2
+          }
+        ]
+      ]
+    },
+    {
+      "query": "rk",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "rk",
+      "fields": ["你好 世界", "😀file"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "rk",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "rk",
+      "fields": ["x file auto y"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "rk",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "rk",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "lbl dsgn",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "lbl dsgn",
+      "fields": ["Label as Design"],
+      "score": {
+        "tier": 10,
+        "offset": 9,
+        "spread": 11
+      },
+      "highlights": [
+        [
+          {
+            "start": 0,
+            "length": 1
+          },
+          {
+            "start": 2,
+            "length": 1
+          },
+          {
+            "start": 4,
+            "length": 1
+          },
+          {
+            "start": 9,
+            "length": 1
+          },
+          {
+            "start": 11,
+            "length": 1
+          },
+          {
+            "start": 13,
+            "length": 2
+          }
+        ]
+      ]
+    },
+    {
+      "query": "lbl dsgn",
+      "fields": ["workspace file sidebar"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "lbl dsgn",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "lbl dsgn",
+      "fields": ["你好 世界", "😀file"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "lbl dsgn",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "lbl dsgn",
+      "fields": ["x file auto y"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "lbl dsgn",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "lbl dsgn",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "labdes",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "labdes",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "labdes",
+      "fields": ["workspace file sidebar"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "labdes",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "labdes",
+      "fields": ["你好 世界", "😀file"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "labdes",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "labdes",
+      "fields": ["x file auto y"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "labdes",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "labdes",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "你好",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "你好",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "你好",
+      "fields": ["workspace file sidebar"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "你好",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "你好",
+      "fields": ["你好 世界", "😀file"],
+      "score": {
+        "tier": 1,
+        "offset": 0,
+        "spread": 2
+      },
+      "highlights": [
+        [
+          {
+            "start": 0,
+            "length": 2
+          }
+        ],
+        []
+      ]
+    },
+    {
+      "query": "你好",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "你好",
+      "fields": ["x file auto y"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "你好",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "你好",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "😀",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "😀",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "😀",
+      "fields": ["workspace file sidebar"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "😀",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "😀",
+      "fields": ["你好 世界", "😀file"],
+      "score": {
+        "tier": 2,
+        "offset": 0,
+        "spread": 2
+      },
+      "highlights": [
+        [],
+        [
+          {
+            "start": 0,
+            "length": 2
+          }
+        ]
+      ]
+    },
+    {
+      "query": "😀",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "😀",
+      "fields": ["x file auto y"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "😀",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "😀",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "mode auto",
+      "fields": ["Auto mode", "Mode"],
+      "score": {
+        "tier": 1,
+        "offset": 0,
+        "spread": 8
+      },
+      "highlights": [
+        [
+          {
+            "start": 0,
+            "length": 4
+          },
+          {
+            "start": 5,
+            "length": 4
+          }
+        ],
+        [
+          {
+            "start": 0,
+            "length": 4
+          }
+        ]
+      ]
+    },
+    {
+      "query": "mode auto",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "mode auto",
+      "fields": ["workspace file sidebar"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "mode auto",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "mode auto",
+      "fields": ["你好 世界", "😀file"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "mode auto",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "mode auto",
+      "fields": ["x file auto y"],
+      "score": null,
+      "highlights": [
+        [
+          {
+            "start": 7,
+            "length": 4
+          }
+        ]
+      ]
+    },
+    {
+      "query": "mode auto",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "mode auto",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "SIDEBAR",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "SIDEBAR",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "SIDEBAR",
+      "fields": ["workspace file sidebar"],
+      "score": {
+        "tier": 1,
+        "offset": 15,
+        "spread": 7
+      },
+      "highlights": [
+        [
+          {
+            "start": 15,
+            "length": 7
+          }
+        ]
+      ]
+    },
+    {
+      "query": "SIDEBAR",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "SIDEBAR",
+      "fields": ["你好 世界", "😀file"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "SIDEBAR",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "SIDEBAR",
+      "fields": ["x file auto y"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "SIDEBAR",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "SIDEBAR",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "fi le",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "fi le",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [
+        [
+          {
+            "start": 0,
+            "length": 1
+          },
+          {
+            "start": 3,
+            "length": 1
+          }
+        ]
+      ]
+    },
+    {
+      "query": "fi le",
+      "fields": ["workspace file sidebar"],
+      "score": {
+        "tier": 7,
+        "offset": 22,
+        "spread": 4
+      },
+      "highlights": [
+        [
+          {
+            "start": 10,
+            "length": 4
+          }
+        ]
+      ]
+    },
+    {
+      "query": "fi le",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "fi le",
+      "fields": ["你好 世界", "😀file"],
+      "score": {
+        "tier": 7,
+        "offset": 6,
+        "spread": 4
+      },
+      "highlights": [
+        [],
+        [
+          {
+            "start": 2,
+            "length": 4
+          }
+        ]
+      ]
+    },
+    {
+      "query": "fi le",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "fi le",
+      "fields": ["x file auto y"],
+      "score": {
+        "tier": 7,
+        "offset": 6,
+        "spread": 4
+      },
+      "highlights": [
+        [
+          {
+            "start": 2,
+            "length": 4
+          }
+        ]
+      ]
+    },
+    {
+      "query": "fi le",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "fi le",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "foo-bar",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "foo-bar",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "foo-bar",
+      "fields": ["workspace file sidebar"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "foo-bar",
+      "fields": ["foo-bar.ts"],
+      "score": {
+        "tier": 1,
+        "offset": 0,
+        "spread": 7
+      },
+      "highlights": [
+        [
+          {
+            "start": 0,
+            "length": 7
+          }
+        ]
+      ]
+    },
+    {
+      "query": "foo-bar",
+      "fields": ["你好 世界", "😀file"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "foo-bar",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "foo-bar",
+      "fields": ["x file auto y"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "foo-bar",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "foo-bar",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "i",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "i",
+      "fields": ["Label as Design"],
+      "score": {
+        "tier": 4,
+        "offset": 12,
+        "spread": 1
+      },
+      "highlights": [
+        [
+          {
+            "start": 12,
+            "length": 1
+          }
+        ]
+      ]
+    },
+    {
+      "query": "i",
+      "fields": ["workspace file sidebar"],
+      "score": {
+        "tier": 4,
+        "offset": 11,
+        "spread": 1
+      },
+      "highlights": [
+        [
+          {
+            "start": 11,
+            "length": 1
+          }
+        ]
+      ]
+    },
+    {
+      "query": "i",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "i",
+      "fields": ["你好 世界", "😀file"],
+      "score": {
+        "tier": 4,
+        "offset": 3,
+        "spread": 1
+      },
+      "highlights": [
+        [],
+        [
+          {
+            "start": 3,
+            "length": 1
+          }
+        ]
+      ]
+    },
+    {
+      "query": "i",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": {
+        "tier": 1,
+        "offset": 0,
+        "spread": 1
+      },
+      "highlights": [
+        [
+          {
+            "start": 0,
+            "length": 1
+          }
+        ],
+        []
+      ]
+    },
+    {
+      "query": "i",
+      "fields": ["x file auto y"],
+      "score": {
+        "tier": 4,
+        "offset": 3,
+        "spread": 1
+      },
+      "highlights": [
+        [
+          {
+            "start": 3,
+            "length": 1
+          }
+        ]
+      ]
+    },
+    {
+      "query": "i",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "i",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "σ",
+      "fields": ["Auto mode", "Mode"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "σ",
+      "fields": ["Label as Design"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "σ",
+      "fields": ["workspace file sidebar"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "σ",
+      "fields": ["foo-bar.ts"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "σ",
+      "fields": ["你好 世界", "😀file"],
+      "score": null,
+      "highlights": [[], []]
+    },
+    {
+      "query": "σ",
+      "fields": ["İstanbul", "Σίγμα"],
+      "score": {
+        "tier": 1,
+        "offset": 0,
+        "spread": 1
+      },
+      "highlights": [
+        [],
+        [
+          {
+            "start": 0,
+            "length": 1
+          }
+        ]
+      ]
+    },
+    {
+      "query": "σ",
+      "fields": ["x file auto y"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "σ",
+      "fields": ["lab des"],
+      "score": null,
+      "highlights": [[]]
+    },
+    {
+      "query": "σ",
+      "fields": ["é", "文件"],
+      "score": null,
+      "highlights": [[], []]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+[
+  {
+    "selector": "[data-testid=\"command-center-input\"]",
+    "fonts": [
+      {
+        "familyName": "Noto Sans",
+        "postScriptName": "NotoSans-Regular",
+        "isCustomFont": false,
+        "glyphCount": 8
+      }
+    ]
+  },
+  {
+    "selector": "[data-testid=\"command-center-file-search-error\"]",
+    "fonts": [
+      {
+        "familyName": "Noto Sans",
+        "postScriptName": "NotoSans-Regular",
+        "isCustomFont": false,
+        "glyphCount": 28
+      }
+    ]
+  },
+  {
+    "selector": "[data-testid=\"command-center-scope-chip\"]",
+    "missing": true
+  }
+]

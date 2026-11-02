@@ -30,9 +30,6 @@ const ROW_HEIGHT: f32 = files_style::TREE_ICON + 2. * files_style::TREE_PADDING_
 /// The authored diff band is the palette's diff colour at 15% alpha.
 const DIFF_WASH_ALPHA: u32 = 0x26;
 
-/// Matches the original command center: a short debounce, then one host query.
-const FILE_SEARCH_DEBOUNCE: Duration = Duration::from_millis(100);
-const FILE_SEARCH_LIMIT: u32 = 100;
 const BRANCH_SUGGESTION_LIMIT: u32 = 200;
 /// A git action that never lands leaves the row pending forever otherwise.
 const ACTION_TIMEOUT: Duration = Duration::from_secs(30);
@@ -274,54 +271,6 @@ struct CheckDetails {
     failed_jobs: Vec<String>,
 }
 
-/// A file the quick-open search matched.
-#[derive(Clone)]
-struct SearchHit {
-    path: String,
-    name: String,
-    directory: String,
-}
-
-#[derive(Default)]
-struct Search {
-    hits: Vec<SearchHit>,
-    loading: bool,
-    error: Option<String>,
-    /// Bumped per keystroke; a reply for an older generation is dropped.
-    generation: u64,
-}
-
-impl Search {
-    fn clear(&mut self) {
-        self.hits.clear();
-        self.loading = false;
-        self.error = None;
-    }
-
-    /// A new workspace clears the results but keeps the counter moving: a
-    /// debounce armed in the old workspace must never match a fresh search.
-    fn start_in_new_workspace(&mut self) {
-        self.clear();
-        self.generation += 1;
-    }
-
-    /// A reply lands only when no newer keystroke has taken over. A stale reply
-    /// leaves the current search's loading state and results alone.
-    fn accept_reply(&mut self, generation: u64, payload: &Value) {
-        if generation != self.generation {
-            return;
-        }
-        self.loading = false;
-        if let Some(error) = payload["error"].as_str() {
-            self.hits.clear();
-            self.error = Some(error.to_owned());
-        } else {
-            self.hits = parse_search_hits(payload);
-            self.error = None;
-        }
-    }
-}
-
 #[derive(Clone)]
 struct StashEntry {
     index: i64,
@@ -552,24 +501,14 @@ pub enum ScriptActionKind {
 /// One pending host request, so late failures land on the surface that asked.
 enum Pending {
     Directory(String),
-    Create {
-        parent: String,
-    },
-    Rename {
-        parent: String,
-    },
-    Duplicate {
-        parent: String,
-    },
-    Delete {
-        parent: String,
-    },
+    Create { parent: String },
+    Rename { parent: String },
+    Duplicate { parent: String },
+    Delete { parent: String },
     CheckoutStatus,
     Diff,
     ScriptStart(String),
     ScriptStop(String),
-    /// A filename search reply, tagged with the generation that asked for it.
-    Search(u64),
     Branches,
     Stashes,
     PrStatus,
@@ -638,7 +577,6 @@ struct Menu {
 enum InputKind {
     Create,
     Rename,
-    Search,
 }
 
 /// The single-line input for creating or renaming an entry, or for the
@@ -693,11 +631,9 @@ pub struct WorkspaceTools {
     entry_error: Option<String>,
     pub sort: Sort,
     pub show_hidden: bool,
-    file_icon_size: i32,
-    file_images: BTreeMap<&'static str, Arc<gpui::RenderImage>>,
+    file_icons: crate::file_icon_view::FileIconCache,
     menu: Option<Menu>,
     input: Option<EntryInput>,
-    search: Search,
     // Changes
     status: Option<CheckoutStatus>,
     status_error: Option<String>,
@@ -768,11 +704,9 @@ impl WorkspaceTools {
             entry_error: None,
             sort: Sort::Name,
             show_hidden: true,
-            file_icon_size: 0,
-            file_images: BTreeMap::new(),
+            file_icons: Default::default(),
             menu: None,
             input: None,
-            search: Search::default(),
             status: None,
             status_error: None,
             status_pending: false,
@@ -874,7 +808,6 @@ impl WorkspaceTools {
         self.diff_too_large = false;
         self.diff_loading = false;
         self.selected_diff = None;
-        self.search.start_in_new_workspace();
         self.ops.clear();
         self.active_ops.clear();
         self.git_error = None;
@@ -938,7 +871,6 @@ impl WorkspaceTools {
         self.pending.clear();
         self.ops.clear();
         self.active_ops.clear();
-        self.search.start_in_new_workspace();
         self.subscribe_events();
         self.refresh(cx);
         cx.notify();
@@ -1164,7 +1096,6 @@ impl WorkspaceTools {
                     self.maybe_request_pr(cx);
                 }
             }
-            Pending::Search(generation) => self.search.accept_reply(generation, &payload),
             Pending::Branches => {
                 self.branches_loading = false;
                 if let Some(error) = payload["error"].as_str() {
@@ -1404,18 +1335,6 @@ impl WorkspaceTools {
             return;
         };
         let kind = input.kind;
-        if kind == InputKind::Search {
-            // Enter opens the first match, like the original command center.
-            let hit = self.search.hits.first().map(|hit| hit.path.clone());
-            self.input = None;
-            self.search.generation += 1;
-            self.reset_search_results();
-            if let Some(path) = hit {
-                cx.emit(OpenFile(path));
-            }
-            cx.notify();
-            return;
-        }
         let name = input.query.text.trim().to_owned();
         if name.is_empty() || name.contains('/') {
             self.input = None;
@@ -1537,91 +1456,6 @@ impl WorkspaceTools {
 }
 
 impl WorkspaceTools {
-    fn reset_search_results(&mut self) {
-        self.search.clear();
-    }
-
-    /// Filename search reuses the one dock text field, so the platform input
-    /// handler and IME ownership stay in one place.
-    fn begin_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let mut input = EntryInput {
-            target: String::new(),
-            kind: InputKind::Search,
-            directory: false,
-            query: Editing::default(),
-            focus: cx.focus_handle(),
-            line: None,
-            bounds: Bounds::default(),
-            scroll_x: px(0.),
-            selecting: false,
-        };
-        input.query.select(0, false);
-        self.input = Some(input);
-        self.menu = None;
-        self.search.generation += 1;
-        self.reset_search_results();
-        if let Some(input) = &self.input {
-            input.focus.clone().focus(window, cx);
-        }
-        cx.notify();
-    }
-
-    fn search_query(&self) -> String {
-        self.input
-            .as_ref()
-            .filter(|input| input.kind == InputKind::Search)
-            .map(|input| input.query.text.clone())
-            .unwrap_or_default()
-    }
-
-    fn schedule_search(&mut self, cx: &mut Context<Self>) {
-        self.search.generation += 1;
-        let generation = self.search.generation;
-        let query = self.search_query();
-        if query.trim().is_empty() || !self.connected {
-            self.reset_search_results();
-            cx.notify();
-            return;
-        }
-        self.search.loading = true;
-        self.search.error = None;
-        let timer = cx.background_executor().timer(FILE_SEARCH_DEBOUNCE);
-        cx.spawn(async move |this, cx| {
-            timer.await;
-            let _ = this.update(cx, |this, cx| this.issue_search(generation, query, cx));
-        })
-        .detach();
-        cx.notify();
-    }
-
-    fn issue_search(&mut self, generation: u64, query: String, cx: &mut Context<Self>) {
-        if generation != self.search.generation || !self.connected {
-            // A newer keystroke owns the results.
-            return;
-        }
-        let cwd = self.cwd.clone();
-        let request = json!({
-            "cwd": cwd,
-            "query": query,
-            "includeFiles": true,
-            "includeDirectories": false,
-            "limit": FILE_SEARCH_LIMIT,
-        });
-        match self
-            .connection
-            .request("directory_suggestions_request", request)
-        {
-            Ok(id) => {
-                self.pending.insert(id, Pending::Search(generation));
-            }
-            Err(error) => {
-                self.search.loading = false;
-                self.search.error = Some(error.to_string());
-                cx.notify();
-            }
-        }
-    }
-
     /// The change request of the branch, once per status reply. Gated once by
     /// the host's `forgeProviders` capability.
     fn maybe_request_pr(&mut self, cx: &mut Context<Self>) {
@@ -2282,40 +2116,6 @@ fn action_url(payload: &str) -> Option<&str> {
     (!payload.is_empty()).then_some(payload)
 }
 
-/// `entries` carries the directory suggestions; `directories` is the legacy list.
-fn parse_search_hits(payload: &Value) -> Vec<SearchHit> {
-    if let Some(entries) = payload["entries"].as_array()
-        && !entries.is_empty()
-    {
-        return entries
-            .iter()
-            .filter_map(|entry| entry["path"].as_str().map(describe_path))
-            .collect();
-    }
-    payload["directories"]
-        .as_array()
-        .map(|paths| {
-            paths
-                .iter()
-                .filter_map(|path| path.as_str().map(describe_path))
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-fn describe_path(path: &str) -> SearchHit {
-    let normalized = path.replace('\\', "/");
-    let (directory, name) = match normalized.rsplit_once('/') {
-        Some((directory, name)) => (directory.to_owned(), name.to_owned()),
-        None => (String::new(), normalized.clone()),
-    };
-    SearchHit {
-        path: normalized,
-        name,
-        directory,
-    }
-}
-
 fn parse_stashes(payload: &Value) -> Vec<StashEntry> {
     payload["entries"]
         .as_array()
@@ -2791,15 +2591,6 @@ impl WorkspaceTools {
                 .replace(range, &text.replace(['\r', '\n'], " "), marked, selected);
             window.notify_text_input_changed(&input.focus);
         }
-        // Search only once the text is committed, never mid-composition.
-        if !marked
-            && self
-                .input
-                .as_ref()
-                .is_some_and(|input| input.kind == InputKind::Search)
-        {
-            self.schedule_search(cx);
-        }
         cx.notify();
     }
 }
@@ -3270,7 +3061,6 @@ impl WorkspaceTools {
         enum Action {
             NewFile,
             NewFolder,
-            Search,
             Hidden,
             Refresh,
         }
@@ -3286,8 +3076,6 @@ impl WorkspaceTools {
                 "New folder",
                 Action::NewFolder,
             ),
-            // Retain filename search until the Command Center owns that entrypoint.
-            ("files-search", "search", "Search files", Action::Search),
             (
                 "files-hidden",
                 if self.show_hidden { "eye" } else { "eye-off" },
@@ -3343,7 +3131,6 @@ impl WorkspaceTools {
                                     window,
                                     cx,
                                 ),
-                                Action::Search => this.begin_search(window, cx),
                                 Action::Hidden => {
                                     this.show_hidden = !this.show_hidden;
                                     cx.notify();
@@ -3402,54 +3189,12 @@ impl WorkspaceTools {
             .child(controls)
     }
 
-    fn render_file_icon(&mut self, file_name: &str, window: &Window, cx: &App) -> gpui::AnyElement {
-        let pixels = (files_style::TREE_ICON * window.scale_factor())
-            .ceil()
-            .clamp(1., 128.) as i32;
-        if self.file_icon_size != pixels {
-            self.file_images.clear();
-            self.file_icon_size = pixels;
-        }
-        let (name, svg) = paseo_desktop::file_icons::lookup(file_name);
-        if !self.file_images.contains_key(name) {
-            let renderer = cx.svg_renderer();
-            let image = renderer.parse_svg(svg.as_bytes()).and_then(|svg| {
-                renderer.render_parsed(
-                    &svg,
-                    gpui::SvgSize::ExactSize(size(
-                        gpui::DevicePixels(pixels),
-                        gpui::DevicePixels(pixels),
-                    )),
-                )
-            });
-            if let Ok(image) = image {
-                self.file_images.insert(name, image);
-            }
-        }
-        if let Some(image) = self.file_images.get(name) {
-            gpui::img(image.clone())
-                .size(px(files_style::TREE_ICON))
-                .into_any_element()
-        } else {
-            icon("file-text", files_style::TREE_ICON).into_any_element()
-        }
-    }
-
     fn render_files(
         &mut self,
         palette: &Palette,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
-        // Search replaces the tree while it is open: the field answers a query,
-        // and its hits are the only rows that can be opened.
-        if self
-            .input
-            .as_ref()
-            .is_some_and(|input| input.kind == InputKind::Search)
-        {
-            return self.render_search(palette, cx);
-        }
         let mut list = div()
             .id("explorer-tree")
             .flex_1()
@@ -3575,7 +3320,8 @@ impl WorkspaceTools {
                     .into_any_element()
                 }
             } else {
-                self.render_file_icon(&entry.name, window, cx)
+                self.file_icons
+                    .render(&entry.name, files_style::TREE_ICON, window, cx)
             };
             row = row
                 .child(
@@ -3676,7 +3422,6 @@ impl WorkspaceTools {
         let paint = cx.entity();
         let kind = self.input.as_ref().map(|i| i.kind);
         let directory = self.input.as_ref().is_some_and(|i| i.directory);
-        let searching = kind == Some(InputKind::Search);
         let creating = kind == Some(InputKind::Create);
         div()
             .flex_1()
@@ -3774,17 +3519,8 @@ impl WorkspaceTools {
                 }),
             )
             .child(
-                icon(
-                    if searching {
-                        "search"
-                    } else if directory {
-                        "folder"
-                    } else {
-                        "file-text"
-                    },
-                    12.,
-                )
-                .text_color(rgb(palette.foreground_muted)),
+                icon(if directory { "folder" } else { "file-text" }, 12.)
+                    .text_color(rgb(palette.foreground_muted)),
             )
             .child(
                 canvas(
@@ -3794,9 +3530,7 @@ impl WorkspaceTools {
                                 input.bounds = bounds;
                                 let empty = input.query.text.is_empty();
                                 let text = if empty {
-                                    if searching {
-                                        "Search files…".to_owned()
-                                    } else if directory {
+                                    if directory {
                                         "Folder name".to_owned()
                                     } else {
                                         "File name".to_owned()
@@ -3874,27 +3608,25 @@ impl WorkspaceTools {
                 .flex_1()
                 .h_full(),
             )
-            .when(!searching, |row| {
-                row.child(
-                    div()
-                        .id("entry-input-commit")
-                        .flex_shrink_0()
-                        .px_1()
-                        .rounded(px(radius::SM))
-                        .cursor_pointer()
-                        .hover(|v| v.bg(rgb(palette.surface3)))
-                        .text_color(rgb(palette.accent_bright))
-                        .text_size(px(font_size::SM))
-                        .child(if creating { "Create" } else { "Rename" })
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(|this, _, _, cx| {
-                                cx.stop_propagation();
-                                this.commit_input(cx);
-                            }),
-                        ),
-                )
-            })
+            .child(
+                div()
+                    .id("entry-input-commit")
+                    .flex_shrink_0()
+                    .px_1()
+                    .rounded(px(radius::SM))
+                    .cursor_pointer()
+                    .hover(|v| v.bg(rgb(palette.surface3)))
+                    .text_color(rgb(palette.accent_bright))
+                    .text_size(px(font_size::SM))
+                    .child(if creating { "Create" } else { "Rename" })
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(|this, _, _, cx| {
+                            cx.stop_propagation();
+                            this.commit_input(cx);
+                        }),
+                    ),
+            )
             .child(
                 div()
                     .id("entry-input-cancel")
@@ -3910,125 +3642,10 @@ impl WorkspaceTools {
                         cx.listener(|this, _, _, cx| {
                             cx.stop_propagation();
                             this.input = None;
-                            this.search.generation += 1;
-                            this.reset_search_results();
                             cx.notify();
                         }),
                     ),
             )
-            .into_any_element()
-    }
-
-    /// The filename search field and its hits, over
-    /// `directory_suggestions_request` with files only.
-    fn render_search(&mut self, palette: &Palette, cx: &mut Context<Self>) -> gpui::AnyElement {
-        let mut list = div()
-            .id("file-search")
-            .flex_1()
-            .min_h_0()
-            .overflow_y_scroll()
-            .px_1()
-            .py_1()
-            .flex()
-            .flex_col()
-            .child(
-                div()
-                    .h(px(28.))
-                    .flex_shrink_0()
-                    .mb(px(2.))
-                    .flex()
-                    .items_center()
-                    .child(self.render_input_row(palette, cx)),
-            );
-        if let Some(error) = self.search.error.clone() {
-            list = list.child(
-                div()
-                    .px_2()
-                    .py_1()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .text_size(px(font_size::SM))
-                    .text_color(rgb(palette.status_danger))
-                    .child(div().min_w_0().flex_1().truncate().child(error)),
-            );
-        }
-        if self.search.loading {
-            list = list.child(
-                div()
-                    .px_2()
-                    .py_1()
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .text_size(px(font_size::SM))
-                    .text_color(rgb(palette.foreground_muted))
-                    .child(loading_spinner(12., palette.foreground_muted))
-                    .child("Searching…"),
-            );
-        } else if self.search.hits.is_empty() && self.search.error.is_none() {
-            list = list.child(
-                div()
-                    .px_2()
-                    .py_1()
-                    .text_size(px(font_size::SM))
-                    .text_color(rgb(palette.foreground_muted))
-                    .child("No files match."),
-            );
-        }
-        for hit in self.search.hits.clone() {
-            let path = hit.path.clone();
-            list = list.child(
-                div()
-                    .id(gpui::SharedString::from(format!("search-{path}")))
-                    .h(px(ROW_HEIGHT))
-                    .flex_shrink_0()
-                    .mb(px(1.))
-                    .px_2()
-                    .rounded(px(radius::SM))
-                    .flex()
-                    .items_center()
-                    .gap_2()
-                    .cursor_pointer()
-                    .hover(|row| row.bg(rgb(palette.surface_sidebar_hover)))
-                    .child(icon("file-text", 14.).text_color(rgb(palette.foreground_muted)))
-                    .child(
-                        div()
-                            .flex_shrink_0()
-                            .text_size(px(font_size::SM))
-                            .child(hit.name.clone()),
-                    )
-                    .when(!hit.directory.is_empty(), |row| {
-                        row.child(
-                            div()
-                                .min_w_0()
-                                .flex_1()
-                                .truncate()
-                                .text_size(px(font_size::SM))
-                                .text_color(rgb(palette.foreground_extra_muted))
-                                .child(hit.directory.clone()),
-                        )
-                    })
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _, _, cx| {
-                            cx.stop_propagation();
-                            this.input = None;
-                            this.search.generation += 1;
-                            this.reset_search_results();
-                            cx.emit(OpenFile(path.clone()));
-                            cx.notify();
-                        }),
-                    ),
-            );
-        }
-        div()
-            .flex_1()
-            .min_h_0()
-            .relative()
-            .flex()
-            .flex_col()
-            .child(list)
             .into_any_element()
     }
 
@@ -5642,19 +5259,6 @@ mod tests {
     }
 
     #[test]
-    fn search_hits_split_name_from_directory() {
-        let hits = parse_search_hits(&json!({"entries":[
-            {"path":"src/app/main.rs","kind":"file"},
-            {"path":"README.md","kind":"file"}
-        ]}));
-        assert_eq!(hits.len(), 2);
-        assert_eq!(hits[0].name, "main.rs");
-        assert_eq!(hits[0].directory, "src/app");
-        assert_eq!(hits[1].name, "README.md");
-        assert!(hits[1].directory.is_empty());
-    }
-
-    #[test]
     fn pr_status_reads_checks_and_repository_merge_policy() {
         let dark = paseo_desktop::appearance::resolve(
             paseo_desktop::settings::ThemePreference::Dark,
@@ -5962,34 +5566,6 @@ mod tests {
         assert!(!owned("script_status_update", json!({"workspaceId":"w2"})));
         assert!(owned("checkout_status_update", json!({"cwd":"/repo"})));
         assert!(!owned("checkout_status_update", json!({"cwd":"/other"})));
-    }
-
-    #[test]
-    fn search_replies_are_matched_by_generation() {
-        let mut search = Search::default();
-        search.generation = 2;
-        search.loading = true;
-        // The debounce armed in the previous workspace reaches a newer search.
-        search.accept_reply(1, &json!({"entries":[{"path":"old.rs"}]}));
-        assert!(search.loading);
-        assert!(search.hits.is_empty());
-        search.accept_reply(2, &json!({"entries":[{"path":"new.rs"}]}));
-        assert!(!search.loading);
-        assert_eq!(search.hits.len(), 1);
-    }
-
-    #[test]
-    fn a_new_workspace_never_reuses_a_search_generation() {
-        let mut search = Search::default();
-        search.generation = 4;
-        search.hits.push(SearchHit {
-            path: "a.rs".into(),
-            name: "a.rs".into(),
-            directory: String::new(),
-        });
-        search.start_in_new_workspace();
-        assert!(search.hits.is_empty());
-        assert_eq!(search.generation, 5);
     }
 
     #[test]

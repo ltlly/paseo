@@ -425,6 +425,128 @@ await output(
     .map(([key, value]) => `pub const ${key}:f32=${Number(value).toFixed(1)};`)
     .join("\n")}\n`,
 );
+const commandFile = "packages/app/src/command-center/command-center.tsx";
+const commandStyle = await authoredStyles(commandFile, [
+  "overlay",
+  "panel",
+  "header",
+  "searchRow",
+  "scopeChip",
+  "rowContent",
+  "row",
+  "title",
+  "subtitle",
+  "fileLine",
+  "sectionLabel",
+  "emptyText",
+]);
+const commandMetricsFile = "packages/app/src/command-center/list-metrics.ts";
+const commandContext = { theme, SPACING: theme.spacing, exports: {} };
+runInNewContext(
+  ts.transpileModule(
+    `
+${await authoredNode(commandMetricsFile, "COMMAND_CENTER_LINE_HEIGHT")}
+${await authoredNode(commandMetricsFile, "COMMAND_CENTER_SECTION_GAP")}
+${await authoredNode(commandMetricsFile, "SECTION_DIVIDER_THICKNESS")}
+${await authoredNode(commandMetricsFile, "listMetrics")}
+${await authoredNode(commandMetricsFile, "COMMAND_CENTER_LIST_METRICS")}
+const styles=({${commandStyle}});const metrics=COMMAND_CENTER_LIST_METRICS.desktop;
+globalThis.values={WIDTH:styles.panel.width,HEIGHT:styles.panel.height,MAX_WIDTH_RATIO:parseFloat(styles.panel.maxWidth)/100,MAX_HEIGHT_RATIO:parseFloat(styles.panel.maxHeight)/100,TOP:styles.overlay.paddingTop,RADIUS:styles.panel.borderRadius,
+ HEADER_PADDING_X:styles.header.paddingHorizontal,HEADER_PADDING_Y:styles.header.paddingVertical,HEADER_GAP:styles.searchRow.gap,
+ CHIP_PADDING_X:styles.scopeChip.paddingHorizontal,CHIP_MARGIN_RIGHT:styles.scopeChip.marginRight,CHIP_RADIUS:styles.scopeChip.borderRadius,CHIP_GAP:styles.scopeChip.gap,
+ ROW_PADDING_X:styles.row.paddingHorizontal,ROW_GAP:styles.rowContent.gap,ROW_INSET:(metrics.singleLineRow-COMMAND_CENTER_LINE_HEIGHT.singleLine)/2,
+ SINGLE_ROW_HEIGHT:metrics.singleLineRow,TWO_ROW_HEIGHT:metrics.twoLineRow,SECTION_HEIGHT:metrics.sectionTitle,DIVIDER_HEIGHT:metrics.sectionDivider,SECTION_GAP:COMMAND_CENTER_SECTION_GAP,
+ TITLE_FONT:styles.title.fontSize,SUBTITLE_FONT:styles.subtitle.fontSize,TITLE_LINE_HEIGHT:styles.title.lineHeight,SUBTITLE_LINE_HEIGHT:styles.subtitle.lineHeight,SINGLE_LINE_HEIGHT:styles.fileLine.lineHeight,SECTION_LINE_HEIGHT:styles.sectionLabel.lineHeight,EMPTY_PADDING_Y:styles.emptyText.paddingVertical};`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
+  ).outputText,
+  commandContext,
+  { timeout: 1000 },
+);
+await output(
+  "packages/desktop/native/src/command_center_presentation.rs",
+  `// Generated from authored Command Center styles/list metrics. Do not edit.\n${Object.entries(
+    commandContext.values,
+  )
+    .map(
+      ([key, value]) =>
+        `pub const ${key}:f32=${Number.isInteger(Number(value)) ? Number(value).toFixed(1) : Number(value)};`,
+    )
+    .join(
+      "\n",
+    )}\n${menuShadow(theme.shadow.lg, "DARK_SHADOW")}\n${menuShadow(lightTheme.shadow.lg, "LIGHT_SHADOW")}\n`,
+);
+const commandMatchBundle = await bundle({
+  stdin: {
+    contents:
+      'export {scoreTextFields} from "./packages/protocol/src/search/text-match.ts"; export {findHighlightRanges} from "./packages/app/src/components/ui/highlighted-text-segments.ts";',
+    resolveDir: root,
+  },
+  bundle: true,
+  write: false,
+  format: "esm",
+  platform: "node",
+  alias: {
+    "@getpaseo/protocol/search/text-match": path.join(
+      root,
+      "packages/protocol/src/search/text-match.ts",
+    ),
+  },
+});
+const { scoreTextFields, findHighlightRanges } = await import(
+  `data:text/javascript;base64,${Buffer.from(commandMatchBundle.outputFiles[0].text).toString("base64")}`
+);
+const commandMatchCases = [];
+for (const query of [
+  "",
+  " ",
+  "\ufeff",
+  "auto",
+  "aut",
+  "file",
+  "work",
+  "rk",
+  "lbl dsgn",
+  "labdes",
+  "你好",
+  "😀",
+  "mode auto",
+  "SIDEBAR",
+  "fi le",
+  "foo-bar",
+  "i",
+  "σ",
+])
+  for (const fields of [
+    ["Auto mode", "Mode"],
+    ["Label as Design"],
+    ["workspace file sidebar"],
+    ["foo-bar.ts"],
+    ["你好 世界", "😀file"],
+    ["İstanbul", "Σίγμα"],
+    ["x file auto y"],
+    ["lab des"],
+    ["e\u0301", "文件"],
+  ]) {
+    const score = scoreTextFields(query, fields);
+    commandMatchCases.push({
+      query,
+      fields,
+      score,
+      highlights: fields.map((text) => findHighlightRanges(query, text)),
+    });
+  }
+const commandMatchOracle = { cases: commandMatchCases };
+const commandMatchPath = path.join(
+  root,
+  "packages/desktop/native/src/testdata/command-center-match.json",
+);
+if (check) {
+  if (
+    JSON.stringify(JSON.parse(await fs.readFile(commandMatchPath, "utf8"))) !==
+    JSON.stringify(commandMatchOracle)
+  )
+    throw new Error("Native Command Center matcher oracle is stale");
+} else await fs.writeFile(commandMatchPath, JSON.stringify(commandMatchOracle, null, 2) + "\n");
 const fileIconBundle = await bundle({
   stdin: {
     contents:

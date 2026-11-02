@@ -7,9 +7,11 @@ mod browser_webview;
 mod choice_menu;
 mod chrome;
 mod code_view;
+mod command_center;
 mod composer_view;
 mod conversation;
 mod file_editor;
+mod file_icon_view;
 mod fonts;
 mod hosts_surface;
 mod identity_colors;
@@ -133,6 +135,8 @@ fn main() {
             KeyBinding::new(&format!("{pane_modifier}-n"), ui::NewWindow, None),
             KeyBinding::new(&format!("{pane_modifier}-e"), ui::ToggleExplorer, None),
             KeyBinding::new("ctrl-`", ui::ToggleExplorerTerminal, None),
+            KeyBinding::new(&format!("{pane_modifier}-p"), ui::SearchFiles, None),
+            KeyBinding::new(&format!("{pane_modifier}-k"), ui::ToggleCommandCenter, None),
         ]);
         cx.text_system()
             .add_fonts(fonts::terminal_faces())
