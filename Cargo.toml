@@ -1,6 +1,12 @@
 [workspace]
 members = ["packages/desktop/native"]
+exclude = ["packages/desktop/native/vendor/vte"]
 resolver = "2"
+
+[patch.crates-io]
+# vte 0.15.0 can discard valid text across PTY reads. Keep the fix in the parser
+# until its upstream release includes it; provenance is beside the vendored source.
+vte = { path = "packages/desktop/native/vendor/vte" }
 
 [workspace.package]
 edition = "2024"

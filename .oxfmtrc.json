@@ -11,5 +11,12 @@
   "arrowParens": "always",
   "bracketSameLine": false,
   "bracketSpacing": true,
-  "ignorePatterns": ["*.lock", "**/*.gen.ts", "**/*.gen.tsx"]
+  "ignorePatterns": [
+    "*.lock",
+    "**/*.gen.ts",
+    "**/*.gen.tsx",
+    "packages/desktop/native/vendor/vte/Cargo.toml",
+    "packages/desktop/native/vendor/vte/README.md",
+    "packages/desktop/native/vendor/vte/CHANGELOG.md"
+  ]
 }

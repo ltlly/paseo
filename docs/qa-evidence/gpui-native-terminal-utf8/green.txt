@@ -1,0 +1,10 @@
+   Compiling vte v0.15.0 (/home/ltlly/Code/paseo/packages/desktop/native/vendor/vte)
+   Compiling alacritty_terminal v0.26.0
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.20s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 1 test
+test terminal::tests::split_utf8_keeps_text_between_adjacent_partial_codepoints ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 377 filtered out; finished in 0.00s

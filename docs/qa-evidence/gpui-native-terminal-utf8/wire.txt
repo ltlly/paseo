@@ -1,0 +1,4 @@
+   Compiling paseo-feed-bench v0.0.0 (/home/ltlly/.cache/paseo-native-qa/terminal-feed-bench)
+    Finished `release` profile [optimized] target(s) in 0.67s
+     Running `target/release/examples/utf8_wire /home/ltlly/.cache/paseo-native-qa/utf8-20261102/fixture.json`
+{"first":"00000 é 中 box─ end","historyRows":3978,"last":"WIRE-END","replayChunks":[65536,38487],"result":"passed","rows":4001}

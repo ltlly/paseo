@@ -1,0 +1,320 @@
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+archive=C:\Users\Administrator\.cache\paseo-gpui-current-9f916e70f13e.tar.gz
+expected_sha256=9f916e70f13e1025d5d6bda589e23152864c0289c1331197f47ff04f4b41696f
+actual_sha256=9f916e70f13e1025d5d6bda589e23152864c0289c1331197f47ff04f4b41696f
+extracted=C:\Users\Administrator\.cache\paseo-gpui-src-9f916e70f13e
+cargo=cargo 1.99.1 (5f94df478 2026-08-27)
+rustc=rustc 1.99.1 (58cf8f9c3 2026-10-13)
+STEP=cargo_clean
+cargo.exe :      Removed 342 files, 301.2MiB total
+STEP=cargo_check
+所在位置 C:\Users\Administrator\.cache\paseo-utf8-check-9f916e70f13e.ps1:36 字符: 3
++   & $cargo clean -p paseo-desktop 2>&1 | Tee-Object -FilePath $log -A ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (     Removed 342 files, 301.2MiB total:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+cargo.exe :     Checking vte v0.15.0 (C:\Users\Administrator\.cache\paseo-gpui-src-9f916e70f13e\packages\desktop\native
+\vendor\vte)
+所在位置 C:\Users\Administrator\.cache\paseo-utf8-check-9f916e70f13e.ps1:39 字符: 3
++   & $cargo check --locked -p paseo-desktop 2>&1 | Tee-Object -FilePat ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Checking vt...ive\vendor\vte):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+   Compiling paseo-desktop v0.14.0 (C:\Users\Administrator\.cache\paseo-gpui-src-9f916e70f13e\packages\desktop\native)
+    Checking alacritty_terminal v0.26.0
+warning: unused import: `std::ffi::c_ulong`
+  --> packages\desktop\native\src\browser_webview.rs:73:9
+   |
+73 |     use std::ffi::c_ulong;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+warning: unused import: `std::sync::OnceLock`
+  --> packages\desktop\native\src\browser_webview.rs:74:9
+   |
+74 |     use std::sync::OnceLock;
+   |         ^^^^^^^^^^^^^^^^^^^
+warning: unused import: `anyhow`
+  --> packages\desktop\native\src\browser_webview.rs:76:26
+   |
+76 |     use anyhow::{Result, anyhow};
+   |                          ^^^^^^
+warning: unused imports: `HandleError`, `HasWindowHandle`, `RawWindowHandle`, `WindowHandle`, and `XlibWindowHandle`
+  --> packages\desktop\native\src\browser_webview.rs:80:9
+   |
+80 |         HandleError, HasWindowHandle, RawWindowHandle, WindowHandle, XlibWindowHandle,
+   |         ^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+warning: variant `Wayland` is never constructed
+  --> packages\desktop\native\src\browser_webview.rs:27:5
+   |
+25 | pub enum UnsupportedReason {
+   |          ----------------- variant in this enum
+26 |     /// GPUI is running on Wayland; wry's child webview is X11-only.
+27 |     Wayland,
+   |     ^^^^^^^
+   |
+   = note: `UnsupportedReason` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignore
+d during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+warning: variant `X11` is never constructed
+  --> packages\desktop\native\src\browser_webview.rs:35:5
+   |
+34 | pub enum PlatformSupport {
+   |          --------------- variant in this enum
+35 |     X11,
+   |     ^^^
+   |
+   = note: `PlatformSupport` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored
+during dead code analysis
+warning: method `set_active_turn` is never used
+   --> packages\desktop\native\src\conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+warning: `paseo-desktop` (bin "paseo-desktop") generated 7 warnings (run `cargo fix --bin "paseo-desktop" -p paseo-desk
+top` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.24s
+TEST_FILTER=terminal::tests
+cargo.exe :    Compiling vte v0.15.0 (C:\Users\Administrator\.cache\paseo-gpui-src-9f916e70f13e\packages\desktop\native
+\vendor\vte)
+所在位置 C:\Users\Administrator\.cache\paseo-utf8-check-9f916e70f13e.ps1:44 字符: 5
++     & $cargo test --locked -p paseo-desktop --no-default-features --l ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling vt...ive\vendor\vte):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+   Compiling paseo-desktop v0.14.0 (C:\Users\Administrator\.cache\paseo-gpui-src-9f916e70f13e\packages\desktop\native)
+   Compiling alacritty_terminal v0.26.0
+warning: unused import: `StreamExt as _`
+   --> packages\desktop\native\src\hosts\runtime.rs:357:38
+    |
+357 |     use futures_util::{SinkExt as _, StreamExt as _};
+    |                                      ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+warning: unused import: `SinkExt`
+   --> packages\desktop\native\src\hosts\runtime.rs:357:24
+    |
+357 |     use futures_util::{SinkExt as _, StreamExt as _};
+    |                        ^^^^^^^
+warning: function `set_test_program` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:121:15
+    |
+121 | pub(crate) fn set_test_program(program: Option<(String, Option<String>)>) {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+warning: function `test_dial_lock` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:128:15
+    |
+128 | pub(crate) fn test_dial_lock() -> std::sync::MutexGuard<'static, ()> {
+    |               ^^^^^^^^^^^^^^
+warning: static `TEST_DIAL_LOCK` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:135:8
+    |
+135 | static TEST_DIAL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    |        ^^^^^^^^^^^^^^
+warning: `paseo-desktop` (lib test) generated 5 warnings (run `cargo fix --lib -p paseo-desktop --tests` to apply 1 sug
+gestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 13.27s
+     Running unittests src\lib.rs (C:\Users\Administrator\.cache\paseo-gpui-target\debug\deps\paseo_desktop-dd6e734e7c7
+80c53.exe)
+
+running 21 tests
+test terminal::tests::a_history_change_bounds_output_that_arrives_before_the_next_render ... ok
+test terminal::tests::block_selection_preserves_columns_and_does_not_copy_wide_spacers ... ok
+test terminal::tests::configured_palette_resolves_indexed_named_and_selection_colors ... ok
+test terminal::tests::cursor_lifecycle_retains_raw_wide_cell_movement_and_same_point_style_resets ... ok
+test terminal::tests::cursor_uses_app_defaults_and_program_styles_without_losing_wide_cell_geometry ... ok
+test terminal::tests::default_theme_and_bold_ansi_match_the_authored_desktop_terminal ... ok
+test terminal::tests::dim_hidden_and_strike_preserve_the_grid_and_selection_disables_dim ... ok
+test terminal::tests::osc8_hyperlinks_are_exposed_with_each_cell ... ok
+test terminal::tests::palette_matches_actual_electron_terminal_pixels_including_osc_and_inverse_bold ... ok
+test terminal::tests::query_replies_are_not_sent_by_the_display_parser ... ok
+test terminal::tests::replay_keeps_utf8_and_escape_parser_state_across_chunks ... ok
+test terminal::tests::scrolling_and_resize_preserve_bounded_history ... ok
+test terminal::tests::selection_colors_preserve_explicit_backgrounds_inverse_and_decorative_glyphs ... ok
+test terminal::tests::selection_copy_keeps_every_printed_space ... ok
+test terminal::tests::selection_copy_tracks_wrapping_reverse_drag_scrollback_and_input_clear ... ok
+test terminal::tests::split_utf8_keeps_text_between_adjacent_partial_codepoints ... ok
+test terminal::tests::underline_styles_and_colors_follow_sgr_subparams_and_palette_promotion ... ok
+test terminal::tests::utf8_text_and_styles_survive_every_three_read_partition ... ok
+test terminal::tests::visible_cells_keep_wide_columns_colored_spaces_and_unbounded_combining_text ... ok
+test terminal::tests::word_and_logical_line_gestures_keep_xterm_separators_and_exact_copy_newlines ... ok
+test terminal::tests::word_gestures_include_initial_separators_and_follow_wrapped_edge_words ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 349 filtered out; finished in 0.04s
+
+TEST_FILTER=terminal_copy::tests
+cargo.exe : warning: unused import: `StreamExt as _`
+所在位置 C:\Users\Administrator\.cache\paseo-utf8-check-9f916e70f13e.ps1:44 字符: 5
++     & $cargo test --locked -p paseo-desktop --no-default-features --l ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: unused import: `StreamExt as _`:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+   --> packages\desktop\native\src\hosts\runtime.rs:357:38
+    |
+357 |     use futures_util::{SinkExt as _, StreamExt as _};
+    |                                      ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+warning: unused import: `SinkExt`
+   --> packages\desktop\native\src\hosts\runtime.rs:357:24
+    |
+357 |     use futures_util::{SinkExt as _, StreamExt as _};
+    |                        ^^^^^^^
+warning: function `set_test_program` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:121:15
+    |
+121 | pub(crate) fn set_test_program(program: Option<(String, Option<String>)>) {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+warning: function `test_dial_lock` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:128:15
+    |
+128 | pub(crate) fn test_dial_lock() -> std::sync::MutexGuard<'static, ()> {
+    |               ^^^^^^^^^^^^^^
+warning: static `TEST_DIAL_LOCK` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:135:8
+    |
+135 | static TEST_DIAL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    |        ^^^^^^^^^^^^^^
+warning: `paseo-desktop` (lib test) generated 5 warnings (run `cargo fix --lib -p paseo-desktop --tests` to apply 1 sug
+gestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.50s
+
+     Running unittests src\lib.rs (C:\Users\Administrator\.cache\paseo-gpui-target\debug\deps\paseo_desktop-dd6e734e7c7
+80c53.exe)
+running 45 tests
+test terminal_copy::tests::a_mark_attaches_to_the_blank_cell_before_the_cursor ... ok
+test terminal_copy::tests::a_parked_write_below_the_scroll_region_wraps_in_place ... ok
+test terminal_copy::tests::a_wrapped_wide_glyph_lands_on_the_fresh_row_the_scroll_created ... ok
+test terminal_copy::tests::actual_resize_keeps_trimmed_overflow_and_cursor_dependent_height_cut ... ok
+test terminal_copy::tests::alt_resizes_keep_the_primary_table_and_repeated_1049h_keeps_the_alt_table ... ok
+test terminal_copy::tests::alternate_screen_erases_do_not_touch_the_primary_screen ... ok
+test terminal_copy::tests::alternate_screen_writes_are_recorded_separately ... ok
+test terminal_copy::tests::an_empty_selection_keeps_its_anchor_across_control_output ... ok
+test terminal_copy::tests::block_selection_starting_at_a_wide_spacer_copies_a_space ... ok
+test terminal_copy::tests::charset_state_survives_a_feed_boundary ... ok
+test terminal_copy::tests::copy_matches_the_reference_selection_text ... ok
+test terminal_copy::tests::cropped_authority_endpoints_do_not_invent_a_newline ... ok
+test terminal_copy::tests::decaln_marks_every_screen_cell_written ... ok
+test terminal_copy::tests::erasing_the_last_written_cell_drops_unwritten_neighbors ... ok
+test terminal_copy::tests::every_row_identity_change_takes_a_new_layout_epoch ... ok
+test terminal_copy::tests::excluded_endpoint_row_joins_soft_wrapped_lines_without_an_extra_newline ... ok
+test terminal_copy::tests::full_history_with_a_partial_scroll_region_still_tracks_scrolls ... ok
+test terminal_copy::tests::height_resize_moves_copy_anchors_with_the_authoritative_selection ... ok
+test terminal_copy::tests::history_cap_keeps_copies_and_the_table_bounded ... ok
+test terminal_copy::tests::inactive_primary_history_limit_prunes_the_occupancy_immediately ... ok
+test terminal_copy::tests::insert_blank_pushing_content_out_empties_the_row ... ok
+test terminal_copy::tests::insert_mode_decides_the_wide_spill_before_it_shifts ... ok
+test terminal_copy::tests::insert_mode_rotates_the_row_tail_into_the_written_cells ... ok
+test terminal_copy::tests::insert_mode_shifts_the_spacer_off_the_cursor_cell ... ok
+test terminal_copy::tests::insert_mode_shifts_written_cells_right ... ok
+test terminal_copy::tests::middle_rows_are_trimmed_and_column_mode_never_joins ... ok
+test terminal_copy::tests::partial_scroll_region_moves_only_the_region ... ok
+test terminal_copy::tests::printed_spaces_before_a_wrap_survive_the_copy ... ok
+test terminal_copy::tests::reflow_drops_the_wrap_spacer_and_keeps_a_merged_group ... ok
+test terminal_copy::tests::resize_capture_uses_configured_history_capacity_and_alt_roundtrips_do_not_restore_stale_masks ... ok
+test terminal_copy::tests::resize_migrates_written_cells_and_later_writes_extend_them ... ok
+test terminal_copy::tests::resize_streams_logical_lines_in_content_order ... ok
+test terminal_copy::tests::restored_cursor_charset_slots_drive_copy_after_a_feed_boundary ... ok
+test terminal_copy::tests::reverse_index_keeps_history_identity ... ok
+test terminal_copy::tests::same_size_resize_keeps_written_cells ... ok
+test terminal_copy::tests::scrolled_gesture_anchors_preserve_excluded_newline_endpoint ... ok
+test terminal_copy::tests::selection_ending_left_of_the_next_row_copies_a_trailing_newline ... ok
+test terminal_copy::tests::spacer_overwrites_retire_content_before_its_flag_is_removed ... ok
+test terminal_copy::tests::spill_placeholder_overwrites_a_last_column_head_and_clears_the_previous_cell ... ok
+test terminal_copy::tests::the_primary_screen_is_captured_before_the_swap ... ok
+test terminal_copy::tests::top_region_scroll_rebases_the_fixed_rows_from_the_bottom ... ok
+test terminal_copy::tests::unwritten_cells_are_dropped_but_printed_ones_are_not ... ok
+test terminal_copy::tests::wrap_at_the_scrollback_bottom_keeps_row_identity ... ok
+test terminal_copy::tests::writes_record_wide_heads_at_the_last_column_and_mapped_charset_cells ... ok
+test terminal_copy::tests::zero_width_and_disabled_wrap_never_scroll_and_bottom_wide_spill_does ... ok
+
+test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 325 filtered out; finished in 0.03s
+
+TEST_FILTER=terminal_find::tests
+cargo.exe : warning: unused import: `StreamExt as _`
+所在位置 C:\Users\Administrator\.cache\paseo-utf8-check-9f916e70f13e.ps1:44 字符: 5
++     & $cargo test --locked -p paseo-desktop --no-default-features --l ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: unused import: `StreamExt as _`:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+   --> packages\desktop\native\src\hosts\runtime.rs:357:38
+    |
+357 |     use futures_util::{SinkExt as _, StreamExt as _};
+    |                                      ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+warning: unused import: `SinkExt`
+   --> packages\desktop\native\src\hosts\runtime.rs:357:24
+    |
+357 |     use futures_util::{SinkExt as _, StreamExt as _};
+    |                        ^^^^^^^
+warning: function `set_test_program` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:121:15
+    |
+121 | pub(crate) fn set_test_program(program: Option<(String, Option<String>)>) {
+    |               ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+warning: function `test_dial_lock` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:128:15
+    |
+128 | pub(crate) fn test_dial_lock() -> std::sync::MutexGuard<'static, ()> {
+    |               ^^^^^^^^^^^^^^
+warning: static `TEST_DIAL_LOCK` is never used
+   --> packages\desktop\native\src\hosts\ssh.rs:135:8
+    |
+135 | static TEST_DIAL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    |        ^^^^^^^^^^^^^^
+warning: `paseo-desktop` (lib test) generated 5 warnings (run `cargo fix --lib -p paseo-desktop --tests` to apply 1 sug
+gestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.45s
+     Running unittests src\lib.rs (C:\Users\Administrator\.cache\paseo-gpui-target\debug\deps\paseo_desktop-dd6e734e7c7
+80c53.exe)
+
+running 7 tests
+test terminal_find::tests::history_lines_are_searchable_and_map_to_visible_rows ... ok
+test terminal_find::tests::installed_xterm_search_oracle ... ok
+test terminal_find::tests::rescanning_keeps_the_active_match ... ok
+test terminal_find::tests::result_limits_and_navigation_wrap ... ok
+test terminal_find::tests::search_is_case_insensitive_and_keeps_hard_breaks_separate ... ok
+test terminal_find::tests::trailing_blanks_and_wide_spacers_keep_match_geometry ... ok
+test terminal_find::tests::wrapped_decorations_clip_both_edges_of_the_viewport ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 363 filtered out; finished in 0.01s
+
+cargo.exe :    Compiling vte v0.15.0 (C:\Users\Administrator\.cache\paseo-gpui-src-9f916e70f13e\packages\desktop\native
+\vendor\vte)
+所在位置 C:\Users\Administrator\.cache\paseo-utf8-check-9f916e70f13e.ps1:47 字符: 3
++   & $cargo test --locked -p vte --lib partial_ 2>&1 | Tee-Object -Fil ...
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (   Compiling vt...ive\vendor\vte):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.45s
+     Running unittests src\lib.rs (C:\Users\Administrator\.cache\paseo-gpui-target\debug\deps\vte-efbdadfc472616bc.exe)
+
+running 6 tests
+test ansi::tests::partial_sync_updates ... ok
+test tests::partial_invalid_utf8 ... ok
+test tests::partial_invalid_utf8_split ... ok
+test tests::partial_utf8 ... ok
+test tests::partial_utf8_into_esc ... ok
+test tests::partial_utf8_separating_utf8 ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 48 filtered out; finished in 0.01s
+
+RESULT=0

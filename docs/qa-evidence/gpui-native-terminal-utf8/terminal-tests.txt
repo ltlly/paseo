@@ -1,0 +1,28 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.05s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 21 tests
+test terminal::tests::default_theme_and_bold_ansi_match_the_authored_desktop_terminal ... ok
+test terminal::tests::osc8_hyperlinks_are_exposed_with_each_cell ... ok
+test terminal::tests::cursor_lifecycle_retains_raw_wide_cell_movement_and_same_point_style_resets ... ok
+test terminal::tests::visible_cells_keep_wide_columns_colored_spaces_and_unbounded_combining_text ... ok
+test terminal::tests::word_and_logical_line_gestures_keep_xterm_separators_and_exact_copy_newlines ... ok
+test terminal::tests::selection_copy_tracks_wrapping_reverse_drag_scrollback_and_input_clear ... ok
+test terminal::tests::word_gestures_include_initial_separators_and_follow_wrapped_edge_words ... ok
+test terminal::tests::selection_colors_preserve_explicit_backgrounds_inverse_and_decorative_glyphs ... ok
+test terminal::tests::selection_copy_keeps_every_printed_space ... ok
+test terminal::tests::replay_keeps_utf8_and_escape_parser_state_across_chunks ... ok
+test terminal::tests::underline_styles_and_colors_follow_sgr_subparams_and_palette_promotion ... ok
+test terminal::tests::cursor_uses_app_defaults_and_program_styles_without_losing_wide_cell_geometry ... ok
+test terminal::tests::query_replies_are_not_sent_by_the_display_parser ... ok
+test terminal::tests::dim_hidden_and_strike_preserve_the_grid_and_selection_disables_dim ... ok
+test terminal::tests::configured_palette_resolves_indexed_named_and_selection_colors ... ok
+test terminal::tests::split_utf8_keeps_text_between_adjacent_partial_codepoints ... ok
+test terminal::tests::block_selection_preserves_columns_and_does_not_copy_wide_spacers ... ok
+test terminal::tests::a_history_change_bounds_output_that_arrives_before_the_next_render ... ok
+test terminal::tests::scrolling_and_resize_preserve_bounded_history ... ok
+test terminal::tests::palette_matches_actual_electron_terminal_pixels_including_osc_and_inverse_bold ... ok
+test terminal::tests::utf8_text_and_styles_survive_every_three_read_partition ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 358 filtered out; finished in 0.04s

@@ -1,0 +1,27 @@
+[package]
+name = "paseo-utf8-probes"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[patch.crates-io]
+vte = { path = "../../../../packages/desktop/native/vendor/vte" }
+
+[dependencies]
+paseo-desktop = { path = "../../../../packages/desktop/native", default-features = false }
+anyhow = "1.0"
+async-channel = "2.5"
+serde_json = "1.0"
+
+[[bin]]
+name = "utf8-replay"
+path = "../reader.rs"
+
+[[bin]]
+name = "utf8-chunks"
+path = "../chunk-probe.rs"
+
+[profile.release]
+opt-level = 2

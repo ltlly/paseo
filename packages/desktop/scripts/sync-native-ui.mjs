@@ -16,6 +16,27 @@ import ts from "typescript";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 const require = createRequire(import.meta.url);
 const check = process.argv.includes("--check");
+// Retain the published parser and exactly one local UTF-8 consumption fix.
+// Reversing that line must reproduce the crate's original source digest.
+const vteRoot = path.join(root, "packages/desktop/native/vendor/vte");
+const vteSource = JSON.parse(await fs.readFile(path.join(vteRoot, "source.json"), "utf8"));
+for (const [file, expected] of Object.entries(vteSource.upstreamFiles)) {
+  let bytes = await fs.readFile(path.join(vteRoot, file));
+  if (file === "src/lib.rs") {
+    const patched = "                    return c.len_utf8() - old_bytes;";
+    const text = bytes.toString("utf8");
+    if (text.split(patched).length !== 2)
+      throw new Error("Native VTE UTF-8 patch is missing or ambiguous");
+    bytes = Buffer.from(
+      text.replace(patched, "                    return valid_bytes - old_bytes;"),
+    );
+  }
+  if (createHash("sha256").update(bytes).digest("hex") !== expected) {
+    throw new Error(
+      `Vendored VTE source drift: ${file}. Preserve the published parser and recorded patch.`,
+    );
+  }
+}
 async function output(file, content) {
   if (file.endsWith(".rs"))
     content = execFileSync("rustfmt", ["--edition", "2024", "--emit", "stdout"], {

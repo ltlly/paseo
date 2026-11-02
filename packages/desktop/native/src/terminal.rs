@@ -1270,6 +1270,76 @@ mod tests {
     }
 
     #[test]
+    fn split_utf8_keeps_text_between_adjacent_partial_codepoints() {
+        let mut buffer = TerminalBuffer::new(GridSize { rows: 2, cols: 12 }, 10);
+        for bytes in [&b"e\xcc"[..], &b"\x81 \xe4"[..], &b"\xb8\xad"[..]] {
+            buffer.feed(bytes);
+        }
+        assert_eq!(
+            crate::terminal_copy::text(&buffer, 0, 0, 0, 11, false, false),
+            "e\u{301} 中",
+            "PTY read boundaries must not discard the space after a split combining mark"
+        );
+    }
+
+    #[test]
+    fn utf8_text_and_styles_survive_every_three_read_partition() {
+        for text in [
+            "B\u{301}C─",
+            "A漢B\u{301}C─D",
+            "😀xéy─z😀\u{301}w",
+            "e\u{301}a\u{301}b─c😀d",
+            "\x1b[31me\u{301} \x1b[0m中Z",
+        ] {
+            let size = GridSize { rows: 2, cols: 40 };
+            let mut whole = TerminalBuffer::new(size, 10);
+            whole.feed(text.as_bytes());
+            let expected: Vec<_> = whole
+                .screen()
+                .cells
+                .map(|cell| {
+                    (
+                        cell.character,
+                        cell.zerowidth.to_vec(),
+                        cell.columns,
+                        cell.foreground,
+                        cell.background,
+                    )
+                })
+                .collect();
+            let expected_copy = crate::terminal_copy::text(&whole, 0, 0, 0, 39, false, false);
+            let bytes = text.as_bytes();
+            for first in 0..=bytes.len() {
+                for second in first..=bytes.len() {
+                    let mut split = TerminalBuffer::new(size, 10);
+                    split.feed(&bytes[..first]);
+                    split.feed(&bytes[first..second]);
+                    split.feed(&bytes[second..]);
+                    let actual: Vec<_> = split
+                        .screen()
+                        .cells
+                        .map(|cell| {
+                            (
+                                cell.character,
+                                cell.zerowidth.to_vec(),
+                                cell.columns,
+                                cell.foreground,
+                                cell.background,
+                            )
+                        })
+                        .collect();
+                    assert_eq!(actual, expected, "{text:?} split at {first}, {second}");
+                    assert_eq!(
+                        crate::terminal_copy::text(&split, 0, 0, 0, 39, false, false),
+                        expected_copy,
+                        "copy of {text:?} split at {first}, {second}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn query_replies_are_not_sent_by_the_display_parser() {
         let mut buffer = TerminalBuffer::new(GridSize { rows: 24, cols: 80 }, 100);
         buffer.feed(b"ok\x1b[6n\x1b[c\x1b[?1000h\x1b[?1006h");

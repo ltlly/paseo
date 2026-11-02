@@ -1,0 +1,13 @@
+   Compiling vte v0.15.0 (/home/ltlly/Code/paseo/packages/desktop/native/vendor/vte)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.98s
+     Running unittests src/lib.rs (target/debug/deps/vte-7eec8a3c55c9fff4)
+
+running 6 tests
+test tests::partial_invalid_utf8 ... ok
+test tests::partial_utf8_separating_utf8 ... ok
+test tests::partial_utf8_into_esc ... ok
+test tests::partial_invalid_utf8_split ... ok
+test ansi::tests::partial_sync_updates ... ok
+test tests::partial_utf8 ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 48 filtered out; finished in 0.00s

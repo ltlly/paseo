@@ -2,3 +2,6 @@
 packages/desktop/native/vendor/md4c/md4c.[ch] text eol=lf
 # The pinned upstream header contains one trailing space; preserve its source hash.
 packages/desktop/native/vendor/md4c/md4c.h whitespace=-blank-at-eol
+# Keep the published parser bytes stable on Windows as well as Unix hosts.
+packages/desktop/native/vendor/vte/** text eol=lf
+packages/desktop/native/vendor/vte/tests/demo.vte binary

@@ -1,0 +1,134 @@
+{
+  "status": "UTF8_FIX_VERIFIED_MIGRATION_PENDING",
+  "date": "2026-11-02T10:31:34.659001+08:00",
+  "baseCommit": "914378bf7e5fff4fdd3bb5f7925875d8496de34a",
+  "scope": "Fix native VTE partial-UTF8 consumption. No provider, daemon, wire, Android or app-rendering source changes. Installed clients and production6767 unchanged.",
+  "defect": {
+    "inputReads": ["65 cc", "81 20 e4", "b8 ad"],
+    "expected": "é 中",
+    "before": "é中",
+    "after": "é 中",
+    "redRegression": "terminal::tests::split_utf8_keeps_text_between_adjacent_partial_codepoints fails before the patch and passes after it.",
+    "upstreamIssue": "https://github.com/alacritty/vte/issues/159"
+  },
+  "dependency": {
+    "version": "0.15.0",
+    "crateSha256": "a5924018406ce0063cd67f8e008104968b74b563ee1b85dde3ed1f7cb87d3dbd",
+    "commit": "3b3da71c34cc1256c7e20981cf03f8eb95e08ffc",
+    "changedSource": "One return expression in src/lib.rs. All retained published files retain original bytes; reversing that expression reproduces the recorded source digest. Licenses included.",
+    "cargo": "Root patch table selects the local source; Cargo.lock changes only the VTE source. Independent probe workspace repeats the patch.",
+    "sourceCheck": "npm run check:desktop:native checks all retained upstream file hashes. Removing the fixed expression is explicitly rejected before Cargo builds. Upstream manifest/Markdown formatting exclusions and LF checkout attributes preserve the published bytes."
+  },
+  "sourceSnapshot": {
+    "sha256": "9f916e70f13e1025d5d6bda589e23152864c0289c1331197f47ff04f4b41696f",
+    "archive": "/home/ltlly/.cache/paseo-native-qa/utf8-20261102/native-source.tar.gz",
+    "fileCount": 215
+  },
+  "checks": {
+    "Linux": {
+      "nativeCheck": "passed",
+      "terminalTests": 21,
+      "clipboardTests": 45,
+      "searchTests": 7,
+      "dependencyPartialTests": 6,
+      "sourceArchiveHashVerified": true
+    },
+    "macOS": {
+      "nativeCheck": "passed with runtime-shaders",
+      "terminalTests": 21,
+      "clipboardTests": 45,
+      "searchTests": 7,
+      "dependencyPartialTests": 6,
+      "sourceArchiveHashVerified": true
+    },
+    "Windows": {
+      "nativeCheck": "passed",
+      "terminalTests": 21,
+      "clipboardTests": 45,
+      "searchTests": 7,
+      "dependencyPartialTests": 6,
+      "sourceArchiveHashVerified": true
+    }
+  },
+  "partitionCorpus": {
+    "strings": 5,
+    "threeReadPartitions": 661,
+    "assertions": "Cell scalars, combining marks, widths, foreground/background and exact copied text equal a whole-buffer feed for every split, including inside UTF-8 and SGR."
+  },
+  "longCorpus": {
+    "inputBytes": 1520000,
+    "feedSizes": [1, 7, 256, 8192, 1520000],
+    "rows": 8000,
+    "historyRows": 7961,
+    "copyBytes": 1224000,
+    "gridBytes": 1704161,
+    "result": "Exact file SHA256 agrees across all five feed sizes for both copied text and complete raw grid text. See chunk-hashes.json.",
+    "producer": "chunk-probe.rs"
+  },
+  "realReplay": {
+    "result": {
+      "first": "00000 é 中 box─ end",
+      "historyRows": 3978,
+      "last": "WIRE-END",
+      "replayChunks": [65536, 38487],
+      "result": "passed",
+      "rows": 4001
+    },
+    "path": "Real Node PTY -> worker xterm/replay -> daemon -> native Connection -> TerminalBuffer. Fake provider clients are unused; no real model prompts.",
+    "comparison": "Assert every numbered Unicode row plus WIRE-END in order. Only unused empty screen rows and right-hand null padding are excluded; fixture has no intentional empty/trailing-space lines.",
+    "producer": ["fixture.mts", "reader.rs"],
+    "commands": [
+      "PASEO_NATIVE_QA=<empty-private-dir> node --import tsx docs/qa-evidence/gpui-native-terminal-utf8/fixture.mts",
+      "cargo run --locked --release --manifest-path docs/qa-evidence/gpui-native-terminal-utf8/probes/Cargo.toml --bin utf8-replay -- <private-dir>/fixture.json",
+      "cargo run --locked --release --manifest-path docs/qa-evidence/gpui-native-terminal-utf8/probes/Cargo.toml --bin utf8-chunks -- <private-dir>/chunks"
+    ]
+  },
+  "cleanup": {
+    "fixture": true,
+    "ownedWorkerAndPtyAbsent": true,
+    "privatePortClosed": true,
+    "production6767Listening": true,
+    "otherQaClientUntouched": true
+  },
+  "limitations": [
+    "No full local test suite. These are focused terminal, clipboard, search and dependency tests.",
+    "No new macOS/Windows native GUI/IME/installer or hardware-performance evidence.",
+    "No full Electron pixel-parity claim. Rendering and widget geometry are unchanged; decoder content is intentionally corrected.",
+    "Complete terminal mode/keyboard/image fidelity, native product parity and deployment acceptance remain pending."
+  ],
+  "logs": {
+    "red.txt": "45922cfb59be81e14b6c2aaeac3b2b204fcb10417eedf5514b6e0b8888e37ffc",
+    "green.txt": "575cfe06ea614bb6ed2bddde1611d8dabce284c077df6368e71ca30bc413ebd6",
+    "partitions.txt": "cda5ae8e844e4545a55f02a770f650a3c1e704b5ef1073b834576d72369b5c44",
+    "terminal-tests.txt": "f9296b6ed657d8a3a64bd4fab794b9ff68669e30a3d9da7282f81aee4d35c7fa",
+    "clipboard-tests.txt": "6f9206f439b79457d7deaa83b3b0f1e58f9ac1db4f26c23ba41de33d8286ff43",
+    "search-tests.txt": "d1d1e1d9f8dd87d8f549e6c38fb1f7d65e978ef58a997cbd6519d29bd24bade7",
+    "dependency-tests.txt": "7cd5010a9f74a37cdf8e37d79ca9354569cac81f4c5d80202e1158028af97cf4",
+    "source-check.txt": "721cad4511efb6ae610d2cfd88bc6c1f45fb72f1f5d447c9fd7c722880823688",
+    "source-check-negative.txt": "deba2dc2752555a479ca87205230c6a508c739e83ace2b23a8f8d589c6c93526",
+    "typecheck.txt": "f00715ed2d9f0821db7e3af512b651ae472896924f93a077e4349388a7e1d7d4",
+    "lint.txt": "edd99e0c737ca958365288716c93a9ef6a4b7f392d557ec961f7b059deba5920",
+    "chunk-probe.txt": "2ee36073c036ece54316042dcfc3dd1ea52cd64d2c73a33438324bc54824fa96",
+    "wire.txt": "9b11fc8db5568730363c9c43a5a45ec1528d40ab51465e57938f8694396d0fce",
+    "mac-check.txt": "60eb548120b2bd8bcb53b0de9e02642f5b5eb82c7d54513419b26ef7d3c44ca1",
+    "windows-check.txt": "6a578bcfc5843f120039778c3465a5906d1459e5c350eb1efd095d096fd3ad14"
+  },
+  "originalLogSha256": {
+    "red.txt": "45922cfb59be81e14b6c2aaeac3b2b204fcb10417eedf5514b6e0b8888e37ffc",
+    "green.txt": "596536450de6ba1948f92b2c356b7645364752d318e1a8c61a172b158d2f2112",
+    "partitions.txt": "2a3d5115d517087c133a9137568faacb147c729863c43cad0f4a248442e8b484",
+    "terminal-tests.txt": "6a26544d24d5285247a9e2708d2fe7570f35d7a02d0a02cc1b7e83412b3ddee1",
+    "clipboard-tests.txt": "86fa6bddfa48c0e1289f87432cc69a077f909b73b012085c90ea94207686201f",
+    "search-tests.txt": "6722d66ef4abb67ade886cd37abd224617f2919fae55db87f58dbc72a5c5aed5",
+    "dependency-tests.txt": "afd84d18016567f18f86712478f118959cb42c0c231d15d31fed84e65a5d81fa",
+    "source-check.txt": "721cad4511efb6ae610d2cfd88bc6c1f45fb72f1f5d447c9fd7c722880823688",
+    "source-check-negative.txt": "deba2dc2752555a479ca87205230c6a508c739e83ace2b23a8f8d589c6c93526",
+    "typecheck.txt": "f00715ed2d9f0821db7e3af512b651ae472896924f93a077e4349388a7e1d7d4",
+    "lint.txt": "edd99e0c737ca958365288716c93a9ef6a4b7f392d557ec961f7b059deba5920",
+    "chunk-probe.txt": "2ee36073c036ece54316042dcfc3dd1ea52cd64d2c73a33438324bc54824fa96",
+    "wire.txt": "9b11fc8db5568730363c9c43a5a45ec1528d40ab51465e57938f8694396d0fce",
+    "mac-check.txt": "60eb548120b2bd8bcb53b0de9e02642f5b5eb82c7d54513419b26ef7d3c44ca1",
+    "windows-check.txt": "d52501b2e90ea1781c76f6af46bcb251fa97d45233ed7038d05dd33ec9998b41"
+  },
+  "logNormalization": "Stored text logs normalize CRLF/trailing whitespace; original capture digests retained."
+}

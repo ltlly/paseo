@@ -1,0 +1,10 @@
+npm notice run paseo@0.14.0-ltlly.3 check:desktop:native
+npm notice run node packages/desktop/scripts/sync-native-ui.mjs --check && cargo check --locked -p paseo-desktop && cargo fmt --all --check
+file:///home/ltlly/Code/paseo/packages/desktop/scripts/sync-native-ui.mjs:29
+      throw new Error("Native VTE UTF-8 patch is missing or ambiguous");
+            ^
+
+Error: Native VTE UTF-8 patch is missing or ambiguous
+    at file:///home/ltlly/Code/paseo/packages/desktop/scripts/sync-native-ui.mjs:29:13
+
+Node.js v26.13.0

@@ -1,0 +1,8 @@
+{
+  "first": "00000 é 中 box─ end",
+  "historyRows": 3978,
+  "last": "WIRE-END",
+  "replayChunks": [65536, 38487],
+  "result": "passed",
+  "rows": 4001
+}

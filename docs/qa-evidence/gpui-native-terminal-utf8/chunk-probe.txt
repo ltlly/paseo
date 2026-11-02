@@ -1,0 +1,11 @@
+   Compiling vte v0.15.0 (/home/ltlly/Code/paseo/packages/desktop/native/vendor/vte)
+   Compiling alacritty_terminal v0.26.0
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+   Compiling paseo-utf8-probes v0.0.0 (/home/ltlly/Code/paseo/docs/qa-evidence/gpui-native-terminal-utf8/probes)
+    Finished `release` profile [optimized] target(s) in 31.20s
+     Running `target/release/utf8-chunks /home/ltlly/.cache/paseo-native-qa/utf8-20261102/chunks`
+chunk 1 history 7961 rows 8000 copy 1224000 grid 1704161
+chunk 7 history 7961 rows 8000 copy 1224000 grid 1704161
+chunk 256 history 7961 rows 8000 copy 1224000 grid 1704161
+chunk 8192 history 7961 rows 8000 copy 1224000 grid 1704161
+chunk 1520000 history 7961 rows 8000 copy 1224000 grid 1704161

@@ -1,0 +1,24 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.53s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-145fdb85ecda4a70)
+
+running 1 test
+test terminal::tests::split_utf8_keeps_text_between_adjacent_partial_codepoints ... FAILED
+
+failures:
+
+---- terminal::tests::split_utf8_keeps_text_between_adjacent_partial_codepoints stdout ----
+
+thread 'terminal::tests::split_utf8_keeps_text_between_adjacent_partial_codepoints' (2366969) panicked at packages/desktop/native/src/terminal.rs:1278:9:
+assertion `left == right` failed: PTY read boundaries must not discard the space after a split combining mark
+  left: "e\u{301}中"
+ right: "e\u{301} 中"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    terminal::tests::split_utf8_keeps_text_between_adjacent_partial_codepoints
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 377 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `-p paseo-desktop --lib`
