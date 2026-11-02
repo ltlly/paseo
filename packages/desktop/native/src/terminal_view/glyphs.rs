@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::VecDeque};
 
-use gpui::{Font, Pixels, ShapedLine, SharedString, TextRun, WindowTextSystem, px, rgba};
+use gpui::{Font, Pixels, ShapedLine, SharedString, TextRun, WindowTextSystem, rgba};
 use hashbrown::HashMap;
 use paseo_desktop::terminal::Cell;
 
@@ -14,16 +14,17 @@ struct Key {
     foreground: u32,
     bold: bool,
     italic: bool,
-    underline: bool,
     opacity: u8,
-    strikethrough: bool,
 }
 
-/// Reuse complete shaped cells, including their decorations. This avoids the
-/// text-system locks on every repeated character; the grid still owns placement.
+/// Reuse complete shaped cells. Decorations are painted from the grid by
+/// `terminal_view::decorations`, so the shaped run holds only the glyph: a
+/// re-shaped run per underline style would defeat this cache, and font underline
+/// metrics do not match xterm's stroke geometry anyway.
 #[derive(Default)]
 pub struct Glyphs {
     font: Option<(Font, Pixels)>,
+    cursor_accent: u32,
     entries: HashMap<Key, Box<ShapedLine>>,
     order: VecDeque<Key>,
     text_bytes: usize,
@@ -36,10 +37,12 @@ impl Glyphs {
         self.text_bytes = 0;
     }
 
-    pub fn prepare(&mut self, font: Font, size: Pixels) {
-        if self.font.as_ref() != Some(&(font.clone(), size)) {
+    pub fn prepare(&mut self, font: Font, size: Pixels, cursor_accent: u32) {
+        if self.font.as_ref() != Some(&(font.clone(), size)) || self.cursor_accent != cursor_accent
+        {
             self.clear();
             self.font = Some((font, size));
+            self.cursor_accent = cursor_accent;
         }
     }
 
@@ -64,15 +67,13 @@ impl Glyphs {
                 cell.chars().collect::<String>().into()
             },
             foreground: if block_cursor {
-                crate::theme::terminal::CURSOR_ACCENT
+                self.cursor_accent
             } else {
                 cell.foreground
             },
             bold: cell.bold && !block_cursor,
             italic: cell.italic && !block_cursor,
-            underline: cell.underline && !block_cursor,
             opacity: if block_cursor { 255 } else { cell.opacity },
-            strikethrough: cell.strikethrough && !block_cursor,
         };
         let (base_font, size) = self
             .font
@@ -115,15 +116,8 @@ fn shape(key: &Key, base_font: &Font, size: Pixels, text_system: &WindowTextSyst
         font,
         color: rgba((key.foreground << 8) | u32::from(key.opacity)).into(),
         background_color: None,
-        underline: key.underline.then_some(gpui::UnderlineStyle {
-            thickness: px(1.),
-            color: Some(rgba((key.foreground << 8) | u32::from(key.opacity)).into()),
-            wavy: false,
-        }),
-        strikethrough: key.strikethrough.then_some(gpui::StrikethroughStyle {
-            thickness: px(1.),
-            color: Some(rgba((key.foreground << 8) | u32::from(key.opacity)).into()),
-        }),
+        underline: None,
+        strikethrough: None,
     };
     text_system.shape_line(key.text.clone(), size, &[run], None)
 }

@@ -1420,6 +1420,13 @@ export const ptBR: TranslationResources = {
     },
   },
   desktop: {
+    nativeSettings: {
+      pluginsHint:
+        "Plugins instalados são executados neste host. Habilite apenas código em que confia",
+      loadFailed: "Não foi possível carregar as configurações: {{message}}",
+      saveFailed: "Não foi possível salvar as configurações: {{message}}",
+      directoryUnavailable: "O diretório de configurações do desktop não está disponível.",
+    },
     windowControls: {
       minimize: "Minimizar janela",
       maximize: "Maximizar janela",

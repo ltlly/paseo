@@ -129,6 +129,13 @@ impl Editing {
         self.revision += 1;
     }
 
+    /// Programmatic replacement of a complete field value, independent of
+    /// cursor/selection/preedit. User input continues to use `replace`.
+    pub fn replace_all(&mut self, text: &str) {
+        let end = self.text.encode_utf16().count();
+        self.replace(Some(0..end), text, false, None);
+    }
+
     pub fn clear(&mut self) {
         self.text = String::new();
         self.selection = 0..0;
@@ -141,6 +148,23 @@ impl Editing {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn replacing_a_field_value_never_inserts_at_the_cursor_or_preedit() {
+        let mut e = Editing::default();
+        e.replace_all("12a😀");
+        e.select(2, false);
+        e.replace_all("16");
+        assert_eq!(e.text, "16");
+        e.replace(None, "preedit", true, None);
+        e.replace_all("");
+        assert!(e.text.is_empty());
+        assert!(e.marked.is_none());
+        assert_eq!(e.selection, 0..0);
+        e.replace_all("localhost:41819");
+        e.replace_all("http://localhost:41819/");
+        assert_eq!(e.text, "http://localhost:41819/");
+    }
 
     #[test]
     fn os_ranges_never_split_surrogates_or_utf8() {

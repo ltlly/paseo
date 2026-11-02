@@ -1413,6 +1413,13 @@ export const ru: TranslationResources = {
     },
   },
   desktop: {
+    nativeSettings: {
+      pluginsHint:
+        "Установленные плагины выполняются на этом хосте. Включайте только код, которому доверяете",
+      loadFailed: "Не удалось загрузить настройки: {{message}}",
+      saveFailed: "Не удалось сохранить настройки: {{message}}",
+      directoryUnavailable: "Каталог настроек десктопного клиента недоступен.",
+    },
     windowControls: {
       minimize: "Свернуть окно",
       maximize: "Развернуть окно",

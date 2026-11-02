@@ -190,3 +190,63 @@ it("installs the Linux helper as root-owned 4755 regardless of root's namespace 
   expect(installer).toContain("chmod 4755 '/opt/${sanitizedProductName}/chrome-sandbox'");
   expect(installer).not.toContain("chmod 0755");
 });
+
+describe("native GPUI packaging (opt-in)", () => {
+  const workflowPath = join(
+    packageRoot,
+    "..",
+    "..",
+    ".github",
+    "workflows",
+    "desktop-packages.yml",
+  );
+  const workflow = () => readFileSync(workflowPath, "utf8");
+
+  it("stays dispatch-only and defaults the native packaging to off", () => {
+    const text = workflow();
+    expect(text).toContain("workflow_dispatch");
+    expect(text).not.toMatch(/^\s*on:\s*\n\s*push/m);
+    expect(text).toMatch(/native:\s*\n\s+description:.*[Nn]ative/);
+    expect(text).toMatch(/default:\s*"false"/);
+  });
+
+  it("gates every native packaging job behind the opt-in input", () => {
+    const text = workflow();
+    for (const job of ["native-linux", "native-macos", "native-windows"]) {
+      expect(text).toContain(`  ${job}:`);
+    }
+    expect(text).toMatch(/inputs\.native == 'true'/);
+  });
+
+  it("never publishes or uploads native artifacts to a release", () => {
+    const text = workflow();
+    const nativeSection = text.slice(text.indexOf("  native-linux:"));
+    expect(nativeSection).not.toContain("--publish");
+    expect(nativeSection).not.toContain("gh release");
+    expect(nativeSection).toContain("retention-days");
+    // Upload the curated artifact set only; the materialized stage/ bundle is
+    // not part of the artifact.
+    expect(nativeSection).toContain("path: packages/desktop/release-native/artifacts");
+    expect(nativeSection).not.toContain("path: packages/desktop/release-native\n");
+  });
+
+  it("installs the deb in a disposable container, not on the runner host", () => {
+    const text = workflow();
+    const nativeSection = text.slice(text.indexOf("  native-linux:"));
+    expect(nativeSection).toContain("docker run --rm");
+    expect(nativeSection).toContain("apt-get install -y /artifacts/*.deb");
+  });
+
+  it("isolates the native cargo build in its own target directory", () => {
+    const script = readFileSync(join(packageRoot, "scripts", "package-native.mjs"), "utf8");
+    expect(script).toContain("native-cargo-target");
+    expect(script).toContain("CARGO_BUILD_JOBS");
+    expect(script).toContain("--locked");
+  });
+
+  it("packages the daemon runtime with a pinned Node release", () => {
+    const library = readFileSync(join(packageRoot, "scripts", "package-native-lib.mjs"), "utf8");
+    expect(library).toContain("nodejs.org/dist");
+    expect(library).toContain("SHASUMS256");
+  });
+});

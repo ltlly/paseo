@@ -1,0 +1,878 @@
+{
+  "source": "SelectionService.selectionText over @xterm/xterm 6.1.0-beta.292 (the Electron build installed at packages/app/node_modules/@xterm/xterm in the main checkout). The common buffer/InputHandler plus the verbatim selectionText getter were bundled with esbuild and executed under Node; headless builds in the repo are 6.1.0-beta.213/6.0.0 and were NOT used. Selection coordinates are viewport-relative lines with inclusive endColumn; 'steps' cases interleave write/resize/select. All expectations regenerated from that harness.",
+  "sources": {
+    "browser/services/SelectionService.ts": "cc6d0448f058c72950187d58512ab5149a3c21b9567d636d7a726cf621d42728",
+    "common/buffer/BufferLine.ts": "dbbf4d4533c2363bdf342bf6f4719a920713da15ffb711f8933f3ba6526b3217",
+    "common/InputHandler.ts": "dccfaf40a5f6a7949bebf2b436b2b5f6a33d9030ba2937f3ea519da11e44fd3c"
+  },
+  "cases": [
+    {
+      "name": "explicit-spaces-then-wrap",
+      "cols": 6,
+      "rows": 4,
+      "writes": ["abc   def\r\n"],
+      "dump": [
+        {
+          "line": 0,
+          "wrapped": false,
+          "text": "abc   ",
+          "trimmed": "abc   "
+        },
+        {
+          "line": 1,
+          "wrapped": true,
+          "text": "def   ",
+          "trimmed": "def"
+        },
+        {
+          "line": 2,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        },
+        {
+          "line": 3,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        }
+      ],
+      "selections": [
+        {
+          "name": "rows-0-1",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 1,
+          "endColumn": 3,
+          "block": false,
+          "text": "abc   def"
+        },
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 5,
+          "block": false,
+          "text": "abc   "
+        },
+        {
+          "name": "row-1",
+          "startLine": 1,
+          "startColumn": 0,
+          "endLine": 1,
+          "endColumn": 2,
+          "block": false,
+          "text": "def"
+        },
+        {
+          "name": "first-cell",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 0,
+          "block": false,
+          "text": "a"
+        }
+      ]
+    },
+    {
+      "name": "printed-spaces-no-wrap",
+      "cols": 6,
+      "rows": 4,
+      "writes": ["abc  \r\ndef\r\n"],
+      "dump": [
+        {
+          "line": 0,
+          "wrapped": false,
+          "text": "abc   ",
+          "trimmed": "abc  "
+        },
+        {
+          "line": 1,
+          "wrapped": false,
+          "text": "def   ",
+          "trimmed": "def"
+        },
+        {
+          "line": 2,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        },
+        {
+          "line": 3,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        }
+      ],
+      "selections": [
+        {
+          "name": "rows-0-1",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 1,
+          "endColumn": 2,
+          "block": false,
+          "text": "abc  \ndef"
+        },
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 5,
+          "block": false,
+          "text": "abc  "
+        }
+      ]
+    },
+    {
+      "name": "erased-tail",
+      "cols": 6,
+      "rows": 4,
+      "writes": ["abc  \r\n\u001b[1;1H\u001b[K"],
+      "dump": [
+        {
+          "line": 0,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        },
+        {
+          "line": 1,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        },
+        {
+          "line": 2,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        },
+        {
+          "line": 3,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        }
+      ],
+      "selections": [
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 5,
+          "block": false,
+          "text": ""
+        }
+      ]
+    },
+    {
+      "name": "wide-char-and-spaces",
+      "cols": 8,
+      "rows": 4,
+      "writes": ["a中b   \r\n"],
+      "dump": [
+        {
+          "line": 0,
+          "wrapped": false,
+          "text": "a中b    ",
+          "trimmed": "a中b   "
+        },
+        {
+          "line": 1,
+          "wrapped": false,
+          "text": "        ",
+          "trimmed": ""
+        },
+        {
+          "line": 2,
+          "wrapped": false,
+          "text": "        ",
+          "trimmed": ""
+        },
+        {
+          "line": 3,
+          "wrapped": false,
+          "text": "        ",
+          "trimmed": ""
+        }
+      ],
+      "selections": [
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 7,
+          "block": false,
+          "text": "a中b   "
+        }
+      ]
+    },
+    {
+      "name": "sgr-spaces",
+      "cols": 6,
+      "rows": 4,
+      "writes": ["\u001b[31mred  \u001b[0m\r\n"],
+      "dump": [
+        {
+          "line": 0,
+          "wrapped": false,
+          "text": "red   ",
+          "trimmed": "red  "
+        },
+        {
+          "line": 1,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        },
+        {
+          "line": 2,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        },
+        {
+          "line": 3,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        }
+      ],
+      "selections": [
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 5,
+          "block": false,
+          "text": "red  "
+        }
+      ]
+    },
+    {
+      "name": "long-wrap",
+      "cols": 6,
+      "rows": 5,
+      "writes": ["abcdefghijklmnop"],
+      "dump": [
+        {
+          "line": 0,
+          "wrapped": false,
+          "text": "abcdef",
+          "trimmed": "abcdef"
+        },
+        {
+          "line": 1,
+          "wrapped": true,
+          "text": "ghijkl",
+          "trimmed": "ghijkl"
+        },
+        {
+          "line": 2,
+          "wrapped": true,
+          "text": "mnop  ",
+          "trimmed": "mnop"
+        },
+        {
+          "line": 3,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        },
+        {
+          "line": 4,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        }
+      ],
+      "selections": [
+        {
+          "name": "rows-0-2",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 2,
+          "endColumn": 5,
+          "block": false,
+          "text": "abcdefghijklmnop"
+        },
+        {
+          "name": "rows-1-2",
+          "startLine": 1,
+          "startColumn": 0,
+          "endLine": 2,
+          "endColumn": 3,
+          "block": false,
+          "text": "ghijklmnop"
+        }
+      ]
+    },
+    {
+      "name": "scrollback",
+      "cols": 6,
+      "rows": 2,
+      "writes": ["one\r\ntwo\r\nthree\r\n"],
+      "dump": [
+        {
+          "line": -2,
+          "wrapped": false,
+          "text": "one   ",
+          "trimmed": "one"
+        },
+        {
+          "line": -1,
+          "wrapped": false,
+          "text": "two   ",
+          "trimmed": "two"
+        },
+        {
+          "line": 0,
+          "wrapped": false,
+          "text": "three ",
+          "trimmed": "three"
+        },
+        {
+          "line": 1,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        }
+      ],
+      "selections": [
+        {
+          "name": "history-and-screen",
+          "startLine": -1,
+          "startColumn": 0,
+          "endLine": 1,
+          "endColumn": 3,
+          "block": false,
+          "text": "two\nthree\n"
+        }
+      ]
+    },
+    {
+      "name": "block-mode",
+      "cols": 6,
+      "rows": 3,
+      "writes": ["abcdef\r\nghijkl\r\n"],
+      "dump": [
+        {
+          "line": 0,
+          "wrapped": false,
+          "text": "abcdef",
+          "trimmed": "abcdef"
+        },
+        {
+          "line": 1,
+          "wrapped": false,
+          "text": "ghijkl",
+          "trimmed": "ghijkl"
+        },
+        {
+          "line": 2,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        }
+      ],
+      "selections": [
+        {
+          "name": "block",
+          "startLine": 0,
+          "startColumn": 1,
+          "endLine": 1,
+          "endColumn": 3,
+          "block": true,
+          "text": "bcd\nhij"
+        }
+      ]
+    },
+    {
+      "name": "cursor-move-between-rows",
+      "cols": 6,
+      "rows": 4,
+      "writes": ["abc   \u001b[2;1Hxyz"],
+      "dump": [
+        {
+          "line": 0,
+          "wrapped": false,
+          "text": "abc   ",
+          "trimmed": "abc   "
+        },
+        {
+          "line": 1,
+          "wrapped": false,
+          "text": "xyz   ",
+          "trimmed": "xyz"
+        },
+        {
+          "line": 2,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        },
+        {
+          "line": 3,
+          "wrapped": false,
+          "text": "      ",
+          "trimmed": ""
+        }
+      ],
+      "selections": [
+        {
+          "name": "rows-0-1",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 1,
+          "endColumn": 5,
+          "block": false,
+          "text": "abc   \nxyz"
+        }
+      ]
+    },
+    {
+      "name": "tab-stop",
+      "cols": 8,
+      "rows": 3,
+      "writes": ["a\tb"],
+      "dump": [
+        {
+          "line": 0,
+          "wrapped": false,
+          "text": "a      b",
+          "trimmed": "a      b"
+        },
+        {
+          "line": 1,
+          "wrapped": false,
+          "text": "        ",
+          "trimmed": ""
+        },
+        {
+          "line": 2,
+          "wrapped": false,
+          "text": "        ",
+          "trimmed": ""
+        }
+      ],
+      "selections": [
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 7,
+          "block": false,
+          "text": "a      b"
+        }
+      ]
+    },
+    {
+      "name": "finding1-wrap-at-scrollback-bottom",
+      "cols": 6,
+      "rows": 2,
+      "scrollback": 1,
+      "writes": ["a\r\nbcdefgh"],
+      "selections": [
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 5,
+          "block": false,
+          "text": "bcdefg"
+        },
+        {
+          "name": "row-1",
+          "startLine": 1,
+          "startColumn": 0,
+          "endLine": 1,
+          "endColumn": 5,
+          "block": false,
+          "text": "h"
+        }
+      ]
+    },
+    {
+      "name": "finding2-partial-scroll-region",
+      "cols": 6,
+      "rows": 4,
+      "writes": ["a\u001b[2;1Hbb\u001b[3;1Hccc\u001b[4;1Hdddd\u001b[2;3r\u001b[3;1H\n"],
+      "selections": [
+        {
+          "name": "row-1",
+          "startLine": 1,
+          "startColumn": 0,
+          "endLine": 1,
+          "endColumn": 5,
+          "block": false,
+          "text": "ccc"
+        },
+        {
+          "name": "row-2",
+          "startLine": 2,
+          "startColumn": 0,
+          "endLine": 2,
+          "endColumn": 5,
+          "block": false,
+          "text": ""
+        }
+      ]
+    },
+    {
+      "name": "finding2-full-history-partial-region",
+      "cols": 6,
+      "rows": 3,
+      "scrollback": 1,
+      "writes": ["a \r\nbb  \r\nc\r\ndddd\u001b[1;2r\u001b[2;1H\n"],
+      "selections": [
+        {
+          "name": "history",
+          "startLine": -1,
+          "startColumn": 0,
+          "endLine": -1,
+          "endColumn": 5,
+          "block": false,
+          "text": "bb  "
+        },
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 5,
+          "block": false,
+          "text": "c"
+        },
+        {
+          "name": "row-1",
+          "startLine": 1,
+          "startColumn": 0,
+          "endLine": 1,
+          "endColumn": 5,
+          "block": false,
+          "text": ""
+        }
+      ]
+    },
+    {
+      "name": "finding2-reverse-index",
+      "cols": 6,
+      "rows": 2,
+      "scrollback": 1,
+      "writes": ["a \r\nbb  \r\nc\u001b[1;1H\u001bM"],
+      "selections": [
+        {
+          "name": "history",
+          "startLine": -1,
+          "startColumn": 0,
+          "endLine": -1,
+          "endColumn": 5,
+          "block": false,
+          "text": "a "
+        },
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 5,
+          "block": false,
+          "text": ""
+        },
+        {
+          "name": "row-1",
+          "startLine": 1,
+          "startColumn": 0,
+          "endLine": 1,
+          "endColumn": 5,
+          "block": false,
+          "text": "bb  "
+        }
+      ]
+    },
+    {
+      "name": "finding3-alt-screen-write",
+      "cols": 8,
+      "rows": 2,
+      "writes": ["x\u001b[?1049h\u001b[Habcdef"],
+      "selections": [
+        {
+          "name": "alt-row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 7,
+          "block": false,
+          "text": "abcdef"
+        }
+      ]
+    },
+    {
+      "name": "finding3-alt-screen-erase-isolation",
+      "cols": 8,
+      "rows": 2,
+      "writes": ["x  \u001b[?1049h\u001b[H\u001b[2K\u001b[?1049l"],
+      "selections": [
+        {
+          "name": "primary-row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 7,
+          "block": false,
+          "text": "x  "
+        }
+      ]
+    },
+    {
+      "name": "finding4-erase-last-written",
+      "cols": 6,
+      "rows": 2,
+      "writes": ["a\u001b[1;6Hb\u001b[1;6H\u001b[K"],
+      "selections": [
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 5,
+          "block": false,
+          "text": "a"
+        }
+      ]
+    },
+    {
+      "name": "finding4-ich-pushes-content-out",
+      "cols": 6,
+      "rows": 2,
+      "writes": ["abc\r\u001b[6@"],
+      "selections": [
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 5,
+          "block": false,
+          "text": ""
+        }
+      ]
+    },
+    {
+      "name": "finding5-resize-then-write",
+      "cols": 8,
+      "rows": 2,
+      "scrollback": 5,
+      "steps": [
+        {
+          "write": "abcdef  "
+        },
+        {
+          "resize": {
+            "rows": 2,
+            "cols": 9
+          }
+        },
+        {
+          "select": {
+            "name": "after-resize",
+            "startLine": 0,
+            "startColumn": 0,
+            "endLine": 0,
+            "endColumn": 8,
+            "block": false,
+            "text": "abcdef  "
+          }
+        },
+        {
+          "write": "\rX"
+        },
+        {
+          "select": {
+            "name": "after-write",
+            "startLine": 0,
+            "startColumn": 0,
+            "endLine": 0,
+            "endColumn": 8,
+            "block": false,
+            "text": "Xbcdef  "
+          }
+        }
+      ],
+      "selections": [
+        {
+          "name": "after-resize",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 8,
+          "block": false,
+          "text": "abcdef  "
+        },
+        {
+          "name": "after-write",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 8,
+          "block": false,
+          "text": "Xbcdef  "
+        }
+      ]
+    },
+    {
+      "name": "finding6-irm-insert-mode",
+      "cols": 8,
+      "rows": 2,
+      "writes": ["abcdef\r\u001b[4hX"],
+      "selections": [
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 7,
+          "block": false,
+          "text": "Xabcdef"
+        }
+      ]
+    },
+    {
+      "name": "finding6-decaln",
+      "cols": 6,
+      "rows": 2,
+      "writes": ["a\u001b#8"],
+      "selections": [
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 5,
+          "block": false,
+          "text": "EEEEEE"
+        },
+        {
+          "name": "row-1",
+          "startLine": 1,
+          "startColumn": 0,
+          "endLine": 1,
+          "endColumn": 5,
+          "block": false,
+          "text": "EEEEEE"
+        }
+      ]
+    },
+    {
+      "name": "finding7-block-boundary-at-wide-spacer",
+      "cols": 8,
+      "rows": 2,
+      "writes": ["abcde\r\na中de"],
+      "selections": [
+        {
+          "name": "block-from-spacer",
+          "startLine": 0,
+          "startColumn": 2,
+          "endLine": 1,
+          "endColumn": 4,
+          "block": true,
+          "text": "cde\n de"
+        },
+        {
+          "name": "block-from-head",
+          "startLine": 0,
+          "startColumn": 1,
+          "endLine": 1,
+          "endColumn": 3,
+          "block": true,
+          "text": "bcd\n中d"
+        }
+      ]
+    },
+    {
+      "name": "finding5-same-size-resize-keeps-written",
+      "cols": 8,
+      "rows": 2,
+      "scrollback": 5,
+      "steps": [
+        {
+          "write": "abcdef  "
+        },
+        {
+          "resize": {
+            "rows": 2,
+            "cols": 8
+          }
+        },
+        {
+          "select": {
+            "name": "after-resize",
+            "startLine": 0,
+            "startColumn": 0,
+            "endLine": 0,
+            "endColumn": 7,
+            "block": false,
+            "text": "abcdef  "
+          }
+        }
+      ],
+      "selections": [
+        {
+          "name": "after-resize",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 7,
+          "block": false,
+          "text": "abcdef  "
+        }
+      ]
+    },
+    {
+      "name": "scroll-region-full-screen-lf-at-cap",
+      "cols": 6,
+      "rows": 2,
+      "scrollback": 1,
+      "writes": ["ab\r\ncd\r\nef"],
+      "selections": [
+        {
+          "name": "history",
+          "startLine": -1,
+          "startColumn": 0,
+          "endLine": -1,
+          "endColumn": 5,
+          "block": false,
+          "text": "ab"
+        },
+        {
+          "name": "row-0",
+          "startLine": 0,
+          "startColumn": 0,
+          "endLine": 0,
+          "endColumn": 5,
+          "block": false,
+          "text": "cd"
+        },
+        {
+          "name": "row-1",
+          "startLine": 1,
+          "startColumn": 0,
+          "endLine": 1,
+          "endColumn": 5,
+          "block": false,
+          "text": "ef"
+        }
+      ]
+    }
+  ]
+}

@@ -2,7 +2,16 @@ name: Desktop Packages
 
 # Fork policy: run only after an explicit user request.
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      native:
+        description: "Also build opt-in native GPUI desktop packages (no publish)."
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
 
 concurrency:
   group: desktop-packages-${{ github.ref }}
@@ -78,5 +87,149 @@ jobs:
         with:
           name: desktop-packaged-smoke-linux-x64
           path: ${{ runner.temp }}/desktop-smoke
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Opt-in native GPUI packaging. Builds local platform artifacts only; nothing
+  # here publishes, replaces the Electron desktop package, or touches the
+  # installed client. GUI interaction, signed installers (dmg/notarization,
+  # NSIS), rpm and AppImage for the native client remain unimplemented gates.
+  native-linux:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.native == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      CARGO_BUILD_JOBS: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: node scripts/npm-retry.mjs ci
+
+      - name: Install smoke dependencies
+        run: sudo apt-get update && sudo apt-get install -y xvfb xauth
+
+      - name: Install native Linux build dependencies
+        # The embedded browser links wry against WebKitGTK 4.1 on GTK3, so the
+        # pkg-config files for GTK, WebKitGTK, JavaScriptCore and libsoup must
+        # exist before cargo builds the client.
+        run: >-
+          sudo apt-get install -y
+          libgtk-3-dev libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev
+
+      - name: Build server stack
+        run: npm run build:server
+
+      - name: Package native Linux client
+        run: npm run package:desktop:native -- --platform linux --arch x64
+
+      - name: Smoke native Linux artifacts
+        run: node packages/desktop/e2e/native-artifact-smoke.js packages/desktop/release-native/artifacts
+        env:
+          PASEO_NATIVE_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/native-smoke
+
+      # Real dpkg install in a disposable container — never a root install on
+      # the runner host or a user machine.
+      - name: Install deb in isolated container
+        run: |
+          docker run --rm -v "$PWD/packages/desktop/release-native/artifacts":/artifacts ubuntu:24.04 \
+            bash -c "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y /artifacts/*.deb && /opt/PaseoNative/bin/paseo --version && test -x /opt/PaseoNative/paseo-desktop"
+
+      - name: Upload native Linux artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: desktop-native-linux-x64
+          path: packages/desktop/release-native/artifacts
+          if-no-files-found: ignore
+          retention-days: 7
+
+  native-macos:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.native == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 300
+    env:
+      CARGO_BUILD_JOBS: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: node scripts/npm-retry.mjs ci
+
+      - name: Build server stack
+        run: npm run build:server
+
+      - name: Package native macOS app bundle
+        # Unsigned, unnotarized zip + dmg; signing/notarization and GUI
+        # interaction remain explicit gates.
+        run: npm run package:desktop:native -- --platform darwin --arch arm64
+
+      - name: Smoke native macOS app bundle
+        run: node packages/desktop/e2e/native-artifact-smoke.js packages/desktop/release-native/artifacts
+        env:
+          PASEO_NATIVE_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/native-smoke
+
+      - name: Upload native macOS artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: desktop-native-macos-arm64
+          path: packages/desktop/release-native/artifacts
+          if-no-files-found: ignore
+          retention-days: 7
+
+  native-windows:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.native == 'true' }}
+    runs-on: windows-latest
+    timeout-minutes: 300
+    env:
+      CARGO_BUILD_JOBS: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install Rust stable (MSVC)
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Install dependencies
+        run: node scripts/npm-retry.mjs ci
+
+      - name: Build server stack
+        run: npm run build:server
+
+      - name: Package native Windows client
+        # Portable zip only; NSIS installer, code signing and GUI interaction
+        # remain explicit gates.
+        run: npm run package:desktop:native -- --platform win32 --arch x64
+
+      - name: Smoke native Windows artifacts
+        run: node packages/desktop/e2e/native-artifact-smoke.js packages/desktop/release-native/artifacts
+        env:
+          PASEO_NATIVE_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}\native-smoke
+
+      - name: Upload native Windows artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: desktop-native-windows-x64
+          path: packages/desktop/release-native/artifacts
           if-no-files-found: ignore
           retention-days: 7

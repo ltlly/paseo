@@ -2,6 +2,11 @@ use std::borrow::Cow;
 
 pub const TERMINAL_FAMILY: &str = "JetBrains Mono";
 static TERMINAL_FONT: std::sync::OnceLock<gpui::Font> = std::sync::OnceLock::new();
+/// Family names the text system can load. Captured in [`configure`] so render
+/// paths resolve a user stack without asking the text system every frame. The
+/// bundled terminal faces register right after `configure`, so they are included
+/// even though `all_font_names` ran first.
+static AVAILABLE_FAMILIES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
 
 #[cfg(target_os = "linux")]
 static UI_FAMILY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
@@ -19,6 +24,14 @@ pub fn configure(cx: &mut gpui::App) {
     let mut face = gpui::font(primary);
     face.fallbacks = Some(gpui::FontFallbacks::from_fonts(families));
     let _ = TERMINAL_FONT.set(face);
+    let mut installed = available;
+    if !installed
+        .iter()
+        .any(|name| name.eq_ignore_ascii_case(TERMINAL_FAMILY))
+    {
+        installed.push(TERMINAL_FAMILY.to_owned());
+    }
+    let _ = AVAILABLE_FAMILIES.set(installed);
     #[cfg(target_os = "linux")]
     {
         use paseo_desktop::font_selection::{description_family, gtk_settings_font};
@@ -79,6 +92,41 @@ pub fn terminal_font() -> gpui::Font {
         .clone()
 }
 
+fn available_families() -> &'static [String] {
+    AVAILABLE_FAMILIES.get().map(Vec::as_slice).unwrap_or(&[])
+}
+
+/// Terminal face for the configured code family. The stack is resolved against
+/// loadable families first: a missing primary would otherwise fall through to
+/// the platform's global fallback instead of the configured mono family.
+pub fn terminal_font_for(custom: &str) -> gpui::Font {
+    let families = paseo_desktop::font_selection::custom_families(
+        custom,
+        available_families(),
+        code_family(),
+        ui_family(),
+    );
+    let Some((primary, rest)) = families.split_first() else {
+        return terminal_font();
+    };
+    let base = terminal_font();
+    let mut fallbacks = vec![base.family.to_string()];
+    if let Some(existing) = &base.fallbacks {
+        fallbacks.extend(existing.fallback_list().iter().cloned());
+    }
+    for family in rest {
+        if !fallbacks
+            .iter()
+            .any(|existing| existing.eq_ignore_ascii_case(family))
+        {
+            fallbacks.push(family.clone());
+        }
+    }
+    let mut face = gpui::font(primary.clone());
+    face.fallbacks = Some(gpui::FontFallbacks::from_fonts(fallbacks));
+    face
+}
+
 pub fn ui_family() -> &'static str {
     #[cfg(target_os = "linux")]
     {
@@ -91,6 +139,31 @@ pub fn ui_family() -> &'static str {
     {
         ".SystemUIFont"
     }
+}
+
+/// UI family for a settings value; an empty or unresolvable value keeps the
+/// platform default.
+pub fn ui_family_for(custom: &str) -> gpui::SharedString {
+    resolved_family(custom, ui_family())
+}
+
+/// Code family for a settings value; an empty or unresolvable value keeps the
+/// platform default.
+pub fn mono_family_for(custom: &str) -> gpui::SharedString {
+    resolved_family(custom, code_family())
+}
+
+fn resolved_family(custom: &str, default: &str) -> gpui::SharedString {
+    paseo_desktop::font_selection::custom_families(
+        custom,
+        available_families(),
+        code_family(),
+        ui_family(),
+    )
+    .into_iter()
+    .next()
+    .unwrap_or_else(|| default.to_owned())
+    .into()
 }
 
 // Match the integer ascent/descent strut used by Chromium's Linux UI font. GPUI's

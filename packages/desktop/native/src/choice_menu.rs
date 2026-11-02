@@ -1,4 +1,7 @@
-use crate::{chrome::icon, theme::colors as c};
+use crate::{
+    chrome::icon,
+    settings_view::{SharedSettings, active_palette},
+};
 use gpui::{
     App, Bounds, ClipboardItem, Context, ElementInputHandler, EntityInputHandler, EventEmitter,
     FocusHandle, Focusable, MouseButton, Pixels, Point, Render, ScrollHandle, ShapedLine, TextRun,
@@ -22,6 +25,8 @@ pub struct ChoiceMenu {
     revision: u64,
     selecting: bool,
     searchable: bool,
+    /// The window's settings, so the menu follows the active theme.
+    shared: SharedSettings,
 }
 impl EventEmitter<Pick> for ChoiceMenu {}
 impl Focusable for ChoiceMenu {
@@ -35,6 +40,7 @@ impl ChoiceMenu {
         selected: Option<String>,
         title: &str,
         searchable: bool,
+        shared: SharedSettings,
         cx: &mut Context<Self>,
     ) -> Self {
         let active = rows
@@ -57,6 +63,7 @@ impl ChoiceMenu {
             revision: 0,
             selecting: false,
             placeholder: format!("Search {}…", title.to_lowercase()),
+            shared,
         }
     }
     fn filtered(&self) -> Vec<OptionRow> {
@@ -275,7 +282,8 @@ impl EntityInputHandler for ChoiceMenu {
     }
 }
 impl Render for ChoiceMenu {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let palette = active_palette(&self.shared, window);
         let measure = cx.entity();
         let paint = cx.entity();
         let rows = self.filtered();
@@ -288,10 +296,10 @@ impl Render for ChoiceMenu {
             .rounded(px(8.))
             .overflow_hidden()
             .border_1()
-            .border_color(rgb(c::BORDER))
-            .bg(rgb(c::SURFACE0))
+            .border_color(rgb(palette.border))
+            .bg(rgb(palette.surface0))
             .text_size(px(crate::theme::font_size::BASE))
-            .text_color(rgb(c::FOREGROUND))
+            .text_color(rgb(palette.foreground))
             .on_key_down(cx.listener(Self::key_down))
             .on_mouse_up(
                 MouseButton::Left,
@@ -311,9 +319,9 @@ impl Render for ChoiceMenu {
                         .flex()
                         .gap_2()
                         .items_center()
-                        .bg(rgb(c::SURFACE1))
+                        .bg(rgb(palette.surface1))
                         .border_b_1()
-                        .border_color(rgb(c::BORDER))
+                        .border_color(rgb(palette.border))
                         .on_mouse_down(
                             MouseButton::Left,
                             cx.listener(|this, event: &gpui::MouseDownEvent, window, cx| {
@@ -342,7 +350,7 @@ impl Render for ChoiceMenu {
                                 }
                             },
                         ))
-                        .child(icon("search", 16.))
+                        .child(icon("search", 16.).text_color(rgb(palette.foreground_muted)))
                         .child(
                             canvas(
                                 move |bounds, window, cx| {
@@ -358,9 +366,9 @@ impl Render for ChoiceMenu {
                                             len: text.len(),
                                             font: font(crate::fonts::ui_family()),
                                             color: rgb(if empty {
-                                                c::FOREGROUND_MUTED
+                                                palette.foreground_muted
                                             } else {
-                                                c::FOREGROUND
+                                                palette.foreground
                                             })
                                             .into(),
                                             background_color: None,
@@ -411,7 +419,7 @@ impl Render for ChoiceMenu {
                                                                     px(20.),
                                                                 ),
                                                             ),
-                                                            rgb(c::SURFACE3),
+                                                            rgb(palette.surface3),
                                                         ));
                                                     }
                                                     let _ = line.paint(
@@ -436,7 +444,7 @@ impl Render for ChoiceMenu {
                                                                     px(1.),
                                                                 ),
                                                             ),
-                                                            rgb(c::FOREGROUND),
+                                                            rgb(palette.foreground),
                                                         ));
                                                     }
                                                     if this.focus.is_focused(window) {
@@ -445,7 +453,7 @@ impl Render for ChoiceMenu {
                                                                 this.caret(this.query.cursor()),
                                                                 size(px(1.), px(20.)),
                                                             ),
-                                                            rgb(c::FOREGROUND),
+                                                            rgb(palette.foreground),
                                                         ));
                                                     }
                                                 }
@@ -479,16 +487,18 @@ impl Render for ChoiceMenu {
                             .gap_2()
                             .items_center()
                             .cursor_pointer()
-                            .when(index == self.active, |v| v.bg(rgb(c::SURFACE1)))
-                            .hover(|v| v.bg(rgb(c::SURFACE1)))
+                            .when(index == self.active, |v| v.bg(rgb(palette.surface1)))
+                            .hover(|v| v.bg(rgb(palette.surface1)))
                             .child(div().flex_1().child(row.label.clone()))
-                            .child(
-                                div()
-                                    .w(px(16.))
-                                    .when(self.selected.as_deref() == Some(&row.id), |v| {
-                                        v.child(icon("check", 16.))
-                                    }),
-                            )
+                            .child(div().w(px(16.)).when(
+                                self.selected.as_deref() == Some(&row.id),
+                                |v| {
+                                    v.child(
+                                        icon("check", 16.)
+                                            .text_color(rgb(palette.foreground_muted)),
+                                    )
+                                },
+                            ))
                             .on_mouse_down(
                                 MouseButton::Left,
                                 cx.listener(move |_, _, _, cx| {
@@ -507,7 +517,7 @@ impl Render for ChoiceMenu {
                         v.child(
                             div()
                                 .p_3()
-                                .text_color(rgb(c::FOREGROUND_MUTED))
+                                .text_color(rgb(palette.foreground_muted))
                                 .child("No results found."),
                         )
                     }),

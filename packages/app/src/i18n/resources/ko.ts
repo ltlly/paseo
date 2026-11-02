@@ -1401,6 +1401,12 @@ export const ko: TranslationResources = {
     },
   },
   desktop: {
+    nativeSettings: {
+      pluginsHint: "설치된 플러그인은 이 호스트에서 실행됩니다. 신뢰하는 코드만 활성화하세요",
+      loadFailed: "설정을 불러오지 못했습니다: {{message}}",
+      saveFailed: "설정을 저장하지 못했습니다: {{message}}",
+      directoryUnavailable: "데스크톱 설정 디렉터리를 사용할 수 없습니다.",
+    },
     windowControls: {
       minimize: "창 최소화",
       maximize: "창 최대화",

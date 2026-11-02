@@ -1394,6 +1394,12 @@ export const ar: TranslationResources = {
     },
   },
   desktop: {
+    nativeSettings: {
+      pluginsHint: "الإضافات المثبَّتة تعمل على هذا المضيف. فعِّل التعليمات البرمجية التي تثق بها فقط",
+      loadFailed: "تعذر تحميل الإعدادات: {{message}}",
+      saveFailed: "تعذر حفظ الإعدادات: {{message}}",
+      directoryUnavailable: "دليل إعدادات سطح المكتب غير متاح.",
+    },
     windowControls: {
       minimize: "تصغير النافذة",
       maximize: "تكبير النافذة",

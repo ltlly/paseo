@@ -1,7 +1,14 @@
-use crate::{message_geometry as g, theme::colors as c};
+use crate::{
+    code_view,
+    image_view::ImageCache,
+    message_geometry as g,
+    message_style::MessageStyle,
+    settings_view::{SharedSettings, active_palette},
+    theme::colors as c,
+};
 use gpui::{
     App, ClipboardItem, Context, EventEmitter, FocusHandle, Focusable, FontWeight, KeyDownEvent,
-    MouseButton, Pixels, Point, Render, SharedString, StyledText, TextLayout, Window, div,
+    MouseButton, Pixels, Point, Render, SharedString, StyledText, TextLayout, TextRun, Window, div,
     prelude::*, px, rgb,
 };
 use paseo_desktop::message_document::{Block, BlockKind, Document, Text};
@@ -15,6 +22,14 @@ use std::{
 
 pub enum MessageEvent {
     OpenUrl(String),
+}
+
+/// A sent attachment shown inside the user bubble. Native owns only the optimistic copy: the
+/// daemon timeline stores user text, not attachment metadata.
+pub struct PreviewAttachment {
+    pub name: String,
+    pub subtitle: String,
+    pub image: Option<Arc<gpui::RenderImage>>,
 }
 enum Geometry {
     Plain(TextLayout),
@@ -47,10 +62,51 @@ struct Layout {
     ready: Rc<Cell<bool>>,
     links: Vec<(Range<usize>, String)>,
 }
+
+fn selected_runs(runs: Vec<TextRun>, selected: Range<usize>, color: u32) -> Vec<TextRun> {
+    if selected.is_empty() {
+        return runs;
+    }
+    let mut out = Vec::with_capacity(runs.len() + 2);
+    let mut offset = 0;
+    for run in runs {
+        let start = offset;
+        let end = offset + run.len;
+        offset = end;
+        if end <= selected.start || start >= selected.end {
+            out.push(run);
+            continue;
+        }
+        let mut cuts = vec![
+            start,
+            selected.start.clamp(start, end),
+            selected.end.clamp(start, end),
+            end,
+        ];
+        cuts.sort_unstable();
+        cuts.dedup();
+        for pair in cuts.windows(2) {
+            if pair[0] == pair[1] {
+                continue;
+            }
+            let mut part = run.clone();
+            part.len = pair[1] - pair[0];
+            if pair[0] >= selected.start && pair[1] <= selected.end {
+                part.background_color = Some(gpui::rgba(color).into());
+            }
+            out.push(part);
+        }
+    }
+    out
+}
 pub struct MessageView {
     source: String,
     user: bool,
+    timestamp: Option<String>,
+    attachments: Vec<PreviewAttachment>,
+    footer_below: bool,
     document: Arc<Document>,
+    shared: SharedSettings,
     layouts: Vec<Layout>,
     focus: FocusHandle,
     anchor: usize,
@@ -60,6 +116,8 @@ pub struct MessageView {
     overflowing: bool,
     copied: BTreeMap<usize, u64>,
     copy_revision: u64,
+    images: Option<gpui::Entity<ImageCache>>,
+    image_root: Option<String>,
 }
 impl EventEmitter<MessageEvent> for MessageView {}
 impl Focusable for MessageView {
@@ -68,7 +126,13 @@ impl Focusable for MessageView {
     }
 }
 impl MessageView {
-    pub fn new(source: String, user: bool, cx: &mut Context<Self>) -> Self {
+    pub fn new(
+        source: String,
+        user: bool,
+        timestamp: Option<String>,
+        shared: SharedSettings,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let document = if user {
             Document::plain(&source)
         } else {
@@ -77,7 +141,11 @@ impl MessageView {
         Self {
             source,
             user,
+            timestamp,
+            attachments: Vec::new(),
+            footer_below: false,
             document: Arc::new(document),
+            shared,
             layouts: vec![],
             focus: cx.focus_handle(),
             anchor: 0,
@@ -87,7 +155,25 @@ impl MessageView {
             overflowing: false,
             copied: BTreeMap::new(),
             copy_revision: 0,
+            images: None,
+            image_root: None,
         }
+    }
+    pub fn set_attachments(&mut self, attachments: Vec<PreviewAttachment>, cx: &mut Context<Self>) {
+        self.attachments = attachments;
+        cx.notify();
+    }
+    pub fn set_images(&mut self, images: gpui::Entity<ImageCache>, root: Option<String>) {
+        self.images = Some(images);
+        self.image_root = root;
+    }
+    /// Inline image sources in this message, for cache prefetch.
+    pub fn image_sources(&self) -> Vec<String> {
+        self.document.image_sources()
+    }
+    /// The turn footer sits directly below this message, so its bottom padding collapses.
+    pub fn set_footer_below(&mut self, footer_below: bool) {
+        self.footer_below = footer_below;
     }
     pub fn set_text(&mut self, source: &str, user: bool, cx: &mut Context<Self>) {
         if self.source == source && self.user == user {
@@ -138,6 +224,69 @@ impl MessageView {
             });
         })
         .detach();
+    }
+    fn attachment_pill(attachment: &PreviewAttachment) -> gpui::AnyElement {
+        let body = if let Some(image) = &attachment.image {
+            gpui::img(image.clone())
+                .size(px(48.))
+                .object_fit(gpui::ObjectFit::Cover)
+                .into_any_element()
+        } else {
+            div()
+                .h(px(48.))
+                .max_w(px(260.))
+                .px_3()
+                .gap_2()
+                .bg(rgb(c::SURFACE1))
+                .flex()
+                .items_center()
+                .child(
+                    div()
+                        .w(px(18.))
+                        .flex_shrink_0()
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(crate::chrome::icon("file-text", 16.)),
+                )
+                .child(
+                    div()
+                        .min_w_0()
+                        .flex()
+                        .flex_col()
+                        .child(div().truncate().child(attachment.name.clone()))
+                        .child(
+                            div()
+                                .text_size(px(crate::theme::font_size::SM))
+                                .text_color(rgb(c::FOREGROUND_MUTED))
+                                .truncate()
+                                .child(attachment.subtitle.clone()),
+                        ),
+                )
+                .into_any_element()
+        };
+        div()
+            .flex_shrink_0()
+            .rounded(px(crate::theme::radius::MD))
+            .border_1()
+            .border_color(rgb(c::BORDER_ACCENT))
+            .overflow_hidden()
+            .child(body)
+            .into_any_element()
+    }
+    fn attachments(&self) -> Option<gpui::AnyElement> {
+        if self.attachments.is_empty() {
+            return None;
+        }
+        Some(
+            div()
+                .flex()
+                .flex_wrap()
+                .gap_2()
+                .when(!self.source.trim().is_empty(), |row| row.mb_2())
+                .children(self.attachments.iter().map(Self::attachment_pill))
+                .into_any_element(),
+        )
     }
     fn index_at(&self, position: Point<Pixels>) -> usize {
         let Some(layout) = self
@@ -206,9 +355,11 @@ impl MessageView {
         size: f32,
         line: f32,
         bold: bool,
-        code_block: bool,
+        code: Option<&str>,
+        style: &MessageStyle,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
+        let code_block = code.is_some();
         let links = text
             .spans
             .iter()
@@ -220,11 +371,30 @@ impl MessageView {
             })
             .collect();
         let mixed = !code_block && text.spans.iter().any(|span| span.style.code);
-        let (element, geometry) = if mixed {
+        let (element, geometry) = if code_block {
             let selected = self.selection.start.saturating_sub(text.offset)
                 ..self.selection.end.saturating_sub(text.offset);
-            let (element, layout) =
-                crate::rich_text::RichText::new(text.clone(), size, line, bold, selected);
+            let language = code.unwrap_or("");
+            let runs = selected_runs(
+                code_view::block_runs(&text.value, language, style),
+                selected,
+                style.palette.terminal.selection_background,
+            );
+            let element =
+                StyledText::new(SharedString::from(text.value.to_string())).with_runs(runs);
+            let layout = element.layout().clone();
+            (element.into_any_element(), Geometry::Plain(layout))
+        } else if mixed {
+            let selected = self.selection.start.saturating_sub(text.offset)
+                ..self.selection.end.saturating_sub(text.offset);
+            let (element, layout) = crate::rich_text::RichText::new(
+                text.clone(),
+                style.clone(),
+                size,
+                line,
+                bold,
+                selected,
+            );
             (element.into_any_element(), Geometry::Mixed(layout))
         } else {
             let mut runs = Vec::new();
@@ -241,13 +411,14 @@ impl MessageView {
                 cuts.sort_unstable();
                 cuts.dedup();
                 for pair in cuts.windows(2) {
-                    let mut run = crate::rich_text::run(&span.style, pair[1] - pair[0], bold);
+                    let mut run =
+                        crate::rich_text::run(style, &span.style, pair[1] - pair[0], bold);
                     if self.selection.contains(&(text.offset + pair[0])) {
                         run.background_color = Some(
                             gpui::rgba(if self.user {
                                 0x3390ff66
                             } else {
-                                g::SELECTION_RGBA
+                                style.palette.terminal.selection_background
                             })
                             .into(),
                         );
@@ -271,6 +442,7 @@ impl MessageView {
             links,
         });
         let font = crate::rich_text::run(
+            style,
             &paseo_desktop::message_document::InlineStyle {
                 code: code_block,
                 ..Default::default()
@@ -305,6 +477,7 @@ impl MessageView {
         &mut self,
         blocks: &[Block],
         tight: bool,
+        style: &MessageStyle,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
         div()
@@ -316,23 +489,29 @@ impl MessageView {
             } else {
                 g::BLOCK_GAP
             }))
-            .children(blocks.iter().map(|block| self.block(block, cx)))
+            .children(blocks.iter().map(|block| self.block(block, style, cx)))
             .into_any_element()
     }
-    fn block(&mut self, block: &Block, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn block(
+        &mut self,
+        block: &Block,
+        style: &MessageStyle,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
         match &block.kind {
             BlockKind::Paragraph | BlockKind::Heading(_) | BlockKind::Html => {
                 let (size, line) = if let BlockKind::Heading(level) = block.kind {
-                    g::HEADINGS[level.clamp(1, 6) as usize - 1]
+                    style.geometry.headings[level.clamp(1, 6) as usize - 1]
                 } else {
-                    (g::BODY_SIZE, g::BODY_LINE)
+                    (style.geometry.body_size, style.geometry.body_line)
                 };
                 self.text(
                     block.text.as_ref().unwrap(),
                     size,
                     line,
                     matches!(block.kind, BlockKind::Heading(_)),
-                    false,
+                    None,
+                    style,
                     cx,
                 )
             }
@@ -348,13 +527,14 @@ impl MessageView {
                     .min_w_0()
                     .p(px(g::CODE_PADDING))
                     .rounded(px(8.))
-                    .bg(rgb(c::SURFACE2))
+                    .bg(rgb(style.palette.surface2))
                     .child(self.text(
                         text,
-                        g::CODE_SIZE,
-                        (g::CODE_SIZE * 1.45).round(),
+                        style.geometry.code_size,
+                        style.geometry.code_line,
                         false,
-                        true,
+                        Some(language),
+                        style,
                         cx,
                     ))
                     .child(
@@ -368,8 +548,8 @@ impl MessageView {
                             .invisible()
                             .group_hover(group, |style| style.visible())
                             .cursor_pointer()
-                            .text_color(rgb(c::FOREGROUND_MUTED))
-                            .hover(|style| style.text_color(rgb(c::FOREGROUND)))
+                            .text_color(rgb(style.palette.foreground_muted))
+                            .hover(|hovered| hovered.text_color(rgb(style.palette.foreground)))
                             .child(crate::chrome::icon(
                                 if self.copied.contains_key(&key) {
                                     "check"
@@ -401,8 +581,8 @@ impl MessageView {
             BlockKind::Quote(title) => div()
                 .min_w_0()
                 .border_l(px(g::QUOTE_BORDER))
-                .border_color(rgb(c::SURFACE2))
-                .bg(rgb(c::SURFACE1))
+                .border_color(rgb(style.palette.surface2))
+                .bg(rgb(style.palette.surface1))
                 .p(px(g::QUOTE_PADDING))
                 .when(!title.is_empty(), |v| {
                     v.child(
@@ -412,7 +592,7 @@ impl MessageView {
                             .child(title.clone()),
                     )
                 })
-                .child(self.blocks(&block.children, false, cx))
+                .child(self.blocks(&block.children, false, style, cx))
                 .into_any_element(),
             BlockKind::List(ordered, start) => div()
                 .min_w_0()
@@ -439,14 +619,15 @@ impl MessageView {
                             div()
                                 .w(px(g::LIST_INDENT - 7.))
                                 .flex_shrink_0()
-                                .text_size(px(g::BODY_SIZE))
-                                .line_height(px(g::BODY_LINE))
-                                .text_color(rgb(c::FOREGROUND_MUTED))
+                                .text_size(px(style.geometry.body_size))
+                                .line_height(px(style.geometry.body_line))
+                                .text_color(rgb(style.palette.foreground_muted))
                                 .child(marker),
                         )
                         .child(div().flex_1().min_w_0().child(self.blocks(
                             &item.children,
                             true,
+                            style,
                             cx,
                         )))
                 }))
@@ -456,9 +637,9 @@ impl MessageView {
                 .min_w_0()
                 .rounded(px(6.))
                 .border_1()
-                .border_color(rgb(c::BORDER))
+                .border_color(rgb(style.palette.border))
                 .overflow_hidden()
-                .child(self.blocks(&block.children, true, cx))
+                .child(self.blocks(&block.children, true, style, cx))
                 .into_any_element(),
             BlockKind::Row => div()
                 .w_full()
@@ -471,35 +652,57 @@ impl MessageView {
                         .p_2()
                         .border_r_1()
                         .border_b_1()
-                        .border_color(rgb(c::BORDER))
+                        .border_color(rgb(style.palette.border))
                         .when(matches!(cell.kind, BlockKind::Cell(true, _)), |v| {
-                            v.bg(rgb(c::SURFACE2))
+                            v.bg(rgb(style.palette.surface2))
                         })
-                        .child(self.block(cell, cx))
+                        .child(self.block(cell, style, cx))
                 }))
                 .into_any_element(),
             BlockKind::Cell(header, _) => self.text(
                 block.text.as_ref().unwrap(),
-                g::BODY_SIZE,
-                g::BODY_LINE,
+                style.geometry.body_size,
+                style.geometry.body_line,
                 *header,
-                false,
+                None,
+                style,
                 cx,
             ),
+            BlockKind::Image { source, alt } => match self.images.clone() {
+                Some(images) => crate::image_view::render_image(
+                    &images.read(cx),
+                    source,
+                    self.image_root.as_deref(),
+                    style,
+                ),
+                None => div()
+                    .text_size(px(g::BODY_SIZE))
+                    .text_color(rgb(c::FOREGROUND_MUTED))
+                    .child(if alt.is_empty() {
+                        source.clone()
+                    } else {
+                        alt.clone()
+                    })
+                    .into_any_element(),
+            },
             BlockKind::Rule => div()
                 .w_full()
                 .h(px(1.))
-                .bg(rgb(c::BORDER))
+                .bg(rgb(style.palette.border))
                 .into_any_element(),
-            BlockKind::Item(_) | BlockKind::TableSection => self.blocks(&block.children, true, cx),
+            BlockKind::Item(_) | BlockKind::TableSection => {
+                self.blocks(&block.children, true, style, cx)
+            }
         }
     }
 }
 impl Render for MessageView {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.layouts.clear();
+        let settings = self.shared.get();
+        let style = MessageStyle::resolve(&settings, active_palette(&self.shared, window));
         let document = self.document.clone();
-        let body = self.blocks(&document.blocks, false, cx);
+        let body = self.blocks(&document.blocks, false, &style, cx);
         let group: SharedString = format!("message-{}", cx.entity_id()).into();
         let body = if self.user {
             let measure = cx.entity();
@@ -510,7 +713,8 @@ impl Render for MessageView {
                 .p_4()
                 .rounded(px(16.))
                 .rounded_tr(px(2.))
-                .bg(rgb(c::SURFACE3))
+                .bg(rgb(style.palette.surface3))
+                .children(self.attachments())
                 .child(
                     div()
                         .flex()
@@ -523,7 +727,7 @@ impl Render for MessageView {
                         div()
                             .id("expand-message")
                             .mt_2()
-                            .text_color(rgb(c::FOREGROUND_MUTED))
+                            .text_color(rgb(style.palette.foreground_muted))
                             .cursor_pointer()
                             .child(if self.expanded {
                                 "Show less"
@@ -572,13 +776,27 @@ impl Render for MessageView {
                         div()
                             .h(px(24.))
                             .mt_2()
+                            .flex()
+                            .items_center()
+                            .gap_2()
                             .invisible()
                             .group_hover(group, |v| v.visible())
+                            .when_some(self.timestamp.clone(), |row, timestamp| {
+                                row.child(
+                                    div()
+                                        .text_size(px(13.))
+                                        .text_color(rgb(c::FOREGROUND_MUTED))
+                                        .child(timestamp),
+                                )
+                            })
                             .child(
                                 div()
-                                    .id("copy-user-message")
-                                    .size(px(24.))
+                                    .id(("copy-user-message", cx.entity_id()))
+                                    .mr(px(-4.))
+                                    .p_1()
                                     .cursor_pointer()
+                                    .text_color(rgb(c::FOREGROUND_MUTED))
+                                    .hover(|v| v.text_color(rgb(c::FOREGROUND)))
                                     .child(crate::chrome::icon(
                                         if self.copied.contains_key(&usize::MAX) {
                                             "check"
@@ -604,7 +822,12 @@ impl Render for MessageView {
                 .child(column)
                 .into_any_element()
         } else {
-            div().w_full().py_3().child(body).into_any_element()
+            div()
+                .w_full()
+                .pt_3()
+                .when(!self.footer_below, |v| v.pb_3())
+                .child(body)
+                .into_any_element()
         };
         div()
             .id("message-view")

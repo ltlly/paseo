@@ -50,6 +50,80 @@ pub fn gtk_settings_font(settings: &str) -> Option<&str> {
     None
 }
 
+/// Split a CSS `font-family` list into family names. Commas inside quotes stay
+/// part of the name, and a backslash escapes the next character; CSS requires
+/// quotes around names containing whitespace or punctuation.
+pub fn parse_family_list(css: &str) -> Vec<String> {
+    let mut families = Vec::new();
+    let mut current = String::new();
+    let mut quote: Option<char> = None;
+    let mut escaped = false;
+    for ch in css.chars() {
+        if escaped {
+            current.push(ch);
+            escaped = false;
+        } else if ch == '\\' {
+            escaped = true;
+        } else if Some(ch) == quote {
+            quote = None;
+        } else if quote.is_none() && matches!(ch, '\'' | '"') {
+            quote = Some(ch);
+        } else if quote.is_none() && ch == ',' {
+            let family = current.trim();
+            if !family.is_empty() {
+                families.push(family.to_owned());
+            }
+            current.clear();
+        } else {
+            current.push(ch);
+        }
+    }
+    if escaped {
+        current.push('\\');
+    }
+    let family = current.trim();
+    if !family.is_empty() {
+        families.push(family.to_owned());
+    }
+    families
+}
+
+/// CSS generic names are not font family names in native text backends; map
+/// them to the system alias the caller resolved for that kind of text.
+fn generic_family<'a>(name: &str, mono: &'a str, sans: &'a str) -> Option<&'a str> {
+    match name.to_ascii_lowercase().as_str() {
+        "monospace" | "ui-monospace" => Some(mono),
+        "system-ui" | "sans-serif" | "ui-sans-serif" => Some(sans),
+        _ => None,
+    }
+}
+
+/// Resolve a user-supplied CSS stack to the families this machine can actually
+/// load, in preference order. The first result is safe to use as a primary
+/// family: native text backends resolve a missing primary through their global
+/// fallback stack and never reach the font's own glyph fallbacks.
+pub fn custom_families(css: &str, available: &[String], mono: &str, sans: &str) -> Vec<String> {
+    let mut result: Vec<String> = Vec::new();
+    for family in parse_family_list(css) {
+        let resolved = generic_family(&family, mono, sans)
+            .map(str::to_owned)
+            .or_else(|| {
+                available
+                    .iter()
+                    .find(|name| name.eq_ignore_ascii_case(&family))
+                    .cloned()
+            });
+        if let Some(name) = resolved
+            && !result
+                .iter()
+                .any(|existing| existing.eq_ignore_ascii_case(&name))
+        {
+            result.push(name);
+        }
+    }
+    result
+}
+
 /// Resolve the authored CSS stack against system fonts before bundled fallback
 /// faces are registered. Bundling a face must not change the user's default.
 pub fn terminal_families(preferred: &[&str], available: &[String], generic: &str) -> Vec<String> {
@@ -109,6 +183,72 @@ mod tests {
             ),
             ["Consolas", "Cascadia Code"]
         );
+    }
+
+    #[test]
+    fn css_family_lists_parse_quotes_escapes_and_commas() {
+        assert_eq!(
+            parse_family_list("\"Fira Code\", 'JetBrains Mono', monospace"),
+            ["Fira Code", "JetBrains Mono", "monospace"]
+        );
+        assert_eq!(
+            parse_family_list("\"Font, With Comma\", Inter"),
+            ["Font, With Comma", "Inter"]
+        );
+        assert_eq!(
+            parse_family_list("D\\'Angelo Sans, Inter"),
+            ["D'Angelo Sans", "Inter"]
+        );
+        assert_eq!(parse_family_list(" , , Inter "), ["Inter"]);
+        assert!(parse_family_list("").is_empty());
+        assert!(parse_family_list(" , ").is_empty());
+    }
+
+    #[test]
+    fn custom_stacks_pick_the_first_installed_family_or_generic() {
+        let available = [
+            "JetBrains Mono".into(),
+            "Consolas".into(),
+            "Noto Sans".into(),
+        ];
+        assert_eq!(
+            custom_families(
+                "\"Not Installed\", JetBrains Mono, monospace",
+                &available,
+                "Noto Sans Mono",
+                "Noto Sans"
+            ),
+            ["JetBrains Mono", "Noto Sans Mono"]
+        );
+        assert_eq!(
+            custom_families(
+                "Missing, monospace",
+                &available,
+                "Noto Sans Mono",
+                "Noto Sans"
+            ),
+            ["Noto Sans Mono"]
+        );
+        assert_eq!(
+            custom_families(
+                "consolas, CASCADIA CODE, monospace",
+                &available,
+                "Consolas",
+                "Noto Sans"
+            ),
+            ["Consolas"]
+        );
+        assert_eq!(
+            custom_families(
+                "system-ui, Inter",
+                &available,
+                "Noto Sans Mono",
+                "Noto Sans"
+            ),
+            ["Noto Sans"]
+        );
+        assert!(custom_families("", &available, "Noto Sans Mono", "Noto Sans").is_empty());
+        assert!(custom_families("Missing", &available, "Noto Sans Mono", "Noto Sans").is_empty());
     }
 
     #[test]

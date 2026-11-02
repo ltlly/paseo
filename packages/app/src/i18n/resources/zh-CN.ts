@@ -1383,6 +1383,12 @@ export const zhCN: TranslationResources = {
     },
   },
   desktop: {
+    nativeSettings: {
+      pluginsHint: "已安装的插件在此主机上运行。仅启用你信任的代码",
+      loadFailed: "无法加载设置：{{message}}",
+      saveFailed: "无法保存设置：{{message}}",
+      directoryUnavailable: "桌面设置目录不可用。",
+    },
     windowControls: {
       minimize: "最小化窗口",
       maximize: "最大化窗口",

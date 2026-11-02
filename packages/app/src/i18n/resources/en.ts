@@ -1402,6 +1402,12 @@ export const en = {
     },
   },
   desktop: {
+    nativeSettings: {
+      pluginsHint: "Installed plugins run on this host. Enable only code you trust",
+      loadFailed: "Couldn't load settings: {{message}}",
+      saveFailed: "Couldn't save settings: {{message}}",
+      directoryUnavailable: "The desktop settings directory is unavailable.",
+    },
     windowControls: {
       minimize: "Minimize window",
       maximize: "Maximize window",

@@ -7,9 +7,12 @@ const { installLinuxLauncher } = require("./linux-sandbox");
 
 const EXECUTABLE_NAME = "Paseo";
 
-// electron-builder arch enum → Node.js arch string
+// electron-builder arch enum → Node.js arch string. Exported so the native
+// packaging pipeline shares the same arch mapping.
 const ARCH_MAP = { 0: "ia32", 1: "x64", 2: "armv7l", 3: "arm64", 4: "universal" };
 
+// Exported so the native packaging pipeline prunes identical per-platform
+// binaries from the bundled daemon node_modules.
 const RIPGREP_PLATFORM_DIR = {
   darwin: { arm64: "arm64-darwin", x64: "x64-darwin" },
   linux: { arm64: "arm64-linux", x64: "x64-linux" },
@@ -131,6 +134,16 @@ exports.default = async function afterPack(context) {
     }
   }
 };
+
+// Also consumed by scripts/package-native.mjs so the Electron and native
+// bundles prune bundled native modules the same way.
+Object.assign(exports, {
+  ARCH_MAP,
+  RIPGREP_PLATFORM_DIR,
+  pruneClaudeAgentSdk,
+  pruneNodePty,
+  pruneSharpLibvips,
+});
 
 async function smokeUnpackedAppIfRequested(appOutDir) {
   if (process.env.PASEO_DESKTOP_SMOKE !== "1") {

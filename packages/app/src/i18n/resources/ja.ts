@@ -1408,6 +1408,13 @@ export const ja: TranslationResources = {
     },
   },
   desktop: {
+    nativeSettings: {
+      pluginsHint:
+        "インストールされたプラグインはこのホストで実行されます。信頼できるコードのみ有効にしてください",
+      loadFailed: "設定を読み込めませんでした: {{message}}",
+      saveFailed: "設定を保存できませんでした: {{message}}",
+      directoryUnavailable: "デスクトップ設定ディレクトリを利用できません。",
+    },
     windowControls: {
       minimize: "ウィンドウを最小化",
       maximize: "ウィンドウを最大化",

@@ -711,6 +711,47 @@ impl Directory {
     }
 }
 
+/// The receive-side decision for one terminal-list message.
+pub struct InventoryArrival {
+    /// The message replaces the selected workspace's terminal inventory.
+    pub loaded: bool,
+    /// The message answers the captured subscribe request; drop the capture.
+    pub answered: bool,
+}
+
+/// Decides whether an inbound terminal-list message proves the selected
+/// workspace's inventory has arrived.
+///
+/// `terminals_changed` names its workspace on the payload; a
+/// `list_terminals_response` carries none, so it is admitted only through the
+/// request id captured when the terminals subscription was opened, together
+/// with that request's workspace — never pinned to whatever workspace is
+/// selected when a queued snapshot from another workspace lands.
+pub fn terminal_inventory_arrival(
+    kind: &str,
+    payload_request_id: Option<&str>,
+    payload_workspace_id: Option<&str>,
+    captured_request: Option<(&str, &str)>,
+    selected_workspace: Option<&str>,
+) -> InventoryArrival {
+    let answered = matches!(
+        (captured_request, payload_request_id),
+        (Some((request, _)), Some(answer)) if request == answer
+    );
+    let loaded = match kind {
+        "list_terminals_response" => matches!(
+            (captured_request, selected_workspace),
+            (Some((request, workspace)), Some(selected))
+                if payload_request_id == Some(request) && workspace == selected
+        ),
+        "terminals_changed" => {
+            payload_workspace_id.is_some() && payload_workspace_id == selected_workspace
+        }
+        _ => false,
+    };
+    InventoryArrival { loaded, answered }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -731,6 +772,72 @@ mod tests {
             .unwrap();
         assert_eq!(directory.workspaces.len(), 1);
         assert_eq!(directory.workspaces["two"].status, "future-status");
+    }
+
+    #[test]
+    fn a_queued_snapshot_from_the_previous_workspace_is_refused_after_a_switch() {
+        let captured = Some(("req-a", "ws-a"));
+        // Workspace A's snapshot answered A's subscribe, but the window now
+        // shows B: the snapshot must not mark B's inventory as loaded.
+        let arrival = terminal_inventory_arrival(
+            "list_terminals_response",
+            Some("req-a"),
+            None,
+            captured,
+            Some("ws-b"),
+        );
+        assert!(!arrival.loaded);
+        // A response the capture cannot name is refused too: inventory is
+        // never inferred from the current selection.
+        let arrival = terminal_inventory_arrival(
+            "list_terminals_response",
+            Some("unrelated"),
+            None,
+            captured,
+            Some("ws-b"),
+        );
+        assert!(!arrival.loaded);
+        // The matched snapshot loads exactly the workspace the request was
+        // opened for and consumes the capture.
+        let arrival = terminal_inventory_arrival(
+            "list_terminals_response",
+            Some("req-b"),
+            None,
+            Some(("req-b", "ws-b")),
+            Some("ws-b"),
+        );
+        assert!(arrival.loaded);
+        assert!(arrival.answered);
+    }
+
+    #[test]
+    fn terminals_changed_owns_its_workspace_and_answers_the_captured_request() {
+        // The daemon's push names its workspace: it loads that workspace only
+        // while it is the selected one, and the initial subscribe snapshot
+        // closes the captured request.
+        let arrival = terminal_inventory_arrival(
+            "terminals_changed",
+            Some("req-b"),
+            Some("ws-b"),
+            Some(("req-b", "ws-b")),
+            Some("ws-b"),
+        );
+        assert!(arrival.loaded);
+        assert!(arrival.answered);
+        // A queued push from the previous workspace never loads the new one.
+        let arrival = terminal_inventory_arrival(
+            "terminals_changed",
+            None,
+            Some("ws-a"),
+            Some(("req-b", "ws-b")),
+            Some("ws-b"),
+        );
+        assert!(!arrival.loaded);
+        // A push without a workspace cannot prove anything about the
+        // selection, so it never loads inventory.
+        let arrival =
+            terminal_inventory_arrival("terminals_changed", None, None, None, Some("ws-b"));
+        assert!(!arrival.loaded);
     }
 
     #[test]

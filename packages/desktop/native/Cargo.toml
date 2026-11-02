@@ -9,7 +9,18 @@ default-run = "paseo-desktop"
 
 [features]
 default = ["desktop"]
-desktop = ["dep:gpui", "dep:gpui_platform", "dep:hashbrown", "dep:raw-window-handle", "dep:x11rb"]
+desktop = [
+  "dep:gpui",
+  "dep:gpui_platform",
+  "dep:hashbrown",
+  "dep:raw-window-handle",
+  "dep:x11rb",
+  "dep:wry",
+  "dep:gtk",
+  "dep:gdkx11",
+  "dep:webview2-com",
+  "dep:objc2-app-kit",
+]
 runtime-shaders = ["gpui_platform/runtime_shaders"]
 
 [dependencies]
@@ -24,17 +35,27 @@ gpui_platform = { version = "=0.1.0", git = "https://github.com/zed-industries/z
 ], optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+sys-locale = "=0.3.2"
 roxmltree = "=0.20.0"
-tokio = { version = "1.48", features = ["rt-multi-thread", "net", "sync", "time", "macros"] }
+tokio = { version = "1.48", features = [
+  "rt-multi-thread",
+  "net",
+  "sync",
+  "time",
+  "macros",
+  "process",
+  "io-util",
+] }
 tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 futures-util = "0.3"
 uuid = { version = "1.18", features = ["v4"] }
 unicode-segmentation = "1.13"
 unicode-linebreak = "0.1.5"
+unicode-width = "=0.2.3"
 memchr = "2.8"
 hashbrown = { version = "0.16", optional = true }
 base64 = "0.22.1"
-chrono = { version = "0.4.45", default-features = false, features = ["std"] }
+chrono = { version = "0.4.45", default-features = false, features = ["std", "clock"] }
 image = { version = "=0.25.10", default-features = false, features = [
   "png",
   "jpeg",
@@ -43,10 +64,41 @@ image = { version = "=0.25.10", default-features = false, features = [
   "bmp",
   "tiff",
 ] }
+snow = { version = "=0.10.0", default-features = false, features = [
+  "ring-accelerated",
+  "use-chacha20poly1305",
+  "use-curve25519",
+  "use-sha2",
+] }
+# The embedded browser's platform webview. `browser_webview` reads the raw
+# window handle on every target to decide whether it can embed a page, so the
+# handle crate cannot be Linux-only.
+raw-window-handle = { version = "0.6.2", optional = true }
+# Linux child webviews go through wry; see browser_webview for the X11 and GTK
+# constraints that come with them.
+wry = { version = "=0.57.1", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-raw-window-handle = { version = "0.6.2", optional = true }
 x11rb = { version = "0.13.2", optional = true }
+gtk = { version = "=0.18.2", optional = true }
+# The page's child window id comes from its GTK toplevel's GDK window, so the
+# Linux focus read can ask X11 which window really owns the keyboard.
+gdkx11 = { version = "0.18.2", optional = true }
+
+# WebView2 reports the child page's focus through the controller; `GetFocus()`
+# reads a separate input queue and can name the wrong window.
+[target.'cfg(target_os = "windows")'.dependencies]
+webview2-com = { version = "=0.39.1", optional = true }
+
+# The macOS child page has no controller event, so focus comes from the key
+# window's first responder chain.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = [
+  "std",
+  "NSResponder",
+  "NSView",
+  "NSWindow",
+], optional = true }
 
 [[bin]]
 name = "paseo-desktop"

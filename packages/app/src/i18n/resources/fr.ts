@@ -1424,6 +1424,13 @@ export const fr: TranslationResources = {
     },
   },
   desktop: {
+    nativeSettings: {
+      pluginsHint:
+        "Les plugins installés s'exécutent sur cet hôte. N'activez que le code auquel vous faites confiance",
+      loadFailed: "Impossible de charger les paramètres : {{message}}",
+      saveFailed: "Impossible d'enregistrer les paramètres : {{message}}",
+      directoryUnavailable: "Le répertoire des paramètres du bureau n'est pas disponible.",
+    },
     windowControls: {
       minimize: "Réduire la fenêtre",
       maximize: "Agrandir la fenêtre",

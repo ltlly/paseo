@@ -15,8 +15,6 @@ use paseo_desktop::{
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-const LINE_HEIGHT: f32 = 21.;
-
 struct Line {
     start: usize,
     top: Pixels,
@@ -26,6 +24,9 @@ struct Line {
 pub struct Composer {
     agent_id: String,
     connection: Arc<Connection>,
+    shared: crate::settings_view::SharedSettings,
+    font_size: f32,
+    line_height: f32,
     focus: FocusHandle,
     state: ComposerState,
     running: bool,
@@ -52,12 +53,18 @@ impl Composer {
     pub fn new(
         agent_id: String,
         connection: Arc<Connection>,
+        shared: crate::settings_view::SharedSettings,
         running: bool,
         cx: &mut Context<Self>,
     ) -> Self {
+        let settings = shared.get();
+        let font_size = settings.content_font_size as f32;
         let mut view = Self {
             agent_id,
             connection,
+            shared,
+            font_size,
+            line_height: (font_size * 1.4).round(),
             focus: cx.focus_handle(),
             state: ComposerState::default(),
             running,
@@ -77,6 +84,38 @@ impl Composer {
         };
         view.refresh_config(cx);
         view
+    }
+
+    /// The optimistic user row shown above the composer until the host acknowledges the send.
+    pub fn pending_sent(
+        &self,
+    ) -> Option<(String, String, Vec<crate::message_view::PreviewAttachment>)> {
+        let attempt = self.state.pending.as_ref()?;
+        let attachments = attempt
+            .attachments
+            .iter()
+            .map(|(_, attachment)| match attachment {
+                paseo_desktop::attachments::ReadyAttachment::Image(image) => {
+                    crate::message_view::PreviewAttachment {
+                        name: "Image".into(),
+                        subtitle: image.mime_type.clone(),
+                        image: None,
+                    }
+                }
+                paseo_desktop::attachments::ReadyAttachment::File(file) => {
+                    crate::message_view::PreviewAttachment {
+                        name: file.file_name.clone(),
+                        subtitle: format_size(file.size),
+                        image: None,
+                    }
+                }
+            })
+            .collect();
+        Some((
+            attempt.message_id.clone(),
+            attempt.text.clone(),
+            attachments,
+        ))
     }
 
     fn refresh_config(&mut self, cx: &mut Context<Self>) {
@@ -257,7 +296,14 @@ impl Composer {
         let searchable = control != Control::Thinking || rows.len() > 6;
         let selected = self.controls.selected(control).map(str::to_owned);
         let menu = cx.new(|cx| {
-            crate::choice_menu::ChoiceMenu::new(rows, selected, control.title(), searchable, cx)
+            crate::choice_menu::ChoiceMenu::new(
+                rows,
+                selected,
+                control.title(),
+                searchable,
+                self.shared.clone(),
+                cx,
+            )
         });
         let subscription = cx.subscribe_in(
             &menu,
@@ -285,7 +331,14 @@ impl Composer {
         cx.notify();
     }
 
-    fn control_trigger(&self, control: Control, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn control_trigger(
+        &self,
+        control: Control,
+        palette: &paseo_desktop::appearance::Palette,
+        base: f32,
+        ui_family: &gpui::SharedString,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
         let entity = cx.entity();
         let label = self.controls.label(control);
         let pending = self.controls.pending.is_some() || !self.connected;
@@ -308,12 +361,13 @@ impl Composer {
             .flex()
             .items_center()
             .gap_1()
-            .text_size(px(crate::theme::font_size::BASE))
-            .text_color(rgb(crate::theme::colors::FOREGROUND_MUTED))
+            .font_family(ui_family.clone())
+            .text_size(px(base))
+            .text_color(rgb(palette.foreground_muted))
             .when(pending, |v| v.opacity(0.5))
             .when(!pending, |v| v.cursor_pointer())
-            .when(selected, |v| v.bg(rgb(crate::theme::colors::SURFACE0)))
-            .hover(|v| v.bg(rgb(crate::theme::colors::SURFACE2)))
+            .when(selected, |v| v.bg(rgb(palette.surface0)))
+            .hover(|v| v.bg(rgb(palette.surface2)))
             .child(
                 canvas(
                     move |bounds, _, cx| {
@@ -356,6 +410,17 @@ impl Composer {
     pub fn reconnected(&mut self, cx: &mut Context<Self>) {
         self.connected = true;
         self.refresh_config(cx);
+        cx.notify();
+    }
+
+    /// Appearance or content-size change. Draft shaping depends on the content
+    /// size and family, so the cached lines are rebuilt on the next layout.
+    pub fn settings_changed(&mut self, cx: &mut Context<Self>) {
+        let settings = self.shared.get();
+        let font_size = settings.content_font_size as f32;
+        self.font_size = font_size;
+        self.line_height = (font_size * 1.4).round();
+        self.lines.clear();
         cx.notify();
     }
 
@@ -572,9 +637,9 @@ impl Composer {
                             + point(
                                 px(0.),
                                 px(if key.key == "up" {
-                                    -LINE_HEIGHT
+                                    -self.line_height
                                 } else {
-                                    LINE_HEIGHT
+                                    self.line_height
                                 }),
                             );
                         let index = self.index_at(target);
@@ -591,9 +656,10 @@ impl Composer {
 
     fn cursor_point(&self, byte: usize) -> Option<Point<Pixels>> {
         let line = self.lines.iter().rev().find(|l| l.start <= byte)?;
-        let local = line
-            .shaped
-            .position_for_index((byte - line.start).min(line.shaped.len()), px(LINE_HEIGHT))?;
+        let local = line.shaped.position_for_index(
+            (byte - line.start).min(line.shaped.len()),
+            px(self.line_height),
+        )?;
         Some(self.bounds.origin + point(px(0.), line.top - self.scroll) + local)
     }
 
@@ -603,10 +669,13 @@ impl Composer {
             return 0;
         }
         for line in &self.lines {
-            if local.y < line.top + line.shaped.size(px(LINE_HEIGHT)).height {
+            if local.y < line.top + line.shaped.size(px(self.line_height)).height {
                 let index = line
                     .shaped
-                    .closest_index_for_position(local - point(px(0.), line.top), px(LINE_HEIGHT))
+                    .closest_index_for_position(
+                        local - point(px(0.), line.top),
+                        px(self.line_height),
+                    )
                     .unwrap_or_else(|i| i);
                 return (line.start + index).min(self.state.editing.text.len());
             }
@@ -616,6 +685,9 @@ impl Composer {
 
     fn layout(&mut self, bounds: Bounds<Pixels>, window: &mut Window) {
         self.bounds = bounds;
+        let settings = self.shared.get();
+        let palette = crate::settings_view::active_palette(&self.shared, window);
+        let ui_family = crate::fonts::ui_family_for(&settings.ui_font_family);
         let editing = &self.state.editing;
         let placeholder = editing.text.is_empty();
         let text = if placeholder {
@@ -644,15 +716,15 @@ impl Composer {
                 .windows(2)
                 .map(|span| TextRun {
                     len: span[1] - span[0],
-                    font: font(crate::fonts::ui_family()),
+                    font: font(ui_family.clone()),
                     color: rgb(if placeholder {
-                        crate::theme::colors::SURFACE4
+                        palette.foreground_extra_muted
                     } else {
-                        crate::theme::colors::FOREGROUND
+                        palette.foreground
                     })
                     .into(),
                     background_color: (!placeholder && editing.selection.contains(&span[0]))
-                        .then(|| rgb(crate::theme::colors::SURFACE3).into()),
+                        .then(|| rgb(palette.surface3).into()),
                     underline: editing
                         .marked
                         .as_ref()
@@ -667,14 +739,14 @@ impl Composer {
                 .collect::<Vec<_>>();
             match window.text_system().shape_text(
                 hard_line.to_owned().into(),
-                px(crate::theme::font_size::CONTENT),
+                px(self.font_size),
                 &runs,
                 Some(bounds.size.width),
                 None,
             ) {
                 Ok(lines) => {
                     for shaped in lines {
-                        let height = shaped.size(px(LINE_HEIGHT)).height;
+                        let height = shaped.size(px(self.line_height)).height;
                         self.lines.push(Line { start, top, shaped });
                         top += height;
                     }
@@ -687,8 +759,8 @@ impl Composer {
             if caret.y < bounds.top() {
                 self.scroll -= bounds.top() - caret.y;
             }
-            if caret.y + px(LINE_HEIGHT) > bounds.bottom() {
-                self.scroll += caret.y + px(LINE_HEIGHT) - bounds.bottom();
+            if caret.y + px(self.line_height) > bounds.bottom() {
+                self.scroll += caret.y + px(self.line_height) - bounds.bottom();
             }
         }
         self.scroll = self
@@ -793,7 +865,7 @@ impl EntityInputHandler for Composer {
         let byte = self.state.editing.byte_range(range).start;
         Some(Bounds::new(
             self.cursor_point(byte)?,
-            size(px(1.), px(LINE_HEIGHT)),
+            size(px(1.), px(self.line_height)),
         ))
     }
     fn character_index_for_point(
@@ -808,10 +880,22 @@ impl EntityInputHandler for Composer {
 
 impl Render for Composer {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        use crate::{
-            chrome::icon,
-            theme::{CONTENT_MAX_WIDTH, colors as c},
-        };
+        use crate::chrome::icon;
+        let palette = crate::settings_view::active_palette(&self.shared, window);
+        let settings = self.shared.get();
+        let content_width = settings
+            .content_max_width
+            .unwrap_or(paseo_desktop::settings::DEFAULT_CONTENT_MAX_WIDTH)
+            as f32;
+        let font_base = paseo_desktop::appearance::scale_ui_font(
+            crate::theme::font_size::BASE,
+            settings.ui_base_font_size,
+        );
+        let font_sm = paseo_desktop::appearance::scale_ui_font(
+            crate::theme::font_size::SM,
+            settings.ui_base_font_size,
+        );
+        let ui_family = crate::fonts::ui_family_for(&settings.ui_font_family);
         let measure = cx.entity();
         let paint = cx.entity();
         let enabled = self.can_send();
@@ -835,7 +919,11 @@ impl Render for Composer {
                                     *control == Control::Model && self.controls.models.is_some()
                                         || !self.controls.options(*control).is_empty()
                                 })
-                                .map(|control| self.control_trigger(control, cx)),
+                                .map(|control| {
+                                    self.control_trigger(
+                                        control, &palette, font_base, &ui_family, cx,
+                                    )
+                                }),
                         ),
                     ),
             )
@@ -853,8 +941,10 @@ impl Render for Composer {
                                 .items_center()
                                 .justify_center()
                                 .cursor_pointer()
-                                .bg(rgb(c::ACCENT))
-                                .child(icon("square", 16.).text_color(rgb(c::ACCENT_FOREGROUND)))
+                                .bg(rgb(palette.accent))
+                                .child(
+                                    icon("square", 16.).text_color(rgb(palette.accent_foreground)),
+                                )
                                 .on_mouse_down(
                                     MouseButton::Left,
                                     cx.listener(|this, _, _, cx| {
@@ -872,10 +962,10 @@ impl Render for Composer {
                             .flex()
                             .items_center()
                             .justify_center()
-                            .bg(rgb(c::ACCENT))
+                            .bg(rgb(palette.accent))
                             .when(!enabled, |button| button.opacity(0.5))
                             .when(enabled, |button| button.cursor_pointer())
-                            .child(icon("arrow-up", 16.).text_color(rgb(c::ACCENT_FOREGROUND)))
+                            .child(icon("arrow-up", 16.).text_color(rgb(palette.accent_foreground)))
                             .on_mouse_down(
                                 MouseButton::Left,
                                 cx.listener(|this, _, _, cx| {
@@ -890,9 +980,10 @@ impl Render for Composer {
             .track_focus(&self.focus)
             .cursor_text()
             .rounded(px(crate::theme::radius::S_2XL))
-            .bg(rgb(c::SURFACE1))
+            .font_family(ui_family.clone())
+            .bg(rgb(palette.surface1))
             .border_1()
-            .border_color(rgb(c::BORDER_ACCENT))
+            .border_color(rgb(palette.border_accent))
             .w_full()
             .flex()
             .flex_col()
@@ -953,7 +1044,7 @@ impl Render for Composer {
                                     for line in &view.lines {
                                         let origin =
                                             bounds.origin + point(px(0.), line.top - view.scroll);
-                                        if origin.y + line.shaped.size(px(LINE_HEIGHT)).height
+                                        if origin.y + line.shaped.size(px(view.line_height)).height
                                             < bounds.top()
                                             || origin.y > bounds.bottom()
                                         {
@@ -961,7 +1052,7 @@ impl Render for Composer {
                                         }
                                         let _ = line.shaped.paint_background(
                                             origin,
-                                            px(LINE_HEIGHT),
+                                            px(view.line_height),
                                             TextAlign::Left,
                                             Some(bounds),
                                             window,
@@ -969,7 +1060,7 @@ impl Render for Composer {
                                         );
                                         let _ = line.shaped.paint(
                                             origin,
-                                            px(LINE_HEIGHT),
+                                            px(view.line_height),
                                             TextAlign::Left,
                                             Some(bounds),
                                             window,
@@ -981,8 +1072,8 @@ impl Render for Composer {
                                             view.cursor_point(view.state.editing.cursor())
                                     {
                                         window.paint_quad(fill(
-                                            Bounds::new(origin, size(px(1.), px(LINE_HEIGHT))),
-                                            rgb(crate::theme::colors::FOREGROUND),
+                                            Bounds::new(origin, size(px(1.), px(view.line_height))),
+                                            rgb(palette.foreground),
                                         ));
                                     }
                                 },
@@ -1002,12 +1093,13 @@ impl Render for Composer {
             .flex()
             .flex_col()
             .items_center()
+            .font_family(ui_family.clone())
             .px_4()
             .pb_4()
             .child(
                 div()
                     .w_full()
-                    .max_w(px(CONTENT_MAX_WIDTH))
+                    .max_w(px(content_width))
                     .child(input)
                     .when_some(
                         self.state
@@ -1018,8 +1110,8 @@ impl Render for Composer {
                         |view, error| {
                             view.child(
                                 div()
-                                    .text_size(px(crate::theme::font_size::SM))
-                                    .text_color(rgb(c::STATUS_DANGER))
+                                    .text_size(px(font_sm))
+                                    .text_color(rgb(palette.status_danger))
                                     .child(error)
                                     .when(self.attachments.error.is_some(), |line| {
                                         line.child(
@@ -1027,7 +1119,7 @@ impl Render for Composer {
                                                 .id("dismiss-attachment-error")
                                                 .ml_2()
                                                 .cursor_pointer()
-                                                .text_color(rgb(c::FOREGROUND_MUTED))
+                                                .text_color(rgb(palette.foreground_muted))
                                                 .child("Dismiss")
                                                 .on_mouse_down(
                                                     MouseButton::Left,
@@ -1047,7 +1139,7 @@ impl Render for Composer {
                                                     .id("retry-agent-controls")
                                                     .ml_2()
                                                     .cursor_pointer()
-                                                    .text_color(rgb(c::FOREGROUND_MUTED))
+                                                    .text_color(rgb(palette.foreground_muted))
                                                     .child("Retry")
                                                     .on_mouse_down(
                                                         MouseButton::Left,
@@ -1089,5 +1181,18 @@ impl Render for Composer {
                         ),
                 ))
             })
+    }
+}
+
+fn format_size(bytes: u64) -> String {
+    const KB: f64 = 1024.;
+    const MB: f64 = KB * 1024.;
+    let bytes = bytes as f64;
+    if bytes >= MB {
+        format!("{:.1} MB", bytes / MB)
+    } else if bytes >= KB {
+        format!("{:.0} KB", bytes / KB)
+    } else {
+        format!("{bytes:.0} B")
     }
 }

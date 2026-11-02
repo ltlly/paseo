@@ -89,6 +89,50 @@ pub mod radius {
     pub const FULL: f32 = 9999.0;
 }
 
+pub mod syntax {
+    pub const KEYWORD: u32 = 0xff7b72;
+    pub const COMMENT: u32 = 0x8b949e;
+    pub const STRING: u32 = 0xa5d6ff;
+    pub const NUMBER: u32 = 0x79c0ff;
+    pub const LITERAL: u32 = 0x79c0ff;
+    pub const FUNCTION: u32 = 0xd2a8ff;
+    pub const DEFINITION: u32 = 0xd2a8ff;
+    pub const CLASS: u32 = 0xffa657;
+    pub const TYPE: u32 = 0xff7b72;
+    pub const TAG: u32 = 0x7ee787;
+    pub const ATTRIBUTE: u32 = 0x79c0ff;
+    pub const PROPERTY: u32 = 0x79c0ff;
+    pub const VARIABLE: u32 = 0xc9d1d9;
+    pub const OPERATOR: u32 = 0x79c0ff;
+    pub const PUNCTUATION: u32 = 0xc9d1d9;
+    pub const REGEXP: u32 = 0xa5d6ff;
+    pub const ESCAPE: u32 = 0x79c0ff;
+    pub const META: u32 = 0x8b949e;
+    pub const HEADING: u32 = 0x79c0ff;
+    pub const LINK: u32 = 0xa5d6ff;
+}
+pub mod syntax_light {
+    pub const KEYWORD: u32 = 0xcf222e;
+    pub const COMMENT: u32 = 0x6e7781;
+    pub const STRING: u32 = 0x0a3069;
+    pub const NUMBER: u32 = 0x0550ae;
+    pub const LITERAL: u32 = 0x0550ae;
+    pub const FUNCTION: u32 = 0x8250df;
+    pub const DEFINITION: u32 = 0x8250df;
+    pub const CLASS: u32 = 0x953800;
+    pub const TYPE: u32 = 0xcf222e;
+    pub const TAG: u32 = 0x116329;
+    pub const ATTRIBUTE: u32 = 0x0550ae;
+    pub const PROPERTY: u32 = 0x0550ae;
+    pub const VARIABLE: u32 = 0x24292f;
+    pub const OPERATOR: u32 = 0x0550ae;
+    pub const PUNCTUATION: u32 = 0x24292f;
+    pub const REGEXP: u32 = 0x0a3069;
+    pub const ESCAPE: u32 = 0x0550ae;
+    pub const META: u32 = 0x6e7781;
+    pub const HEADING: u32 = 0x0550ae;
+    pub const LINK: u32 = 0x0a3069;
+}
 pub mod terminal_selection {
     pub const BACKGROUND: u32 = 0xffffff33;
     pub const FOREGROUND: u32 = 0xfafafa;

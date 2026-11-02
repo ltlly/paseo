@@ -1,4 +1,4 @@
-use crate::{message_geometry as g, theme::colors as c};
+use crate::{message_geometry as g, message_style::MessageStyle};
 use gpui::{
     App, AvailableSpace, Bounds, Corners, Element, ElementId, FontStyle, FontWeight,
     GlobalElementId, InspectorElementId, IntoElement, LayoutId, Pixels, Point, ShapedLine, Size,
@@ -11,30 +11,30 @@ use paseo_desktop::{
 use std::{cell::RefCell, collections::BTreeSet, ops::Range, rc::Rc};
 use unicode_segmentation::UnicodeSegmentation;
 
-pub fn run(style: &InlineStyle, len: usize, bold: bool) -> TextRun {
-    let mut font = gpui::font(if style.code {
-        crate::fonts::code_family()
+pub fn run(style: &MessageStyle, inline: &InlineStyle, len: usize, bold: bool) -> TextRun {
+    let mut font = gpui::font(if inline.code {
+        style.mono_family.clone()
     } else {
-        crate::fonts::ui_family()
+        style.ui_family.clone()
     });
-    if style.bold || bold {
+    if inline.bold || bold {
         font.weight = FontWeight::BOLD;
     }
-    if style.italic {
+    if inline.italic {
         font.style = FontStyle::Italic;
     }
     TextRun {
         len,
         font,
-        color: rgb(if style.target.is_some() {
-            c::ACCENT_BRIGHT
+        color: rgb(if inline.target.is_some() {
+            style.palette.accent_bright
         } else {
-            c::FOREGROUND
+            style.palette.foreground
         })
         .into(),
         background_color: None,
         underline: None,
-        strikethrough: style.strike.then_some(gpui::StrikethroughStyle {
+        strikethrough: inline.strike.then_some(gpui::StrikethroughStyle {
             thickness: px(1.),
             color: None,
         }),
@@ -105,6 +105,7 @@ impl Layout {
 /// but lay out mixed-size inline code with the original CSS box metrics and baseline.
 pub struct RichText {
     text: Text,
+    style: MessageStyle,
     font_size: f32,
     line: f32,
     bold: bool,
@@ -114,6 +115,7 @@ pub struct RichText {
 impl RichText {
     pub fn new(
         text: Text,
+        style: MessageStyle,
         font_size: f32,
         line: f32,
         bold: bool,
@@ -123,6 +125,7 @@ impl RichText {
         (
             Self {
                 text,
+                style,
                 font_size,
                 line,
                 bold,
@@ -145,11 +148,11 @@ impl RichText {
             if leading {
                 code_group = Some(i);
             }
-            let font = run(&span.style, 1, self.bold).font;
+            let font = run(&self.style, &span.style, 1, self.bold).font;
             let font_id = window.text_system().resolve_font(&font);
             let font_size = px(self.font_size
                 * if span.style.code {
-                    g::INLINE_CODE_SCALE
+                    self.style.geometry.inline_code_scale
                 } else {
                     1.
                 });
@@ -166,11 +169,11 @@ impl RichText {
                             visible.to_owned().into(),
                             px(self.font_size
                                 * if span.style.code {
-                                    g::INLINE_CODE_SCALE
+                                    self.style.geometry.inline_code_scale
                                 } else {
                                     1.
                                 }),
-                            &[run(&span.style, visible.len(), self.bold)],
+                            &[run(&self.style, &span.style, visible.len(), self.bold)],
                             None,
                         ),
                         code: span.style.code.then_some(code_group.unwrap_or(i)),
@@ -291,7 +294,7 @@ impl Element for RichText {
         let sample = window.text_system().shape_line(
             "x".into(),
             px(self.font_size),
-            &[run(&InlineStyle::default(), 1, self.bold)],
+            &[run(&self.style, &InlineStyle::default(), 1, self.bold)],
             None,
         );
         let strut = LineMetrics::new(sample.ascent.into(), sample.descent.into(), line.into());
@@ -437,12 +440,14 @@ impl Element for RichText {
                         ),
                     );
                     let radius = px(g::INLINE_CODE_RADIUS);
-                    window.paint_quad(fill(code_bounds, rgb(c::SURFACE2)).corner_radii(Corners {
-                        top_left: if first.left > px(0.) { radius } else { px(0.) },
-                        bottom_left: if first.left > px(0.) { radius } else { px(0.) },
-                        top_right: if last.right > px(0.) { radius } else { px(0.) },
-                        bottom_right: if last.right > px(0.) { radius } else { px(0.) },
-                    }));
+                    window.paint_quad(
+                        fill(code_bounds, rgb(self.style.palette.surface2)).corner_radii(Corners {
+                            top_left: if first.left > px(0.) { radius } else { px(0.) },
+                            bottom_left: if first.left > px(0.) { radius } else { px(0.) },
+                            top_right: if last.right > px(0.) { radius } else { px(0.) },
+                            bottom_right: if last.right > px(0.) { radius } else { px(0.) },
+                        }),
+                    );
                 }
                 f = end;
             }
@@ -461,7 +466,7 @@ impl Element for RichText {
                             bounds.origin + point(fragment.x + left, y),
                             size(right - left, row.height),
                         ),
-                        rgba(g::SELECTION_RGBA),
+                        rgba(self.style.palette.terminal.selection_background),
                     ));
                 }
                 let offset = row.baseline

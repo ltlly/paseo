@@ -1430,6 +1430,13 @@ export const es: TranslationResources = {
     },
   },
   desktop: {
+    nativeSettings: {
+      pluginsHint:
+        "Los plugins instalados se ejecutan en este host. Habilita solo el código en el que confías",
+      loadFailed: "No se pudo cargar la configuración: {{message}}",
+      saveFailed: "No se pudo guardar la configuración: {{message}}",
+      directoryUnavailable: "El directorio de configuración de escritorio no está disponible.",
+    },
     windowControls: {
       minimize: "Minimizar ventana",
       maximize: "Maximizar ventana",

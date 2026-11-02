@@ -34,6 +34,7 @@ pub enum BlockKind {
     Cell(bool, u32),
     Rule,
     Html,
+    Image { source: String, alt: String },
 }
 #[derive(Clone, Debug)]
 pub struct Block {
@@ -153,6 +154,39 @@ fn blocks(nodes: &[Node], plain: &mut String) -> Vec<Block> {
             continue;
         };
         flush(&mut inlines, &mut result, plain);
+        if kind == 9 && node.children.iter().any(is_image_span) {
+            let mut segment = Vec::new();
+            for child in &node.children {
+                if is_image_span(child) {
+                    if !segment.is_empty() {
+                        result.push(Block {
+                            kind: BlockKind::Paragraph,
+                            text: Some(text(&segment, plain, false)),
+                            children: vec![],
+                        });
+                        segment.clear();
+                    }
+                    result.push(Block {
+                        kind: BlockKind::Image {
+                            source: child.target.clone(),
+                            alt: child.plain_text(),
+                        },
+                        text: None,
+                        children: vec![],
+                    });
+                } else {
+                    segment.push(child.clone());
+                }
+            }
+            if !segment.is_empty() {
+                result.push(Block {
+                    kind: BlockKind::Paragraph,
+                    text: Some(text(&segment, plain, false)),
+                    children: vec![],
+                });
+            }
+            continue;
+        }
         let kind = match kind {
             0 => {
                 result.extend(blocks(&node.children, plain));
@@ -196,6 +230,27 @@ fn blocks(nodes: &[Node], plain: &mut String) -> Vec<Block> {
     result
 }
 
+fn is_image_span(node: &Node) -> bool {
+    node.kind == Kind::Span(3)
+}
+
+impl Document {
+    /// Inline image sources in source order.
+    pub fn image_sources(&self) -> Vec<String> {
+        fn collect(blocks: &[Block], images: &mut Vec<String>) {
+            for block in blocks {
+                if let BlockKind::Image { source, .. } = &block.kind {
+                    images.push(source.clone());
+                }
+                collect(&block.children, images);
+            }
+        }
+        let mut images = Vec::new();
+        collect(&self.blocks, &mut images);
+        images
+    }
+}
+
 pub fn copied_code(code: &str) -> &str {
     // Match the existing code-copy action: pasted code must not execute its last line.
     code.trim_end_matches(['\r', '\n'])
@@ -218,6 +273,28 @@ mod tests {
         assert_eq!(doc.selected(start..end), Some("first\n\nSecond code"));
         assert_eq!(doc.selected(1..3), None);
     }
+    #[test]
+    fn markdown_images_become_blocks_and_keep_surrounding_text() {
+        let doc =
+            Document::markdown("before ![shot](images/a.png) after\n\n![only](b.jpg)").unwrap();
+        assert!(matches!(&doc.blocks[0].kind, BlockKind::Paragraph));
+        assert_eq!(
+            doc.blocks[0].text.as_ref().unwrap().value.as_ref(),
+            "before "
+        );
+        assert!(
+            matches!(&doc.blocks[1].kind, BlockKind::Image { source, alt } if source == "images/a.png" && alt == "shot")
+        );
+        assert_eq!(
+            doc.blocks[2].text.as_ref().unwrap().value.as_ref(),
+            " after"
+        );
+        assert!(
+            matches!(&doc.blocks[3].kind, BlockKind::Image { source, .. } if source == "b.jpg")
+        );
+        assert_eq!(doc.image_sources(), vec!["images/a.png", "b.jpg"]);
+    }
+
     #[test]
     fn fenced_code_display_and_copy_match_existing_newline_rules() {
         let doc = Document::markdown("```sh\nprintf hello\n\n```\n\nAfter").unwrap();

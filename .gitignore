@@ -99,3 +99,6 @@ app.json
 # Project-local Serena configuration and memories.
 .serena/
 /target/
+
+# Native GPUI packaging output
+packages/desktop/release-native/
