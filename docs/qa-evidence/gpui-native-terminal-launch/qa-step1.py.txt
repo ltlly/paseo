@@ -1,0 +1,15 @@
+from qa import *
+run('click',300,363);time.sleep(1);run('click',900,400)
+before=raw();run('type','final-key-proof');run('key','Control_L','t');wait_for(lambda:b'final-key-proof\x14'in raw()[len(before):]);assert not any(t.startswith('launcher:')for t in active()['tabs']);checks['terminalOwnsCtrlT']=True
+# Closing a background terminal must neither kill it on cancel nor steal active tab focus.
+original=m['terminalId'];shown=active()['focusedTab'];assert shown!=original
+n=len(requests('kill_terminal_request'));run('middle',550,154);assert 'stopped immediately'in snap('final-system-dialog.png',True)
+dialog('key','Escape');run('type','after-cancel');assert len(requests('kill_terminal_request'))==n;assert active()['focusedTab']==shown;wait_for(lambda:b'after-cancel'in raw());checks['systemEscapePreservesPTYAndFocusedTab']=True
+# Now confirm the same background close. The focused terminal remains selected.
+run('middle',550,154);dialog('key','Return');wait_for(lambda:len(requests('kill_terminal_request'))==n+1);wait_for(lambda:original not in active()['tabs']);assert active()['focusedTab']==shown
+assert requests('kill_terminal_request')[-1]['terminalId']==original;checks['confirmedBackgroundCloseExactId']=True
+# Empty second workspace owns a launcher; Ctrl+T adds an actual New tab there.
+run('click',300,455);time.sleep(.8);run('key','Control_L','t');wait_for(lambda:any(t.startswith('launcher:')for t in active(extra['secondWorkspace'])['tabs']));assert 'New tab'in snap('final-new-tab-panel.png');checks['ctrlTAddsNewTabInEmptyWorkspace']=True
+# Terminal shortcut replaces the launcher, with no profile command fields.
+placeholder=active(extra['secondWorkspace'])['focusedTab'];before=len(requests('create_terminal_request'));run('key','Control_L','Shift_L','t');wait_for(lambda:len(requests('create_terminal_request'))==before+1);req=requests('create_terminal_request')[-1];assert req['workspaceId']==extra['secondWorkspace'];assert req['cwd']==extra['secondCwd'];assert all(k not in req for k in ['name','command','args','initialSize']);wait_for(lambda:placeholder not in active(extra['secondWorkspace'])['tabs']);checks['plainTerminalUsesCapturedWorkspaceAndReplacesLauncher']=True
+snap('final-plain-terminal.png');persist();print(json.dumps(checks))

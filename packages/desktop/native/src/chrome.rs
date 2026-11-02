@@ -9,6 +9,33 @@ pub fn icon(name: &str, size: f32) -> Svg {
         .text_color(rgb(c::FOREGROUND_MUTED))
 }
 
+/// Profiles use the authored static catalog, not a host provider snapshot.
+pub fn terminal_profile_icon(key: Option<&str>, size: f32) -> Svg {
+    match key.filter(|key| !key.is_empty()) {
+        None => icon("square-terminal", size),
+        Some(key) if paseo_desktop::model::is_builtin_provider(key) => provider_icon(key, size),
+        Some(key) => icon(
+            crate::terminal_profile_icons::asset(key).unwrap_or("bot"),
+            size,
+        ),
+    }
+}
+
+pub fn shortcut_badge(
+    label: String,
+    palette: &paseo_desktop::appearance::Palette,
+) -> impl IntoElement {
+    div()
+        .px_1()
+        .py(px(2.))
+        .rounded(px(6.))
+        .bg(rgb(control_color(palette.surface3, palette.surface1, 0.5)))
+        .text_size(px(12.))
+        .line_height(px(16.))
+        .text_color(rgb(palette.foreground_muted))
+        .child(label)
+}
+
 pub fn provider_icon_data(
     provider: &str,
     size: f32,

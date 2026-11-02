@@ -129,10 +129,8 @@ impl Paseo {
             .get(&pane.id)
             .map_or(window.viewport_size().width, |bounds| bounds.size.width)
             .to_f64() as f32;
-        // Launcher/split controls have not migrated yet; reserve only controls
-        // this rail actually renders. The authored width policy accepts their
-        // reserved width when those shared controls are added.
-        let layout = workspace_tab_layout::layout(width, &labels, 0., false);
+        // The authored row reserves the 36px add-button slot before shrinking labels.
+        let layout = workspace_tab_layout::layout(width, &labels, 36., false);
         let scroll = self.tab_rail.scrolls.entry(pane.id.clone()).or_default();
         if !layout.overflow {
             scroll.handle.set_offset(gpui::point(px(0.), px(0.)));
@@ -179,10 +177,10 @@ impl Paseo {
                     )
                 }
                 _ => chrome::icon(
-                    if kind == PaneTabKind::Terminal {
-                        "terminal"
-                    } else {
-                        "eye"
+                    match kind {
+                        PaneTabKind::Terminal => "terminal",
+                        PaneTabKind::Launcher => "plus",
+                        _ => "eye",
                     },
                     p::ICON_SIZE,
                 )
@@ -245,9 +243,14 @@ impl Paseo {
                         );
                     }),
                 );
-            // Agent/terminal lifecycle confirmations are a separate migration.
-            // File close keeps the existing editor's unsaved-work guard.
-            if matches!(kind, PaneTabKind::File | PaneTabKind::Browser) {
+            // Closing a terminal stops its process only after system confirmation.
+            if matches!(
+                kind,
+                PaneTabKind::Terminal
+                    | PaneTabKind::Launcher
+                    | PaneTabKind::File
+                    | PaneTabKind::Browser
+            ) {
                 let key = file.as_ref().map(|(key, _)| key.clone());
                 let close_id = id.clone();
                 let middle_key = key.clone();
@@ -311,6 +314,58 @@ impl Paseo {
             }
             chips.push(chip.into_any_element());
         }
+        let owner = pane.id.clone();
+        let measure = cx.entity();
+        let measured = owner.clone();
+        let add = div()
+            .w(px(36.))
+            .h_full()
+            .flex_shrink_0()
+            .ml(px(-2.))
+            .flex()
+            .items_center()
+            .p_1()
+            .child(
+                div()
+                    .id(SharedString::from(format!("pane-add-{owner}")))
+                    .relative()
+                    .size(px(28.))
+                    .rounded(px(8.))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .cursor_pointer()
+                    .hover(|v| v.bg(rgb(palette.surface2)))
+                    .child(chrome::icon("plus", 16.).text_color(rgb(palette.foreground_muted)))
+                    .child(
+                        gpui::canvas(
+                            move |bounds, _, cx| {
+                                measure.update(cx, |this, _| {
+                                    this.terminal_commands
+                                        .anchors
+                                        .insert(measured.clone(), bounds);
+                                });
+                            },
+                            |_, _, _, _| {},
+                        )
+                        .absolute()
+                        .size_full(),
+                    )
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(move |this, _, window, cx| {
+                            cx.stop_propagation();
+                            this.open_new_tab_menu(owner.clone(), window, cx);
+                        }),
+                    ),
+            )
+            .into_any_element();
+        let mut fixed = None;
+        if layout.overflow {
+            fixed = Some(add);
+        } else {
+            chips.push(add);
+        }
         div()
             .h(px(p::ROW_HEIGHT))
             .flex_shrink_0()
@@ -334,6 +389,7 @@ impl Paseo {
                     .track_scroll(&handle)
                     .children(chips),
             )
+            .when_some(fixed, |row, add| row.child(add))
             .into_any_element()
     }
     fn close_passive_pane_tab(
@@ -345,6 +401,10 @@ impl Paseo {
     ) {
         if let Some(key) = file {
             self.close_file(key, window, cx);
+        } else if self.directory.terminals.contains_key(id) {
+            self.confirm_close_terminal(id, window, cx);
+        } else if id.starts_with(super::terminal_commands::PREFIX) {
+            self.close_launcher_tab(id, window, cx);
         } else {
             self.forget_browser(id, window, cx);
         }

@@ -1,0 +1,81 @@
+{
+  "scope": "Native New Tab/+ launcher, authored main host filtering and profile catalog/icons, terminal creation and explicit process-close confirmation, and keyboard/focus ownership. No daemon, protocol, app or Android product changes.",
+  "goal": {
+    "objective": "我们迁移到GPUI吧 安卓仍然保持不变",
+    "status": "active",
+    "terminalFirst": true,
+    "installedClientSwitch": false
+  },
+  "finalSource": {
+    "manifest": "source-identity.json",
+    "archiveSha256": "e07369306c09f7e527b3148ed64ef8f9f1eb4be72e11a3829b1eaa7b84793ff6",
+    "fileCount": 288,
+    "compiledInputsStillByteMatchCheckout": true
+  },
+  "linuxBinary": {
+    "build": {
+      "path": "/home/ltlly/Code/paseo/target/debug/paseo-desktop",
+      "sha256": "e793b4621904e0cd1ee3037e72d7a04d34921eb3388e56cf8813556c5aeae43c"
+    },
+    "guiExecution": {
+      "pid": 3131323,
+      "args": ["/home/ltlly/.cache/paseo-native-qa/terminal-create-20261102/native-final"],
+      "sha256": "04af52004d4fcb86e0bc0b5bf8507ee4ffa20bcbbf5649159317f1621099247c"
+    }
+  },
+  "checks": {
+    "linuxFinalBinaryBuild": true,
+    "macOSFinalBinaryBuild": true,
+    "macOSFeature": "runtime-shaders",
+    "windowsFinalBinaryBuild": true,
+    "windowsToolchain": "MSVC",
+    "focusedLifecycleTestsPerOS": 8,
+    "authoredProfileOracleCases": 27,
+    "testedSourceManifest": "source-core-tests-identity.json",
+    "testedSourceArchiveSha256": "e9cfc5d705d0d086e087257391e503e5bca20c53e392df525fd6da5d9135c44e",
+    "testedCoreAndOracleByteIdenticalToFinal": "core-tests-source-match.json",
+    "testNote": "Eight lifecycle tests run on Linux, macOS and Windows for the config-feed source. Later changes only affect launcher host filtering/presentation and UI choice/keyboard wiring; the tested lifecycle module, generated profile data and 27-case oracle remain byte-identical. No redundant core suite rerun. All three final applications rebuild.",
+    "npmLint": true,
+    "npmTypecheck": true,
+    "nativeFreshnessAndCargoCheckAndFormat": true,
+    "fullSuiteRun": false,
+    "ciRun": false,
+    "finalArtifactDelta": "After GUI checks, the generated writer removes one redundant terminal LF from 39 catalog SVG assets. Final Rust sources, vector element bytes and tested model/data/oracle are unchanged. All three final application binaries rebuild; svg-eof-normalization.json checks each final SVG plus LF against its GUI input SHA256. UI frames remain from the pre-normalization binary."
+  },
+  "linuxGUI": {
+    "fixture": "Real private daemon, a delayed WebSocket proxy, raw Node PTYs labelled Pi/Grok, and a plain shell. No actual Pi/Grok or model invocation.",
+    "viewport": [1280, 800],
+    "display": "Private Xvfb :99, software rendering; no hardware performance claim",
+    "settings": "dark/en, UI/content/code 14/15/12, shared GTK Noto Sans10",
+    "caseCount": 19,
+    "checksFile": "checks.json",
+    "evidence": "Actual XTest pointer/keyboard events, persisted pane layouts, real RPC identities and raw PTY input; OCR plus raw screenshots.",
+    "phases": "Workspace/split/delayed-response checks were first run before the config-feed and final presentation refinements. Close-to-editor keyboard regression reproduced red, then passed after pane-owned focus and editor focus registration fixes. The final profile launch/cancel/close, launcher-choice isolation, Browser shortcut, catalog hot-reload and pixel frames use the recorded final or immediately preceding UI-only binaries. The final binary repeats Browser entry/close and live empty/restore catalog checks. Raw phase helpers are historical records, not a single cold-start test suite.",
+    "clientClose": "client-close-proof.json",
+    "cleanup": "cleanup.json",
+    "processDialog": "Linux GTK system dialog; Cancel/Escape sends no kill, confirm names the exact terminal ID. macOS/Windows compile only; their native dialog GUI presentation is not accepted.",
+    "executedSourceManifest": "source-gui-identity.json"
+  },
+  "visual": {
+    "status": "NOT_PASSED",
+    "reference": "Real Electron with unchanged workspace-header Expo export, same three retained Node terminal IDs and alpha.rs file, and a New Tab in the main pane. Reference uses actual file selection and tab-drag UI.",
+    "referenceExport": "/home/ltlly/.cache/paseo-native-qa/header-20261102/reference-dist",
+    "referenceManifestSha256": "4be8594d2db4e58d941d12877d5bb348f189267ad8682d8d6261e181f6447aa2",
+    "metrics": "pixel-metrics.json",
+    "referenceMetrics": "reference-launch-metrics.json",
+    "masks": [],
+    "notes": "Main host support now derives from the authored panel manifest, so Files/Changes stay in Explorer. New Tab dimensions and profile vectors derive from authored sources. Raw launcher crop differences decrease from 78881 to 24156 pixels; raw menu crop from 25874 to 19696. Agent/edit-profile actions are still disabled, and keyboard focus, tab/menu half-pixel positions, text rasterization and surrounding sidebar/header remain different."
+  },
+  "limits": [
+    "Main Agent drafts and host terminal-profile editing remain unimplemented; embedded Agent UI keeps lower priority.",
+    "Explorer launcher/panel hosting, plugin panels, full tab menus/reordering/status, custom keyboard bindings, long-catalog focus reveal/accessibility and file-buffer restoration remain pending.",
+    "Linux system close confirmation currently admits X11 only. Wayland reports unavailable without stopping a process. macOS/Windows native prompt title/default-button/layout/keyboard GUI parity remain pending.",
+    "Full IME/Unicode/terminal completeness, same-workload hardware input/scroll CPU/RSS measurements, all three OS GUI acceptance, packaging/release and installed-client deployment remain pending."
+  ],
+  "reproduction": {
+    "fixture": "fixture.mts",
+    "reference": "reference.mts",
+    "privateRunCache": "/home/ltlly/.cache/paseo-native-qa/terminal-create-20261102",
+    "instructions": "Set PASEO_NATIVE_QA to a private output directory and run the fixture with node --import tsx from the repository. Copy input.py/launch.py phase helpers into that directory; start an isolated :99 Xvfb and seed dark/en plus GTK Noto Sans10. Initial workspace has one raw Node PTY; prime a second via the Pi-labelled profile before the first historical phase. The phase helpers assume specific prior pane/tab state and use the recorded 1280x800 geometry. Run the relevant phase only after reproducing its documented setup. Legacy phase scripts include the original red paths/old coordinates; final-presentation, launcher-choice and Browser-entry helpers record later fixes. Do not run against production or real agents. Reference needs the cached/exported app bundle, a matched live fixture and native-layout-visual.json; it blocks all 6767 network requests. Actual cleanup explicitly kills only fixture terminal IDs before stopping its owning daemon/display."
+  }
+}

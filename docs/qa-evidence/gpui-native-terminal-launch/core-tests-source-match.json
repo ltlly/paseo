@@ -1,0 +1,5 @@
+{
+  "packages/desktop/native/src/terminal_lifecycle.rs": true,
+  "packages/desktop/native/src/terminal_profile_data.rs": true,
+  "packages/desktop/native/src/testdata/terminal-profiles.json": true
+}

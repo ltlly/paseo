@@ -1818,6 +1818,7 @@ impl Render for FileEditor {
             .child(
                 div()
                     .id("editor-surface")
+                    .track_focus(&self.focus)
                     .flex_1()
                     .min_h_0()
                     .overflow_hidden()

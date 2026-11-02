@@ -1,0 +1,135 @@
+archive=/Users/nmsl/.cache/paseo-gpui-current-e07369306c09.tar.gz
+expected_sha256=e07369306c09f7e527b3148ed64ef8f9f1eb4be72e11a3829b1eaa7b84793ff6
+actual_sha256=e07369306c09f7e527b3148ed64ef8f9f1eb4be72e11a3829b1eaa7b84793ff6
+extracted=/Users/nmsl/.cache/paseo-gpui-src-e07369306c09
+cargo=cargo 1.99.0 (5f94df478 2026-08-27)
+rustc=rustc 1.99.0 (b940084d7 2026-09-28)
+STEP=cargo_clean
+     Removed 1099 files, 658.4MiB total
+STEP=cargo_check
+   Compiling paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-src-e07369306c09/packages/desktop/native)
+warning: unused import: `std::ffi::c_ulong`
+  --> packages/desktop/native/src/browser_webview.rs:73:9
+   |
+73 |     use std::ffi::c_ulong;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::sync::OnceLock`
+  --> packages/desktop/native/src/browser_webview.rs:74:9
+   |
+74 |     use std::sync::OnceLock;
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `anyhow`
+  --> packages/desktop/native/src/browser_webview.rs:76:26
+   |
+76 |     use anyhow::{Result, anyhow};
+   |                          ^^^^^^
+
+warning: unused imports: `HandleError`, `HasWindowHandle`, `RawWindowHandle`, `WindowHandle`, and `XlibWindowHandle`
+  --> packages/desktop/native/src/browser_webview.rs:80:9
+   |
+80 |         HandleError, HasWindowHandle, RawWindowHandle, WindowHandle, XlibWindowHandle,
+   |         ^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: variant `Wayland` is never constructed
+  --> packages/desktop/native/src/browser_webview.rs:27:5
+   |
+25 | pub enum UnsupportedReason {
+   |          ----------------- variant in this enum
+26 |     /// GPUI is running on Wayland; wry's child webview is X11-only.
+27 |     Wayland,
+   |     ^^^^^^^
+   |
+   = note: `UnsupportedReason` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variant `X11` is never constructed
+  --> packages/desktop/native/src/browser_webview.rs:35:5
+   |
+34 | pub enum PlatformSupport {
+   |          --------------- variant in this enum
+35 |     X11,
+   |     ^^^
+   |
+   = note: `PlatformSupport` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `set_active_turn` is never used
+   --> packages/desktop/native/src/conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: `paseo-desktop` (bin "paseo-desktop") generated 7 warnings (run `cargo fix --bin "paseo-desktop" -p paseo-desktop` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.49s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+STEP=cargo_native_build
+   Compiling paseo-desktop v0.14.0 (/Users/nmsl/.cache/paseo-gpui-src-e07369306c09/packages/desktop/native)
+warning: unused import: `std::ffi::c_ulong`
+  --> packages/desktop/native/src/browser_webview.rs:73:9
+   |
+73 |     use std::ffi::c_ulong;
+   |         ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::sync::OnceLock`
+  --> packages/desktop/native/src/browser_webview.rs:74:9
+   |
+74 |     use std::sync::OnceLock;
+   |         ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `anyhow`
+  --> packages/desktop/native/src/browser_webview.rs:76:26
+   |
+76 |     use anyhow::{Result, anyhow};
+   |                          ^^^^^^
+
+warning: unused imports: `HandleError`, `HasWindowHandle`, `RawWindowHandle`, `WindowHandle`, and `XlibWindowHandle`
+  --> packages/desktop/native/src/browser_webview.rs:80:9
+   |
+80 |         HandleError, HasWindowHandle, RawWindowHandle, WindowHandle, XlibWindowHandle,
+   |         ^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: variant `Wayland` is never constructed
+  --> packages/desktop/native/src/browser_webview.rs:27:5
+   |
+25 | pub enum UnsupportedReason {
+   |          ----------------- variant in this enum
+26 |     /// GPUI is running on Wayland; wry's child webview is X11-only.
+27 |     Wayland,
+   |     ^^^^^^^
+   |
+   = note: `UnsupportedReason` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variant `X11` is never constructed
+  --> packages/desktop/native/src/browser_webview.rs:35:5
+   |
+34 | pub enum PlatformSupport {
+   |          --------------- variant in this enum
+35 |     X11,
+   |     ^^^
+   |
+   = note: `PlatformSupport` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: method `set_active_turn` is never used
+   --> packages/desktop/native/src/conversation.rs:452:12
+    |
+111 | impl Conversation {
+    | ----------------- method in this implementation
+...
+452 |     pub fn set_active_turn(&mut self, turn: Option<String>, cx: &mut Context<Self>) {
+    |            ^^^^^^^^^^^^^^^
+
+warning: `paseo-desktop` (bin "paseo-desktop") generated 7 warnings (run `cargo fix --bin "paseo-desktop" -p paseo-desktop` to apply 4 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.59s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+RESULT=0

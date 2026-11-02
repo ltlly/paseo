@@ -48,3 +48,5 @@ pub mod workspace_layout_storage;
 pub mod workspace_lifecycle;
 
 pub mod workspace_tab_layout;
+
+pub mod terminal_lifecycle;

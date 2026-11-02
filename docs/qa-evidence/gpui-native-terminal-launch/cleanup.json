@@ -1,0 +1,15 @@
+{
+  "privateHomeRemoved": true,
+  "privatePortsClosed": {
+    "40299": true,
+    "37415": true
+  },
+  "fixtureExited": true,
+  "nativeExited": true,
+  "displayExited": true,
+  "allFixtureTerminalsClosed": true,
+  "productionDaemonPid999StillExists": true,
+  "privateWorkersGone": true,
+  "production6767StillListening": true,
+  "remainingNativeProcessGroup": []
+}

@@ -529,6 +529,93 @@ if (check) {
     throw new Error("Native workspace-tab layout oracle is stale");
 } else await fs.writeFile(tabOraclePath, JSON.stringify(tabOracle, null, 2) + "\n");
 
+const profileBundle = await bundle({
+  stdin: {
+    contents:
+      'export {DEFAULT_TERMINAL_PROFILES,PROMPT_SENTINEL,resolveTerminalProfileLaunch,getTerminalProfileIcon} from "./packages/protocol/src/terminal-profiles.ts"; export {KNOWN_PROVIDER_ICON_NAMES} from "./packages/protocol/src/provider-icon-names.ts"; export {ACP_PROVIDER_ICON_SVGS} from "./packages/app/src/assets/acp-provider-icons.ts"; export {panelSupportsHost} from "./packages/app/src/panels/panel-manifest.ts"; export {PRIMARY_LAUNCH_ORDER} from "./packages/app/src/workspace-tabs/launcher/internal/catalog.ts";',
+    resolveDir: root,
+  },
+  bundle: true,
+  write: false,
+  format: "esm",
+  platform: "node",
+});
+const profileSource = await import(
+  `data:text/javascript;base64,${Buffer.from(profileBundle.outputFiles[0].text).toString("base64")}`
+);
+const profileDefaults = JSON.stringify(profileSource.DEFAULT_TERMINAL_PROFILES);
+await output(
+  "packages/desktop/native/src/terminal_profile_data.rs",
+  `// Generated from authored terminal profile definitions. Do not edit.\npub const PROMPT_SENTINEL:&str=${JSON.stringify(profileSource.PROMPT_SENTINEL)};\npub const DEFAULT_PROFILES:&str=r###"${profileDefaults}"###;\npub const KNOWN_ICONS:&[&str]=&${JSON.stringify(profileSource.KNOWN_PROVIDER_ICON_NAMES)};\n`,
+);
+const profileCases = [];
+for (const profile of [
+  ...profileSource.DEFAULT_TERMINAL_PROFILES,
+  {
+    id: "custom",
+    name: "A shell",
+    command: "echo {{{prompt}}}",
+    args: ["x={{{prompt}}}", "={{{prompt}}}", "--x=a{{{prompt}}}b", "untouched"],
+  },
+  { id: "path", name: "A path", command: "C:\\tools\\PI.cmd", args: [], icon: "" },
+  { id: "grok", name: "Grok", command: "/tools/grok.exe" },
+  { id: "cursor", name: "Cursor", command: "cursor-agent" },
+  { id: "unknown", name: "Unknown", command: "some-shell", icon: "not-known" },
+])
+  for (const prompt of ["", "a b", '你好\nquoted"$`'])
+    profileCases.push({
+      profile,
+      prompt,
+      launch: profileSource.resolveTerminalProfileLaunch(profile, prompt),
+      icon: profileSource.getTerminalProfileIcon(profile) ?? null,
+    });
+const profileOraclePath = path.join(
+  root,
+  "packages/desktop/native/src/testdata/terminal-profiles.json",
+);
+const profileOracle = { cases: profileCases };
+if (check) {
+  if (
+    JSON.stringify(JSON.parse(await fs.readFile(profileOraclePath, "utf8"))) !==
+    JSON.stringify(profileOracle)
+  )
+    throw new Error("Native terminal profile oracle is stale");
+} else await fs.writeFile(profileOraclePath, JSON.stringify(profileOracle, null, 2) + "\n");
+
+const launcherFile = "packages/app/src/panels/new-tab-panel.tsx";
+const launcherStyles = await authoredStyles(launcherFile, [
+  "scrollContent",
+  "rail",
+  "group",
+  "row",
+  "groupHeader",
+  "groupLabel",
+]);
+const launcherContext = { theme, SPACING: theme.spacing, exports: {} };
+runInNewContext(
+  ts.transpileModule(
+    `
+${await authoredNode("packages/app/src/styles/theme.ts", "ICON_SIZE")}
+${await authoredNode(launcherFile, "LAUNCHER_MAX_WIDTH")}
+${await authoredNode(launcherFile, "EDIT_PROFILES_HIT_SIZE")}
+const styles=({${launcherStyles}});
+globalThis.values={PADDING:styles.scrollContent.padding,MAX_WIDTH:styles.rail.maxWidth,GROUP_GAP:styles.rail.gap,ROW_GAP:styles.group.gap,ROW_HEIGHT:styles.row.minHeight,ROW_PADDING:styles.row.paddingHorizontal,ROW_RADIUS:styles.row.borderRadius,ICON_SIZE:ICON_SIZE.md,HEADER_PADDING:styles.groupHeader.paddingHorizontal,HEADER_MARGIN:styles.groupHeader.marginBottom,HEADER_HEIGHT:styles.groupLabel.lineHeight};`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
+  ).outputText,
+  launcherContext,
+  { timeout: 1000 },
+);
+await output(
+  "packages/desktop/native/src/launcher_presentation.rs",
+  `// Generated from the authored New Tab panel. Do not edit.\n${Object.entries(
+    launcherContext.values,
+  )
+    .map(([key, value]) => `pub const ${key}:f32=${Number(value).toFixed(1)};`)
+    .join(
+      "\n",
+    )}\npub const MAIN_PANEL_KINDS:&[&str]=&${JSON.stringify(["draft", "terminal", "changes_tree", "working_diff", "files", "browser", "pull_request"].filter((kind) => profileSource.panelSupportsHost(kind, "main")))};\npub const PRIMARY_ORDER:&[&str]=&${JSON.stringify(profileSource.PRIMARY_LAUNCH_ORDER)};\n`,
+);
+
 const commandFile = "packages/app/src/command-center/command-center.tsx";
 const commandStyle = await authoredStyles(commandFile, [
   "overlay",
@@ -1107,6 +1194,22 @@ const { icons, WindowControlGlyph, windowPresentation, defaultSidebarWidth } = a
   `data:text/javascript;base64,${Buffer.from(vectors[0].text).toString("base64")}`
 );
 const assets = new Map([["loading-spinner", loadingSpinnerSvg]]);
+for (const key of profileSource.KNOWN_PROVIDER_ICON_NAMES) {
+  if (builtins.includes(key)) continue;
+  const svg = profileSource.ACP_PROVIDER_ICON_SVGS[key];
+  if (svg) assets.set(`profile-${key}`, svg.replaceAll("currentColor", "#000000"));
+}
+await output(
+  "packages/desktop/native/src/terminal_profile_icons.rs",
+  `// Generated from authored profile catalog SVGs. Do not edit.
+pub fn asset(key:&str)->Option<&'static str>{match key{${profileSource.KNOWN_PROVIDER_ICON_NAMES.filter(
+    (key) => !builtins.includes(key) && profileSource.ACP_PROVIDER_ICON_SVGS[key],
+  )
+    .map((key) => `${JSON.stringify(key)}=>Some(${JSON.stringify(`profile-${key}`)}),`)
+    .join("\n")}_=>None}}
+`,
+);
+
 for (const [mode, presentation] of Object.entries(windowPresentation)) {
   for (const kind of ["minimize", "maximize", "restore", "close"]) {
     assets.set(
@@ -1189,6 +1292,9 @@ for (const id of [
   "mic",
   "audio-lines",
   "square-terminal",
+  "square-pen",
+  "globe",
+  "git-pull-request",
   "terminal",
   "paperclip",
   "image",
@@ -1245,7 +1351,7 @@ for (const id of [
   );
 }
 for (const [id, svg] of assets)
-  await output(`packages/desktop/native/assets/icons/${id}.svg`, svg + "\n");
+  await output(`packages/desktop/native/assets/icons/${id}.svg`, svg.trimEnd() + "\n");
 await output(
   "packages/desktop/native/assets/icons/LUCIDE-LICENSE",
   await fs.readFile(path.join(lucideRoot, "LICENSE"), "utf8"),

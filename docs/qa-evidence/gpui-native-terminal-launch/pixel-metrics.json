@@ -1,0 +1,47 @@
+{
+  "status": "NOT_PASSED",
+  "masks": [],
+  "regions": {
+    "new-tab-wholeWindow": {
+      "before": 110421,
+      "after": 55696,
+      "pixels": 1024000
+    },
+    "new-tab-launcher": {
+      "before": 78881,
+      "after": 24156,
+      "pixels": 168000
+    },
+    "new-tab-rail": {
+      "before": 2567,
+      "after": 2567,
+      "pixels": 34560
+    },
+    "new-tab-menu": {
+      "before": 11331,
+      "after": 6644,
+      "pixels": 64900
+    },
+    "new-tab-menu-wholeWindow": {
+      "before": 126463,
+      "after": 70072,
+      "pixels": 1024000
+    },
+    "new-tab-menu-launcher": {
+      "before": 74555,
+      "after": 21438,
+      "pixels": 168000
+    },
+    "new-tab-menu-rail": {
+      "before": 4167,
+      "after": 4167,
+      "pixels": 34560
+    },
+    "new-tab-menu-menu": {
+      "before": 25874,
+      "after": 19696,
+      "pixels": 64900
+    }
+  },
+  "stateLimits": "Unported Agent action is disabled in native; keyboard focus and sidebar state still differ. Raw frames remain unmasked."
+}

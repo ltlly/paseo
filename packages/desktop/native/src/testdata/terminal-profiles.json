@@ -1,0 +1,418 @@
+{
+  "cases": [
+    {
+      "profile": {
+        "id": "claude",
+        "name": "Claude Code",
+        "command": "claude",
+        "args": ["{{{prompt}}}"],
+        "icon": "claude"
+      },
+      "prompt": "",
+      "launch": {
+        "name": "Claude Code",
+        "command": "claude",
+        "args": []
+      },
+      "icon": "claude"
+    },
+    {
+      "profile": {
+        "id": "claude",
+        "name": "Claude Code",
+        "command": "claude",
+        "args": ["{{{prompt}}}"],
+        "icon": "claude"
+      },
+      "prompt": "a b",
+      "launch": {
+        "name": "Claude Code",
+        "command": "claude",
+        "args": ["a b"]
+      },
+      "icon": "claude"
+    },
+    {
+      "profile": {
+        "id": "claude",
+        "name": "Claude Code",
+        "command": "claude",
+        "args": ["{{{prompt}}}"],
+        "icon": "claude"
+      },
+      "prompt": "你好\nquoted\"$`",
+      "launch": {
+        "name": "Claude Code",
+        "command": "claude",
+        "args": ["你好\nquoted\"$`"]
+      },
+      "icon": "claude"
+    },
+    {
+      "profile": {
+        "id": "codex",
+        "name": "Codex",
+        "command": "codex",
+        "args": ["{{{prompt}}}"],
+        "icon": "codex"
+      },
+      "prompt": "",
+      "launch": {
+        "name": "Codex",
+        "command": "codex",
+        "args": []
+      },
+      "icon": "codex"
+    },
+    {
+      "profile": {
+        "id": "codex",
+        "name": "Codex",
+        "command": "codex",
+        "args": ["{{{prompt}}}"],
+        "icon": "codex"
+      },
+      "prompt": "a b",
+      "launch": {
+        "name": "Codex",
+        "command": "codex",
+        "args": ["a b"]
+      },
+      "icon": "codex"
+    },
+    {
+      "profile": {
+        "id": "codex",
+        "name": "Codex",
+        "command": "codex",
+        "args": ["{{{prompt}}}"],
+        "icon": "codex"
+      },
+      "prompt": "你好\nquoted\"$`",
+      "launch": {
+        "name": "Codex",
+        "command": "codex",
+        "args": ["你好\nquoted\"$`"]
+      },
+      "icon": "codex"
+    },
+    {
+      "profile": {
+        "id": "opencode",
+        "name": "OpenCode",
+        "command": "opencode",
+        "args": ["--prompt={{{prompt}}}"],
+        "icon": "opencode"
+      },
+      "prompt": "",
+      "launch": {
+        "name": "OpenCode",
+        "command": "opencode",
+        "args": []
+      },
+      "icon": "opencode"
+    },
+    {
+      "profile": {
+        "id": "opencode",
+        "name": "OpenCode",
+        "command": "opencode",
+        "args": ["--prompt={{{prompt}}}"],
+        "icon": "opencode"
+      },
+      "prompt": "a b",
+      "launch": {
+        "name": "OpenCode",
+        "command": "opencode",
+        "args": ["--prompt=a b"]
+      },
+      "icon": "opencode"
+    },
+    {
+      "profile": {
+        "id": "opencode",
+        "name": "OpenCode",
+        "command": "opencode",
+        "args": ["--prompt={{{prompt}}}"],
+        "icon": "opencode"
+      },
+      "prompt": "你好\nquoted\"$`",
+      "launch": {
+        "name": "OpenCode",
+        "command": "opencode",
+        "args": ["--prompt=你好\nquoted\"$`"]
+      },
+      "icon": "opencode"
+    },
+    {
+      "profile": {
+        "id": "pi",
+        "name": "Pi",
+        "command": "pi",
+        "args": ["{{{prompt}}}"],
+        "icon": "pi"
+      },
+      "prompt": "",
+      "launch": {
+        "name": "Pi",
+        "command": "pi",
+        "args": []
+      },
+      "icon": "pi"
+    },
+    {
+      "profile": {
+        "id": "pi",
+        "name": "Pi",
+        "command": "pi",
+        "args": ["{{{prompt}}}"],
+        "icon": "pi"
+      },
+      "prompt": "a b",
+      "launch": {
+        "name": "Pi",
+        "command": "pi",
+        "args": ["a b"]
+      },
+      "icon": "pi"
+    },
+    {
+      "profile": {
+        "id": "pi",
+        "name": "Pi",
+        "command": "pi",
+        "args": ["{{{prompt}}}"],
+        "icon": "pi"
+      },
+      "prompt": "你好\nquoted\"$`",
+      "launch": {
+        "name": "Pi",
+        "command": "pi",
+        "args": ["你好\nquoted\"$`"]
+      },
+      "icon": "pi"
+    },
+    {
+      "profile": {
+        "id": "custom",
+        "name": "A shell",
+        "command": "echo {{{prompt}}}",
+        "args": ["x={{{prompt}}}", "={{{prompt}}}", "--x=a{{{prompt}}}b", "untouched"]
+      },
+      "prompt": "",
+      "launch": {
+        "name": "A shell",
+        "command": "echo ",
+        "args": ["=", "--x=ab", "untouched"]
+      },
+      "icon": null
+    },
+    {
+      "profile": {
+        "id": "custom",
+        "name": "A shell",
+        "command": "echo {{{prompt}}}",
+        "args": ["x={{{prompt}}}", "={{{prompt}}}", "--x=a{{{prompt}}}b", "untouched"]
+      },
+      "prompt": "a b",
+      "launch": {
+        "name": "A shell",
+        "command": "echo a b",
+        "args": ["x=a b", "=a b", "--x=aa bb", "untouched"]
+      },
+      "icon": null
+    },
+    {
+      "profile": {
+        "id": "custom",
+        "name": "A shell",
+        "command": "echo {{{prompt}}}",
+        "args": ["x={{{prompt}}}", "={{{prompt}}}", "--x=a{{{prompt}}}b", "untouched"]
+      },
+      "prompt": "你好\nquoted\"$`",
+      "launch": {
+        "name": "A shell",
+        "command": "echo 你好\nquoted\"$`",
+        "args": ["x=你好\nquoted\"$`", "=你好\nquoted\"$`", "--x=a你好\nquoted\"$`b", "untouched"]
+      },
+      "icon": null
+    },
+    {
+      "profile": {
+        "id": "path",
+        "name": "A path",
+        "command": "C:\\tools\\PI.cmd",
+        "args": [],
+        "icon": ""
+      },
+      "prompt": "",
+      "launch": {
+        "name": "A path",
+        "command": "C:\\tools\\PI.cmd",
+        "args": []
+      },
+      "icon": ""
+    },
+    {
+      "profile": {
+        "id": "path",
+        "name": "A path",
+        "command": "C:\\tools\\PI.cmd",
+        "args": [],
+        "icon": ""
+      },
+      "prompt": "a b",
+      "launch": {
+        "name": "A path",
+        "command": "C:\\tools\\PI.cmd",
+        "args": []
+      },
+      "icon": ""
+    },
+    {
+      "profile": {
+        "id": "path",
+        "name": "A path",
+        "command": "C:\\tools\\PI.cmd",
+        "args": [],
+        "icon": ""
+      },
+      "prompt": "你好\nquoted\"$`",
+      "launch": {
+        "name": "A path",
+        "command": "C:\\tools\\PI.cmd",
+        "args": []
+      },
+      "icon": ""
+    },
+    {
+      "profile": {
+        "id": "grok",
+        "name": "Grok",
+        "command": "/tools/grok.exe"
+      },
+      "prompt": "",
+      "launch": {
+        "name": "Grok",
+        "command": "/tools/grok.exe",
+        "args": []
+      },
+      "icon": "grok"
+    },
+    {
+      "profile": {
+        "id": "grok",
+        "name": "Grok",
+        "command": "/tools/grok.exe"
+      },
+      "prompt": "a b",
+      "launch": {
+        "name": "Grok",
+        "command": "/tools/grok.exe",
+        "args": []
+      },
+      "icon": "grok"
+    },
+    {
+      "profile": {
+        "id": "grok",
+        "name": "Grok",
+        "command": "/tools/grok.exe"
+      },
+      "prompt": "你好\nquoted\"$`",
+      "launch": {
+        "name": "Grok",
+        "command": "/tools/grok.exe",
+        "args": []
+      },
+      "icon": "grok"
+    },
+    {
+      "profile": {
+        "id": "cursor",
+        "name": "Cursor",
+        "command": "cursor-agent"
+      },
+      "prompt": "",
+      "launch": {
+        "name": "Cursor",
+        "command": "cursor-agent",
+        "args": []
+      },
+      "icon": "cursor"
+    },
+    {
+      "profile": {
+        "id": "cursor",
+        "name": "Cursor",
+        "command": "cursor-agent"
+      },
+      "prompt": "a b",
+      "launch": {
+        "name": "Cursor",
+        "command": "cursor-agent",
+        "args": []
+      },
+      "icon": "cursor"
+    },
+    {
+      "profile": {
+        "id": "cursor",
+        "name": "Cursor",
+        "command": "cursor-agent"
+      },
+      "prompt": "你好\nquoted\"$`",
+      "launch": {
+        "name": "Cursor",
+        "command": "cursor-agent",
+        "args": []
+      },
+      "icon": "cursor"
+    },
+    {
+      "profile": {
+        "id": "unknown",
+        "name": "Unknown",
+        "command": "some-shell",
+        "icon": "not-known"
+      },
+      "prompt": "",
+      "launch": {
+        "name": "Unknown",
+        "command": "some-shell",
+        "args": []
+      },
+      "icon": "not-known"
+    },
+    {
+      "profile": {
+        "id": "unknown",
+        "name": "Unknown",
+        "command": "some-shell",
+        "icon": "not-known"
+      },
+      "prompt": "a b",
+      "launch": {
+        "name": "Unknown",
+        "command": "some-shell",
+        "args": []
+      },
+      "icon": "not-known"
+    },
+    {
+      "profile": {
+        "id": "unknown",
+        "name": "Unknown",
+        "command": "some-shell",
+        "icon": "not-known"
+      },
+      "prompt": "你好\nquoted\"$`",
+      "launch": {
+        "name": "Unknown",
+        "command": "some-shell",
+        "args": []
+      },
+      "icon": "not-known"
+    }
+  ]
+}

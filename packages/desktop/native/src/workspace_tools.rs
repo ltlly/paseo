@@ -767,6 +767,13 @@ impl WorkspaceTools {
         &self.cwd
     }
 
+    pub fn launch_flags(&self) -> (bool, bool) {
+        (
+            self.status.as_ref().is_some_and(|status| status.is_git),
+            self.pr.is_some(),
+        )
+    }
+
     pub fn scripts(&self) -> Vec<&Script> {
         self.scripts.values().collect()
     }

@@ -1,0 +1,10 @@
+from qa import *
+checks.update(json.loads((q/'checks.json').read_text()))
+def profiles(value,name):
+ file=q/name;file.write_text(json.dumps(value));subprocess.run(['node','--import','tsx',str(q/'client.mts'),'profiles',str(file)],check=True,stdout=open(q/(name+'.response.json'),'w'),stderr=subprocess.DEVNULL);time.sleep(.8)
+def menu_text(name):
+ snap(name);im=Image.open(q/name).crop((890,70,1095,365));im.resize((615,870)).save(q/(name+'.menu.png'));text=subprocess.run(['tesseract',str(q/(name+'.menu.png')),'stdout','--tessdata-dir',str(q),'--psm','6'],capture_output=True,text=True,check=True).stdout;ocr[name+'-menu']=text;return text
+# Config changes replace the catalog while the menu is open, including an explicit empty list.
+run('key','Escape');run('click',1067,154);assert 'Pi fixture'in menu_text('profiles-before-hot-reload.png');profiles([],'empty-profiles.json');assert 'Terminal profiles'not in menu_text('profiles-empty-live-menu.png');run('key','Escape');checks['explicitEmptyProfileConfigHotReloadsOpenMenuWithoutDefaults']=True
+profiles(extra['profiles'],'restored-profiles.json');run('click',1067,154);assert 'Grok fixture'in menu_text('profiles-restored-live-menu.png');run('key','Escape');checks['profileCatalogRestoresAfterConfigChange']=True
+persist();print(json.dumps(checks))

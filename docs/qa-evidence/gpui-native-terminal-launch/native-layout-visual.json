@@ -1,0 +1,17 @@
+{
+  "root": {
+    "kind": "pane",
+    "pane": {
+      "id": "main",
+      "tabs": [
+        "9a6d67e0-62e3-4059-9e44-174bb21f0544",
+        "file:[\"/tmp/paseo-home-9kY2tM/.paseo/native-keys-project\",\"alpha.rs\"]",
+        "f8707ef5-86b9-4894-b110-0662481d0c51",
+        "8a01e0bb-8ad4-42d7-9531-27c6dc394cfb",
+        "launcher:b3a545d0-1c5b-46ad-b142-72c1f5185529"
+      ],
+      "focusedTab": "launcher:b3a545d0-1c5b-46ad-b142-72c1f5185529"
+    }
+  },
+  "focusedPaneId": "main"
+}

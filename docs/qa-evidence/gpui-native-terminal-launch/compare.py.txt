@@ -1,0 +1,12 @@
+from pathlib import Path
+from PIL import Image,ImageChops
+import json
+q=Path(__file__).parent;metrics={}
+for state in ['new-tab','new-tab-menu']:
+ ref=Image.open(q/('reference-'+state+'.png')).convert('RGB');before=Image.open(q/('before-main-host-filter-native-'+state+'.png')).convert('RGB');after=Image.open(q/('native-'+state+'.png')).convert('RGB');assert ref.size==before.size==after.size==(1280,800)
+ for key,box in {'wholeWindow':(0,0,1280,800),'launcher':(600,220,1000,640),'rail':(320,36,1280,72),'menu':(880,70,1100,365)}.items():
+  r=ref.crop(box);b=before.crop(box);a=after.crop(box)
+  count=lambda im:sum(pixel!=(0,0,0)for pixel in im.get_flattened_data())
+  metrics[state+'-'+key]={'before':count(ImageChops.difference(r,b)),'after':count(ImageChops.difference(r,a)),'pixels':r.width*r.height}
+ ImageChops.difference(ref,after).save(q/('diff-'+state+'.png'))
+(q/'pixel-metrics.json').write_text(json.dumps({'status':'NOT_PASSED','masks':[],'regions':metrics,'stateLimits':'Unported Agent action is disabled in native; keyboard focus and sidebar state still differ. Raw frames remain unmasked.'},indent=2));print(json.dumps(metrics))

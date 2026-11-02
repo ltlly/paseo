@@ -1,0 +1,7 @@
+from qa import *
+checks.update(json.loads((q/'checks.json').read_text()))
+Path(m['cwd']+'/alpha.rs').write_text('// TERMINAL LAUNCH PANE OWNER\n')
+run('click',300,363);time.sleep(.5);run('key','Control_L','grave');run('click',1164,118);run('key','Control_L','p');run('type','alpha');time.sleep(.4);run('key','Return');wait_for(lambda:'alpha.rs'in active()['focusedTab']);run('click',1164,118);run('key','Control_L','backslash');wait_for(lambda:len(panes(layout()['root']))==2);right=active()['id'];assert right!='main'and active()['tabs']==[]
+# The explorer narrows the workspace. Close it from the empty launcher before testing the plus anchor.
+run('key','Control_L','grave');snap('split-empty-launcher.png');checks['emptySplitHasLauncher']=True
+(q/'right.json').write_text(json.dumps({'pane':right}));persist();print('Prepared split',right)

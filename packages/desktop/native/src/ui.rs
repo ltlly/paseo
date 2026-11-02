@@ -1,3 +1,5 @@
+#[path = "terminal_commands.rs"]
+mod terminal_commands;
 #[path = "workspace_tab_row.rs"]
 mod workspace_tab_row;
 use std::{collections::BTreeMap, collections::BTreeSet, collections::HashSet, sync::Arc};
@@ -350,6 +352,9 @@ actions!(
         MoveTabDown,
         CloseFocusedPane,
         NewWindow,
+        NewTab,
+        NewTerminal,
+        NewBrowser,
         ToggleExplorer,
         ToggleExplorerTerminal,
         SearchFiles,
@@ -404,6 +409,7 @@ enum PaneTabKind {
     Agent,
     File,
     Browser,
+    Launcher,
 }
 
 #[derive(Clone)]
@@ -492,6 +498,7 @@ pub struct Paseo {
     explorer_container_width: f64,
     editors: BTreeMap<EditorKey, Entity<FileEditor>>,
     tab_rail: workspace_tab_row::RailCache,
+    terminal_commands: terminal_commands::Commands,
     /// Retained browser surfaces keyed by the pane tab that owns them. A pane
     /// tab keeps its page and its own page tabs for the session, so moving
     /// panes, splitting, or switching workspaces does not reload the page.
@@ -751,6 +758,7 @@ impl Paseo {
             explorer_container_width: 0.,
             editors: BTreeMap::new(),
             tab_rail: Default::default(),
+            terminal_commands: Default::default(),
             browsers: BTreeMap::new(),
             browser_subscriptions: BTreeMap::new(),
             scripts_menu: None,
@@ -884,6 +892,7 @@ impl Paseo {
             return;
         }
         self.host_generation = self.host_generation.saturating_add(1);
+        self.terminal_commands = Default::default();
         // The relay identity of the new target. Once the connection comes
         // online with negotiated protected security, every saved relay route to
         // this key is pinned and persisted (the security floor survives adopt).
@@ -1047,6 +1056,8 @@ impl Paseo {
     }
 
     fn on_disconnected(&mut self, cx: &mut Context<Self>) {
+        self.terminal_commands.state.disconnected();
+        self.terminal_commands.profiles_subscribed = false;
         if let Some(view) = &self.command_center {
             view.update(cx, |view, cx| view.disconnected(cx));
         }
@@ -1177,6 +1188,9 @@ impl Paseo {
             }
         }
         self.receive(Event::Ready(info), cx);
+        if self.terminal_commands.state.demanded {
+            self.load_terminal_profiles(true, cx);
+        }
         self.hosts.observation_request = None;
         if supports_connected_hosts {
             if let Some(host) = &self.host {
@@ -1313,6 +1327,7 @@ impl Paseo {
             return;
         }
         self.host_generation = self.host_generation.saturating_add(1);
+        self.terminal_commands = Default::default();
         if let Some(host) = self.host.take() {
             host.close();
         }
@@ -2260,7 +2275,7 @@ impl Paseo {
         cx.notify();
     }
     fn on_search_files(&mut self, _: &SearchFiles, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         if cfg!(target_os = "macos") || !self.terminal_view_focused(window, cx) {
@@ -2275,6 +2290,9 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.terminal_commands.modal() {
+            return;
+        }
         if !cfg!(target_os = "macos") && self.terminal_view_focused(window, cx) {
             cx.propagate();
             return;
@@ -2318,7 +2336,7 @@ impl Paseo {
                             .browsers
                             .get(&tab)
                             .map(|view| view.read(cx).focus_handle(cx)),
-                        None => None,
+                        Some(PaneTabKind::Launcher) | None => None,
                     })
                     .unwrap_or_else(|| self.focus.clone());
                 focus.focus(window, cx);
@@ -2333,7 +2351,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         if cfg!(target_os = "macos") || !self.terminal_view_focused(window, cx) {
@@ -2348,7 +2366,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.toggle_explorer(window, cx);
@@ -2377,7 +2395,7 @@ impl Paseo {
     }
 
     fn on_new_window(&mut self, _: &NewWindow, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         // Windows/Linux hand Ctrl+N to a focused terminal program; only the
@@ -2393,6 +2411,9 @@ impl Paseo {
         mut payload: Value,
         cx: &mut Context<Self>,
     ) -> Result<()> {
+        if self.receive_terminal_command(kind, &payload, cx)? {
+            return Ok(());
+        }
         if let Some(view) = &self.command_center {
             if view.update(cx, |view, cx| view.receive(kind, &payload, cx)) {
                 return Ok(());
@@ -3770,7 +3791,9 @@ impl Paseo {
     }
 
     fn pane_tab_kind(&self, tab_id: &str) -> Option<PaneTabKind> {
-        if self.directory.terminals.contains_key(tab_id) {
+        if tab_id.starts_with(terminal_commands::PREFIX) {
+            Some(PaneTabKind::Launcher)
+        } else if self.directory.terminals.contains_key(tab_id) {
             Some(PaneTabKind::Terminal)
         } else if self.directory.agents.contains_key(tab_id) {
             Some(PaneTabKind::Agent)
@@ -3784,6 +3807,9 @@ impl Paseo {
     }
 
     fn pane_tab_title(&self, tab_id: &str, cx: &gpui::App) -> Option<String> {
+        if tab_id.starts_with(terminal_commands::PREFIX) {
+            return Some(self.launch_text("workspace.tabs.actions.newTab"));
+        }
         if let Some(terminal) = self.directory.terminals.get(tab_id) {
             return Some(self.directory.terminal_title(terminal));
         }
@@ -3849,6 +3875,7 @@ impl Paseo {
         // page would otherwise paint over them.
         let obscured = self.scripts_menu.is_some()
             || self.workspace_menu.is_some()
+            || self.terminal_commands.modal()
             || self.command_center_open(cx);
         for (tab_id, browser) in self.browsers.iter() {
             let presented = window_visible && rendered.contains(tab_id);
@@ -4060,10 +4087,11 @@ impl Paseo {
                 self.selected_terminal = None;
                 self.selected_agent = None;
             }
-            None => {
+            Some(PaneTabKind::Launcher) | None => {
                 self.terminal = None;
                 self.selected_terminal = None;
                 self.selected_agent = None;
+                self.focus.focus(window, cx);
             }
         }
     }
@@ -4085,7 +4113,7 @@ impl Paseo {
         match self.pane_tab_kind(&tab_id) {
             Some(PaneTabKind::Terminal) => self.select_terminal(tab_id, window, cx),
             Some(PaneTabKind::Agent) => self.select_agent(tab_id, window, cx),
-            Some(PaneTabKind::File) => {
+            Some(PaneTabKind::File | PaneTabKind::Launcher) => {
                 self.close_pane(cx);
                 self.sync_active_tab(window, cx);
                 cx.notify();
@@ -4423,7 +4451,7 @@ impl Paseo {
                     }
                 }
                 Some(PaneTabKind::File) => {}
-                Some(PaneTabKind::Browser) => {}
+                Some(PaneTabKind::Browser | PaneTabKind::Launcher) => {}
                 None => {}
             }
         }
@@ -4554,7 +4582,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.split_focused_pane(SplitPosition::Right, window, cx);
@@ -4566,7 +4594,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.split_focused_pane(SplitPosition::Bottom, window, cx);
@@ -4578,7 +4606,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Left, window, cx);
@@ -4590,14 +4618,14 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Right, window, cx);
     }
 
     fn on_focus_pane_up(&mut self, _: &FocusPaneUp, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Up, window, cx);
@@ -4609,35 +4637,35 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Down, window, cx);
     }
 
     fn on_move_tab_left(&mut self, _: &MoveTabLeft, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.move_focused_tab(FocusDirection::Left, window, cx);
     }
 
     fn on_move_tab_right(&mut self, _: &MoveTabRight, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.move_focused_tab(FocusDirection::Right, window, cx);
     }
 
     fn on_move_tab_up(&mut self, _: &MoveTabUp, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.move_focused_tab(FocusDirection::Up, window, cx);
     }
 
     fn on_move_tab_down(&mut self, _: &MoveTabDown, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.move_focused_tab(FocusDirection::Down, window, cx);
@@ -4648,7 +4676,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.command_center_open(cx) {
+        if self.command_center_open(cx) || self.terminal_commands.modal() {
             return;
         }
         self.close_focused_pane(window, cx);
@@ -5364,15 +5392,22 @@ impl Render for Paseo {
                         |header| header.child(crate::window_chrome::controls(window)),
                     ),
             )
-            .when_some(self.error.clone(), |view, error| {
-                view.child(
-                    div()
-                        .px_4()
-                        .py_2()
-                        .text_color(rgb(palette.status_danger))
-                        .child(error),
-                )
-            })
+            .when_some(
+                self.error.clone().or_else(|| {
+                    self.terminal_commands
+                        .state
+                        .error_for(self.selected_workspace.as_deref())
+                }),
+                |view, error| {
+                    view.child(
+                        div()
+                            .px_4()
+                            .py_2()
+                            .text_color(rgb(palette.status_danger))
+                            .child(error),
+                    )
+                },
+            )
             .child(if let Some(pane) = pane {
                 div()
                     .flex()
@@ -5452,6 +5487,10 @@ impl Render for Paseo {
             .on_action(cx.listener(Self::on_move_tab_up))
             .on_action(cx.listener(Self::on_move_tab_down))
             .on_action(cx.listener(Self::on_close_focused_pane))
+            .on_action(cx.listener(Self::on_new_tab))
+            .on_action(cx.listener(Self::on_new_terminal))
+            .on_action(cx.listener(Self::on_new_browser))
+            .on_key_down(cx.listener(Self::on_launcher_key))
             .on_action(cx.listener(Self::on_new_window))
             .on_action(cx.listener(Self::on_toggle_explorer))
             .on_action(cx.listener(Self::on_toggle_explorer_terminal))
@@ -5560,6 +5599,9 @@ impl Render for Paseo {
                     )
                 },
             )
+            .when_some(self.render_new_tab_overlay(cx), |root, overlay| {
+                root.child(overlay)
+            })
             .when_some(
                 self.command_center
                     .clone()
@@ -5589,6 +5631,8 @@ impl Paseo {
         let measure = cx.entity();
         let active_panes: BTreeSet<_> = layout.panes().into_iter().map(|pane| pane.id).collect();
         self.tab_rail.retain(&layout);
+        self.terminal_commands
+            .retain(self.selected_workspace.as_deref(), &layout);
         self.pane_bounds.retain(|id, _| active_panes.contains(id));
         div()
             .id("split-area")
@@ -5714,7 +5758,7 @@ impl Paseo {
         let drop_target = self.tab_drag.as_ref().is_some_and(|drag| {
             drag.moved && drag.hovered_pane.as_deref() == Some(pane_id.as_str())
         });
-        let content: Option<gpui::AnyElement> = match focused_tab
+        let mut content: Option<gpui::AnyElement> = match focused_tab
             .as_deref()
             .and_then(|tab| self.pane_tab_kind(tab).map(|kind| (tab, kind)))
         {
@@ -5739,6 +5783,15 @@ impl Paseo {
             _ => None,
         };
 
+        if (focused_tab.is_none()
+            && self.selected_workspace.is_some()
+            && self.terminal_inventory_workspace == self.selected_workspace)
+            || focused_tab
+                .as_deref()
+                .is_some_and(|id| id.starts_with(terminal_commands::PREFIX))
+        {
+            content = Some(self.render_launcher(&pane_id, focused_tab.clone(), window, cx));
+        }
         let strip = self.render_workspace_tab_row(&pane, drop_target, window, cx);
 
         let measure = cx.entity();

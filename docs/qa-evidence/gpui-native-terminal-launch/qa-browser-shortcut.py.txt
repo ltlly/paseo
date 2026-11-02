@@ -1,0 +1,3 @@
+from qa import *
+checks.update(json.loads((q/'checks.json').read_text()));run('click',1000,154);placeholder=active()['focusedTab'];assert placeholder.startswith('launcher:');run('key','Control_L','Shift_L','b');wait_for(lambda:active()['focusedTab'].startswith('browser-'));browser=active()['focusedTab'];assert placeholder not in active()['tabs'];snap('browser-keyboard-entry.png');checks['browserShortcutReplacesItsLauncher']=True
+run('middle',985,154);wait_for(lambda:browser not in active()['tabs']);assert len(active()['tabs'])==4;persist();print(json.dumps(checks))

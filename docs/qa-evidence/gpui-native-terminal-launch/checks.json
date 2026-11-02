@@ -1,0 +1,21 @@
+{
+  "terminalOwnsCtrlT": true,
+  "systemEscapePreservesPTYAndFocusedTab": true,
+  "confirmedBackgroundCloseExactId": true,
+  "ctrlTAddsNewTabInEmptyWorkspace": true,
+  "plainTerminalUsesCapturedWorkspaceAndReplacesLauncher": true,
+  "emptySplitHasLauncher": true,
+  "delayedGrokReplyStaysInOriginalWorkspaceAndSplitWithoutStealingFocus": true,
+  "returnRestoresNewSplitTerminal": true,
+  "menuOwnsNavigationAndEscapeRestoresTTYInput": true,
+  "closeLastTerminalCollapsesOnlyItsOwnPane": true,
+  "closeInventoryBeforeAckRestoresKeyboardFocus": true,
+  "newTabKeyboardProfileChoiceReplacesOnlyPlaceholder": true,
+  "explicitEmptyProfileConfigHotReloadsOpenMenuWithoutDefaults": true,
+  "profileCatalogRestoresAfterConfigChange": true,
+  "finalMainHostCatalogProfileLaunchReplacesItsLauncher": true,
+  "finalCloseCancelAndConfirmPreserveOtherTTYInput": true,
+  "freshLauncherDoesNotInheritAnotherTabsProfile": true,
+  "returningLauncherKeepsItsOwnProfileChoice": true,
+  "browserShortcutReplacesItsLauncher": true
+}

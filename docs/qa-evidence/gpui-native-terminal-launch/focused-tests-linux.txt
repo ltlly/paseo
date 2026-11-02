@@ -1,0 +1,15 @@
+   Compiling paseo-desktop v0.14.0 (/home/ltlly/Code/paseo/packages/desktop/native)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.05s
+     Running unittests src/lib.rs (target/debug/deps/paseo_desktop-57454866484160fc)
+
+running 8 tests
+test terminal_lifecycle::tests::a_config_push_supersedes_an_older_read_and_keeps_an_explicit_empty_catalog ... ok
+test terminal_lifecycle::tests::a_created_terminal_replaces_only_its_launcher_and_keeps_background_focus ... ok
+test terminal_lifecycle::tests::config_generations_empty_profiles_and_mismatched_kills_are_explicit ... ok
+test terminal_lifecycle::tests::disconnect_does_not_replay_mutations_or_allow_an_old_config_to_win ... ok
+test terminal_lifecycle::tests::expired_create_keeps_its_destination_and_late_error_ownership ... ok
+test terminal_lifecycle::tests::inventory_before_create_reply_cannot_move_a_terminal_out_of_its_requested_pane ... ok
+test terminal_lifecycle::tests::profiles_match_the_authored_launch_and_icon_oracle ... ok
+test terminal_lifecycle::tests::rpc_errors_and_invalid_create_replies_stay_in_the_original_workspace ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 393 filtered out; finished in 0.00s

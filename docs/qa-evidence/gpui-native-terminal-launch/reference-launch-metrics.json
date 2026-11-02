@@ -1,0 +1,50 @@
+[
+  {
+    "id": "workspace-new-tab-button",
+    "box": {
+      "x": 891,
+      "y": 39.5,
+      "width": 28,
+      "height": 28
+    },
+    "text": "",
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "background": "rgba(255, 255, 255, 0.08)"
+  },
+  {
+    "id": "workspace-new-tab-panel",
+    "box": {
+      "x": 320,
+      "y": 72,
+      "width": 960,
+      "height": 728
+    },
+    "text": "AgentCtrl+Shift+ATerminalCtrl+Shift+TBrowserCtrl+Shift+BTerminal profilesPi fixtureGrok fixtureUnlabelled icon",
+    "font": "16px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "background": "rgba(0, 0, 0, 0)"
+  },
+  {
+    "id": "workspace-new-tab-button",
+    "box": {
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0
+    },
+    "text": "",
+    "font": "13.3333px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "background": "rgba(0, 0, 0, 0)"
+  },
+  {
+    "id": "workspace-new-tab-menu",
+    "box": {
+      "x": 891,
+      "y": 71.5,
+      "width": 200,
+      "height": 262
+    },
+    "text": "AgentCtrl+Shift+ATerminalCtrl+Shift+TBrowserCtrl+Shift+BTerminal profilesPi fixtureGrok fixtureUnlabelled iconEdit profiles",
+    "font": "16px system-ui, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
+    "background": "rgb(30, 33, 32)"
+  }
+]

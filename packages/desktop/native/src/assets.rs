@@ -8,6 +8,71 @@ impl AssetSource for Assets {
     fn load(&self, path: &str) -> anyhow::Result<Option<Cow<'static, [u8]>>> {
         let bytes: &'static [u8] = match path {
             "icons/loading-spinner.svg" => include_bytes!("../assets/icons/loading-spinner.svg"),
+            "icons/profile-agoragentic-acp.svg" => {
+                include_bytes!("../assets/icons/profile-agoragentic-acp.svg")
+            }
+            "icons/profile-amp-acp.svg" => include_bytes!("../assets/icons/profile-amp-acp.svg"),
+            "icons/profile-auggie.svg" => include_bytes!("../assets/icons/profile-auggie.svg"),
+            "icons/profile-autohand.svg" => include_bytes!("../assets/icons/profile-autohand.svg"),
+            "icons/profile-cline.svg" => include_bytes!("../assets/icons/profile-cline.svg"),
+            "icons/profile-codebuddy-code.svg" => {
+                include_bytes!("../assets/icons/profile-codebuddy-code.svg")
+            }
+            "icons/profile-codewhale.svg" => {
+                include_bytes!("../assets/icons/profile-codewhale.svg")
+            }
+            "icons/profile-cortex-code.svg" => {
+                include_bytes!("../assets/icons/profile-cortex-code.svg")
+            }
+            "icons/profile-corust-agent.svg" => {
+                include_bytes!("../assets/icons/profile-corust-agent.svg")
+            }
+            "icons/profile-crow-cli.svg" => include_bytes!("../assets/icons/profile-crow-cli.svg"),
+            "icons/profile-cursor.svg" => include_bytes!("../assets/icons/profile-cursor.svg"),
+            "icons/profile-deepagents.svg" => {
+                include_bytes!("../assets/icons/profile-deepagents.svg")
+            }
+            "icons/profile-devin.svg" => include_bytes!("../assets/icons/profile-devin.svg"),
+            "icons/profile-dimcode.svg" => include_bytes!("../assets/icons/profile-dimcode.svg"),
+            "icons/profile-dirac.svg" => include_bytes!("../assets/icons/profile-dirac.svg"),
+            "icons/profile-factory-droid.svg" => {
+                include_bytes!("../assets/icons/profile-factory-droid.svg")
+            }
+            "icons/profile-fast-agent.svg" => {
+                include_bytes!("../assets/icons/profile-fast-agent.svg")
+            }
+            "icons/profile-gemini.svg" => include_bytes!("../assets/icons/profile-gemini.svg"),
+            "icons/profile-gjc.svg" => include_bytes!("../assets/icons/profile-gjc.svg"),
+            "icons/profile-glm-acp-agent.svg" => {
+                include_bytes!("../assets/icons/profile-glm-acp-agent.svg")
+            }
+            "icons/profile-goose.svg" => include_bytes!("../assets/icons/profile-goose.svg"),
+            "icons/profile-grok.svg" => include_bytes!("../assets/icons/profile-grok.svg"),
+            "icons/profile-hermes.svg" => include_bytes!("../assets/icons/profile-hermes.svg"),
+            "icons/profile-hoplite.svg" => include_bytes!("../assets/icons/profile-hoplite.svg"),
+            "icons/profile-junie.svg" => include_bytes!("../assets/icons/profile-junie.svg"),
+            "icons/profile-kilo.svg" => include_bytes!("../assets/icons/profile-kilo.svg"),
+            "icons/profile-kimi.svg" => include_bytes!("../assets/icons/profile-kimi.svg"),
+            "icons/profile-minimax-code.svg" => {
+                include_bytes!("../assets/icons/profile-minimax-code.svg")
+            }
+            "icons/profile-minion-code.svg" => {
+                include_bytes!("../assets/icons/profile-minion-code.svg")
+            }
+            "icons/profile-mistral-vibe.svg" => {
+                include_bytes!("../assets/icons/profile-mistral-vibe.svg")
+            }
+            "icons/profile-nova.svg" => include_bytes!("../assets/icons/profile-nova.svg"),
+            "icons/profile-poolside.svg" => include_bytes!("../assets/icons/profile-poolside.svg"),
+            "icons/profile-qoder.svg" => include_bytes!("../assets/icons/profile-qoder.svg"),
+            "icons/profile-qwen-code.svg" => {
+                include_bytes!("../assets/icons/profile-qwen-code.svg")
+            }
+            "icons/profile-sigit.svg" => include_bytes!("../assets/icons/profile-sigit.svg"),
+            "icons/profile-stakpak.svg" => include_bytes!("../assets/icons/profile-stakpak.svg"),
+            "icons/profile-traecli.svg" => include_bytes!("../assets/icons/profile-traecli.svg"),
+            "icons/profile-vtcode.svg" => include_bytes!("../assets/icons/profile-vtcode.svg"),
+            "icons/profile-agy.svg" => include_bytes!("../assets/icons/profile-agy.svg"),
             "icons/window-custom-windows-minimize.svg" => {
                 include_bytes!("../assets/icons/window-custom-windows-minimize.svg")
             }
@@ -86,6 +151,9 @@ impl AssetSource for Assets {
             "icons/mic.svg" => include_bytes!("../assets/icons/mic.svg"),
             "icons/audio-lines.svg" => include_bytes!("../assets/icons/audio-lines.svg"),
             "icons/square-terminal.svg" => include_bytes!("../assets/icons/square-terminal.svg"),
+            "icons/square-pen.svg" => include_bytes!("../assets/icons/square-pen.svg"),
+            "icons/globe.svg" => include_bytes!("../assets/icons/globe.svg"),
+            "icons/git-pull-request.svg" => include_bytes!("../assets/icons/git-pull-request.svg"),
             "icons/terminal.svg" => include_bytes!("../assets/icons/terminal.svg"),
             "icons/paperclip.svg" => include_bytes!("../assets/icons/paperclip.svg"),
             "icons/image.svg" => include_bytes!("../assets/icons/image.svg"),
@@ -114,6 +182,45 @@ impl AssetSource for Assets {
     fn list(&self, path: &str) -> anyhow::Result<Vec<SharedString>> {
         Ok([
             "icons/loading-spinner.svg",
+            "icons/profile-agoragentic-acp.svg",
+            "icons/profile-amp-acp.svg",
+            "icons/profile-auggie.svg",
+            "icons/profile-autohand.svg",
+            "icons/profile-cline.svg",
+            "icons/profile-codebuddy-code.svg",
+            "icons/profile-codewhale.svg",
+            "icons/profile-cortex-code.svg",
+            "icons/profile-corust-agent.svg",
+            "icons/profile-crow-cli.svg",
+            "icons/profile-cursor.svg",
+            "icons/profile-deepagents.svg",
+            "icons/profile-devin.svg",
+            "icons/profile-dimcode.svg",
+            "icons/profile-dirac.svg",
+            "icons/profile-factory-droid.svg",
+            "icons/profile-fast-agent.svg",
+            "icons/profile-gemini.svg",
+            "icons/profile-gjc.svg",
+            "icons/profile-glm-acp-agent.svg",
+            "icons/profile-goose.svg",
+            "icons/profile-grok.svg",
+            "icons/profile-hermes.svg",
+            "icons/profile-hoplite.svg",
+            "icons/profile-junie.svg",
+            "icons/profile-kilo.svg",
+            "icons/profile-kimi.svg",
+            "icons/profile-minimax-code.svg",
+            "icons/profile-minion-code.svg",
+            "icons/profile-mistral-vibe.svg",
+            "icons/profile-nova.svg",
+            "icons/profile-poolside.svg",
+            "icons/profile-qoder.svg",
+            "icons/profile-qwen-code.svg",
+            "icons/profile-sigit.svg",
+            "icons/profile-stakpak.svg",
+            "icons/profile-traecli.svg",
+            "icons/profile-vtcode.svg",
+            "icons/profile-agy.svg",
             "icons/window-custom-windows-minimize.svg",
             "icons/window-custom-windows-maximize.svg",
             "icons/window-custom-windows-restore.svg",
@@ -172,6 +279,9 @@ impl AssetSource for Assets {
             "icons/mic.svg",
             "icons/audio-lines.svg",
             "icons/square-terminal.svg",
+            "icons/square-pen.svg",
+            "icons/globe.svg",
+            "icons/git-pull-request.svg",
             "icons/terminal.svg",
             "icons/paperclip.svg",
             "icons/image.svg",

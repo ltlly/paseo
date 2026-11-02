@@ -1,0 +1,7 @@
+from qa import *
+checks.update(json.loads((q/'checks-before-focus-fix.json').read_text()))
+exec((q/'qa-step2.py').read_text().replace("checks.update(json.loads((q/'checks.json').read_text()))",''))
+run('click',988,154);before=len(responses('create_terminal_response'));run('click',1050,340);wait_for(lambda:len(responses('create_terminal_response'))==before+1);created=responses('create_terminal_response')[-1]['terminal'];wait_for(lambda:active()['focusedTab']==created['id']);run('type','fixed-create-proof');wait_for(lambda:b'fixed-create-proof'in raw())
+run('middle',1030,154);dialog('key','Return');wait_for(lambda:len(panes(layout()['root']))==1);assert 'alpha.rs'in active()['focusedTab'];run('key','Control_L','t');wait_for(lambda:active()['focusedTab'].startswith('launcher:'));checks['closeInventoryBeforeAckRestoresKeyboardFocus']=True
+placeholder=active()['focusedTab'];before=len(requests('create_terminal_request'));run('key','Down');run('key','Down');run('key','Return');wait_for(lambda:len(requests('create_terminal_request'))==before+1);req=requests('create_terminal_request')[-1];assert req['name']=='Pi fixture';assert req['args']==[m['cwd']+'/keyboard.cjs'];wait_for(lambda:placeholder not in active()['tabs']);run('type','keyboard-profile-proof');wait_for(lambda:b'keyboard-profile-proof'in raw());checks['newTabKeyboardProfileChoiceReplacesOnlyPlaceholder']=True
+snap('focus-fixed-keyboard-profile.png');persist();print(json.dumps(checks))

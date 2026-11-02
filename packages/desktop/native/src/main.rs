@@ -17,11 +17,13 @@ mod hosts_surface;
 mod identity_colors;
 mod image_view;
 mod inline_input;
+mod launcher_presentation;
 mod line_diff;
 #[allow(dead_code)]
 mod message_geometry;
 mod message_style;
 mod message_view;
+mod native_confirmation;
 mod pane_actions;
 mod permission_board;
 mod plan_row;
@@ -34,6 +36,7 @@ mod schedules_view;
 mod settings_view;
 mod sync_presentation;
 mod syntax;
+mod terminal_profile_icons;
 mod terminal_view;
 mod text_field;
 mod theme;
@@ -132,6 +135,9 @@ fn main() {
                 ui::CloseFocusedPane,
                 None,
             ),
+            KeyBinding::new(&format!("{pane_modifier}-t"), ui::NewTab, None),
+            KeyBinding::new(&format!("{pane_modifier}-shift-b"), ui::NewBrowser, None),
+            KeyBinding::new(&format!("{pane_modifier}-shift-t"), ui::NewTerminal, None),
             KeyBinding::new(&format!("{pane_modifier}-n"), ui::NewWindow, None),
             KeyBinding::new(&format!("{pane_modifier}-e"), ui::ToggleExplorer, None),
             KeyBinding::new("ctrl-`", ui::ToggleExplorerTerminal, None),
