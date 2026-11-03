@@ -245,6 +245,19 @@ function applyCharacterWidths(terminal: Terminal, widths: TerminalCharacterWidth
   terminal.unicode.activeVersion = widths === "graphemes" ? "15-graphemes" : "11";
 }
 
+function silenceUnusedRenderLayerAtlas(webglAddon: WebglAddon): void {
+  const renderer = (
+    webglAddon as unknown as {
+      _renderer?: { _renderLayers?: Array<{ _refreshCharAtlas?: () => void }> };
+    }
+  )._renderer;
+  for (const layer of renderer?._renderLayers ?? []) {
+    if (typeof layer?._refreshCharAtlas === "function") {
+      layer._refreshCharAtlas = () => {};
+    }
+  }
+}
+
 export class TerminalEmulatorRuntime {
   constructor(
     private readonly options: FindShortcutPlatform = { isMac: isMacUserAgent() },
@@ -601,7 +614,6 @@ export class TerminalEmulatorRuntime {
         },
       }),
     );
-    this.loadSearchAddon(terminal);
     terminal.onWriteParsed(() => {
       // Even a bottom viewport is an inspected location while searching. A
       // marker follows buffer trimming; output writes remain batched normally.
@@ -688,6 +700,11 @@ export class TerminalEmulatorRuntime {
           disposeWebglRenderer({ refit: true });
         });
         terminal.loadAddon(webglAddon);
+        // COMPAT(xterm-link-layer-atlas): added in v0.15.0-ltlly.1, remove after 2027-04-01
+        // once @xterm/addon-webgl includes https://github.com/xtermjs/xterm.js/pull/6156.
+        // BaseRenderLayer acquires a 2048-sized TextureAtlas that LinkRenderLayer never reads,
+        // evicting and recreating a sole-owner terminal's real MAX_TEXTURE_SIZE atlas on resize/theme change.
+        silenceUnusedRenderLayerAtlas(webglAddon);
         this.fitAndEmitResize?.({ forceRefresh: true, shouldClaim: false });
       } catch {
         webglUnavailable = true;
@@ -844,7 +861,7 @@ export class TerminalEmulatorRuntime {
 
     const fitTimeouts = FIT_TIMEOUT_DELAYS_MS.map((delayMs) =>
       window.setTimeout(() => {
-        fitAndEmitResize({ forceRefresh: true, shouldClaim: false });
+        fitAndEmitResize({ shouldClaim: false });
       }, delayMs),
     );
 
@@ -865,10 +882,6 @@ export class TerminalEmulatorRuntime {
       .catch(() => {
         // no-op
       });
-
-    window.setTimeout(() => {
-      fitAndEmitResize({ forceRefresh: true, shouldClaim: false });
-    }, 0);
 
     this.processOutputQueue();
 

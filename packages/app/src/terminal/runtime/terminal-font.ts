@@ -48,13 +48,32 @@ export function resolveTerminalFontFamily(
   return "monospace";
 }
 
+let browserFontMeasureContext: CanvasRenderingContext2D | null | undefined;
+const resolvedBrowserTerminalFonts = new Map<string, string>();
+
+function getBrowserFontMeasureContext(): CanvasRenderingContext2D | null {
+  if (typeof document === "undefined") return null;
+  if (browserFontMeasureContext === undefined) {
+    browserFontMeasureContext = document.createElement("canvas").getContext("2d");
+  }
+  return browserFontMeasureContext;
+}
+
 export function resolveBrowserTerminalFontFamily(
   fontFamily: string | undefined,
   fontSize: number,
 ): string {
-  const context =
-    typeof document === "undefined" ? null : document.createElement("canvas").getContext("2d");
-  return resolveTerminalFontFamily(
+  const fallbackFamily =
+    typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent)
+      ? WINDOWS_TERMINAL_FONT_FAMILY
+      : DEFAULT_TERMINAL_FONT_FAMILY;
+  const trimmed = fontFamily?.trim() ?? "";
+  const cacheKey = `${fallbackFamily}|${fontSize}|${trimmed}`;
+  const cached = resolvedBrowserTerminalFonts.get(cacheKey);
+  if (cached) return cached;
+
+  const context = getBrowserFontMeasureContext();
+  const resolved = resolveTerminalFontFamily(
     fontFamily,
     context
       ? (family, text) => {
@@ -62,10 +81,14 @@ export function resolveBrowserTerminalFontFamily(
           return context.measureText(text).width;
         }
       : undefined,
-    typeof navigator !== "undefined" && /Windows/i.test(navigator.userAgent)
-      ? WINDOWS_TERMINAL_FONT_FAMILY
-      : DEFAULT_TERMINAL_FONT_FAMILY,
+    fallbackFamily,
   );
+  // Cache once the requested stack (or the default when none was requested) resolves;
+  // if a custom font fell back before document.fonts finished loading, recheck later.
+  if (!trimmed || resolved === trimmed) {
+    resolvedBrowserTerminalFonts.set(cacheKey, resolved);
+  }
+  return resolved;
 }
 
 export function resolveTerminalFontSize(fontSize: number | undefined): number {

@@ -404,6 +404,83 @@ describe("terminal emulator runtime in a real browser", () => {
     await expect.poll(imagePixel).toEqual([255, 0, 0, 255]);
   });
 
+  it("retains the WebGL texture atlas across container resizes and unchanged theme updates", async () => {
+    await page.viewport(1200, 700);
+    const mounted = createTerminalHost({ width: 540, height: 320 });
+    await expect
+      .poll(() => mounted.host.querySelectorAll(".xterm-screen > canvas:not([class])").length)
+      .toBe(1);
+    await writeLines(mounted, ["hello https://example.com world"]);
+
+    interface AtlasProbe {
+      dispose(): void;
+      __probeTag?: string;
+      __probeDisposeCount?: number;
+    }
+    const readRendererAtlas = (): AtlasProbe | undefined => {
+      const terminal = window.__paseoTerminal as unknown as {
+        _core?: { _renderService?: { _renderer?: { value?: { _charAtlas?: AtlasProbe } } } };
+      };
+      return terminal?._core?._renderService?._renderer?.value?._charAtlas;
+    };
+
+    const initialAtlas = readRendererAtlas();
+    expect(initialAtlas).toBeDefined();
+    if (!initialAtlas) {
+      throw new Error("Expected WebGL renderer texture atlas to be initialized");
+    }
+    initialAtlas.__probeTag = "original";
+    initialAtlas.__probeDisposeCount = 0;
+    const originalDispose = initialAtlas.dispose.bind(initialAtlas);
+    initialAtlas.dispose = () => {
+      initialAtlas.__probeDisposeCount = (initialAtlas.__probeDisposeCount ?? 0) + 1;
+      originalDispose();
+    };
+
+    for (const [width, height] of [
+      [720, 380],
+      [540, 320],
+      [860, 440],
+      [540, 320],
+    ] as const) {
+      mounted.root.style.width = `${width}px`;
+      mounted.root.style.height = `${height}px`;
+      mounted.runtime.resize({ forceRefresh: true, shouldClaim: false });
+      await writeLines(mounted, [`resized ${width}x${height}`]);
+    }
+
+    mounted.runtime.setTheme({
+      theme: {
+        background: "#0b0b0b",
+        foreground: "#e6e6e6",
+        cursor: "#e6e6e6",
+      },
+    });
+    await writeLines(mounted, ["after theme"]);
+
+    const finalAtlas = readRendererAtlas();
+    expect(finalAtlas?.__probeTag).toBe("original");
+    expect(initialAtlas.__probeDisposeCount).toBe(0);
+  });
+
+  it("loads the search addon on demand when searching instead of eagerly at mount", async () => {
+    await page.viewport(900, 600);
+    const mounted = createTerminalHost({ width: 720, height: 360 });
+    await waitFor({ predicate: () => mounted.sizes.length > 0 });
+    await writeLines(mounted, ["searchable line one", "searchable needle line"]);
+
+    const readSearchAddon = () =>
+      (mounted.runtime as unknown as { searchAddon: unknown }).searchAddon;
+    expect(readSearchAddon()).toBeNull();
+
+    mounted.runtime.find.search("needle");
+    expect(readSearchAddon()).not.toBeNull();
+    expect(window.__paseoTerminal?.getSelection()).toBe("needle");
+
+    mounted.runtime.find.clear();
+    expect(readSearchAddon()).toBeNull();
+  });
+
   it("commits an early asynchronous PNG before switching to the GPU renderer", async () => {
     const mounted = createTerminalHost({ width: 720, height: 360 });
     const source = document.createElement("canvas");
@@ -550,6 +627,34 @@ describe("terminal emulator runtime in a real browser", () => {
     expect(mounted.sizes.filter((size) => size.shouldClaim)).toEqual([
       { ...settledSize, shouldClaim: true, forceClaim: true },
     ]);
+  });
+
+  it("keeps a settled terminal idle while mount measurements retry", async () => {
+    await page.viewport(900, 600);
+    const mounted = createTerminalHost({ width: 720, height: 360 });
+    await document.fonts.ready;
+    await expect
+      .poll(() => mounted.host.querySelectorAll(".xterm-screen > canvas:not([class])").length)
+      .toBe(1);
+    await writeLines(mounted, ["\x1b[?25lready"]);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    const terminal = window.__paseoTerminal!;
+    const renders: Array<{ start: number; end: number }> = [];
+    const subscription = terminal.onRender((rows) => renders.push(rows));
+    mounted.sizes.length = 0;
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      expect(mounted.sizes).toEqual([]);
+      expect(renders).toEqual([]);
+    } finally {
+      subscription.dispose();
+    }
+
+    dispatchTerminalKey({ host: mounted.host, key: "a", keyCode: 65 });
+    expect(mounted.inputs).toEqual(["a"]);
+    await writeLines(mounted, ["live output"]);
+    expect(terminal.buffer.active.getLine(1)?.translateToString(true)).toBe("live output");
   });
 
   it("reports a larger PTY size when the terminal container grows", async () => {

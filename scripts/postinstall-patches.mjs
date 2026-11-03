@@ -78,6 +78,12 @@ const patchedPackages = [
     patchPrefix: "@opencode-ai+sdk+",
     cwd: "packages/server",
   },
+  // Backport of https://github.com/xtermjs/xterm.js/pull/6156: stop BaseRenderLayer
+  // from acquiring an unused 2048-sized TextureAtlas on every resize and color change.
+  {
+    nodeModulesPath: "node_modules/@xterm/addon-webgl",
+    patchPrefix: "@xterm+addon-webgl+",
+  },
 ];
 
 const installedPackages = patchedPackages.filter(({ nodeModulesPath }) =>

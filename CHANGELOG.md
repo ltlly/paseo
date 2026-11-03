@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.0-ltlly.2 - 2026-11-03
+
+### Improved
+
+- Retained the WebGL character atlas across terminal resizes and unchanged theme updates instead of rebuilding a 2048-pixel link-layer atlas on every resize ([#6156](https://github.com/xtermjs/xterm.js/pull/6156))
+- Kept settled terminals idle during post-mount measurement retries, loaded the terminal search addon on demand, and reused cached browser font measurements
+
 ## 0.15.0-ltlly.1 - 2026-11-03
 
 Daemon restarts now keep terminal programs running and can resume interrupted agents in their existing conversations when enabled.

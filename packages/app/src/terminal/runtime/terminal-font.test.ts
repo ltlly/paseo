@@ -1,11 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_TERMINAL_FONT_FAMILY,
   WINDOWS_TERMINAL_FONT_FAMILY,
+  resolveBrowserTerminalFontFamily,
   resolveTerminalFontFamily,
 } from "./terminal-font";
 
 describe("terminal font fallback", () => {
+  const originalDocument = (globalThis as { document?: unknown }).document;
+
+  afterEach(() => {
+    (globalThis as { document?: unknown }).document = originalDocument;
+    vi.restoreAllMocks();
+  });
+
   it("prefers installed Windows programming fonts when the configured stack is proportional", () => {
     expect(
       resolveTerminalFontFamily(
@@ -50,5 +58,43 @@ describe("terminal font fallback", () => {
     expect(
       resolveTerminalFontFamily("Broken", (family) => (family === "monospace" ? 8 : NaN)),
     ).toBe("monospace");
+  });
+
+  it("reuses the browser measurement canvas and caches resolved monospace stacks", () => {
+    let customFontLoaded = false;
+    const measureCalls: Array<{ font: string; text: string }> = [];
+    const context = {
+      font: "",
+      measureText(text: string) {
+        measureCalls.push({ font: this.font, text });
+        if (this.font.includes("DelayedBrowserMono") && !customFontLoaded && text === "i") {
+          return { width: 3 };
+        }
+        return { width: 8 };
+      },
+    };
+    const getContext = vi.fn().mockReturnValue(context);
+    const createElement = vi.fn().mockReturnValue({ getContext });
+    (globalThis as { document?: unknown }).document = { createElement };
+
+    expect(resolveBrowserTerminalFontFamily("CachedBrowserMono, monospace", 14)).toBe(
+      "CachedBrowserMono, monospace",
+    );
+    const firstCallMeasures = measureCalls.length;
+    expect(firstCallMeasures).toBeGreaterThan(0);
+
+    expect(resolveBrowserTerminalFontFamily("CachedBrowserMono, monospace", 14)).toBe(
+      "CachedBrowserMono, monospace",
+    );
+    expect(measureCalls.length).toBe(firstCallMeasures);
+    expect(createElement).toHaveBeenCalledTimes(1);
+
+    expect(resolveBrowserTerminalFontFamily("DelayedBrowserMono, sans-serif", 14)).toBe(
+      DEFAULT_TERMINAL_FONT_FAMILY,
+    );
+    customFontLoaded = true;
+    expect(resolveBrowserTerminalFontFamily("DelayedBrowserMono, sans-serif", 14)).toBe(
+      "DelayedBrowserMono, sans-serif",
+    );
   });
 });
