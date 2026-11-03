@@ -64,7 +64,10 @@ import {
   terminalWorkerRecordPath,
   type TerminalWorkerRecord,
 } from "./terminal-worker-record.js";
-import { TERMINAL_WORKER_PROTOCOL_OVERRIDE_ENV } from "./terminal-worker-protocol.js";
+import {
+  TERMINAL_WORKER_PROTOCOL_OVERRIDE_ENV,
+  TERMINAL_WORKER_PROTOCOL_VERSION,
+} from "./terminal-worker-protocol.js";
 import {
   NoTerminalWorkerAvailableError,
   TerminalWorkerIncompatibleError,
@@ -1195,6 +1198,8 @@ it("sets terminal activity through a worker request", async () => {
   worker.emitWorkerMessage({ type: "response", requestId: request.requestId, ok: true });
 
   await expect(result).resolves.toBe(true);
+  // A successful hook request may be ignored by the worker while OSC 7501 owns status.
+  expect(manager.getTerminal("terminal-a")?.getActivity()).toBeNull();
 });
 
 it("clears terminal attention through a worker request", async () => {
@@ -1618,6 +1623,37 @@ async function leaveWorkerWithTerminal(
   };
 }
 
+it("drains protocol 5 terminals while new terminals use the OSC-capable worker", async () => {
+  const paseoHome = createTemporaryHome();
+  const old = await leaveWorkerWithTerminal(paseoHome, 5);
+  manager = await startRealWorkerManager({ paseoHome });
+  expect(manager.getTerminal(old.terminalId)).toBeDefined();
+  expect(isProcessAlive(old.programPid)).toBe(true);
+  const current = await manager.createTerminal({
+    workspaceId: "ws-protocol",
+    cwd: old.cwd,
+    ...nodeTerminalCommand(
+      "process.stdout.write('\\x1b]7501;state=working:app=codex\\x07'); setInterval(() => {}, 1000)",
+    ),
+  });
+  await waitForCondition(() => current.getActivity()?.state === "working", 10000);
+  const workers = await workerRecords(paseoHome);
+  expect(workers).toHaveLength(2);
+  expect(
+    workers
+      .find((record) => record.pid === old.workerPid)
+      ?.terminals.map((terminal) => terminal.id),
+  ).toEqual([old.terminalId]);
+  expect(
+    workers
+      .find((record) => record.protocolVersion === TERMINAL_WORKER_PROTOCOL_VERSION)
+      ?.terminals.map((terminal) => terminal.id),
+  ).toEqual([current.id]);
+  await manager.killTerminalAndWait(old.terminalId);
+  await waitForCondition(() => !isProcessAlive(old.workerPid), 10000);
+  expect(manager.getTerminal(current.id)?.getActivity()?.state).toBe("working");
+});
+
 it.each([1, 4])(
   "hard cuts unreleased worker protocol %s, closing its terminals",
   async (version) => {
@@ -1646,19 +1682,20 @@ it.each([1, 4])(
     expect(manager.getTerminal(old.terminalId)).toBeUndefined();
     const workers = await workerRecords(paseoHome);
     expect(workers).toHaveLength(1);
-    expect(workers[0]!.protocolVersion).toBe(5);
+    expect(workers[0]!.protocolVersion).toBe(TERMINAL_WORKER_PROTOCOL_VERSION);
   },
 );
 
 it("leaves a worker from a newer Paseo running, reports it incompatible, and closes it on a kill stop", async () => {
   const paseoHome = createTemporaryHome();
-  const newer = await leaveWorkerWithTerminal(paseoHome, 6);
+  const newerVersion = TERMINAL_WORKER_PROTOCOL_VERSION + 1;
+  const newer = await leaveWorkerWithTerminal(paseoHome, newerVersion);
 
   manager = await startRealWorkerManager({ paseoHome });
 
   const unavailable = manager.getUnavailableError?.();
   expect(unavailable).toBeInstanceOf(TerminalWorkerIncompatibleError);
-  expect(unavailable?.message).toContain("worker protocol 6");
+  expect(unavailable?.message).toContain(`worker protocol ${newerVersion}`);
   await expect(manager.getTerminals(newer.cwd)).rejects.toBeInstanceOf(
     TerminalWorkerIncompatibleError,
   );
@@ -1974,7 +2011,11 @@ it("completes a replay larger than the socket budget while a sibling stays usabl
       completed = message.ok;
   });
   try {
-    framed.send({ type: "hello", secret: record!.secret, protocolVersion: 5 });
+    framed.send({
+      type: "hello",
+      secret: record!.secret,
+      protocolVersion: TERMINAL_WORKER_PROTOCOL_VERSION,
+    });
     await waitForCondition(() => began, 10000);
     framed.send({
       type: "send",

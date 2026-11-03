@@ -463,6 +463,127 @@ describe("terminal emulator runtime in a real browser", () => {
     expect(initialAtlas.__probeDisposeCount).toBe(0);
   });
 
+  it("caps WebGL texture atlas merges at 4096 and zeroes merged, evicted, and disposed canvases", async () => {
+    await page.viewport(1200, 700);
+    const mounted = createTerminalHost({ width: 540, height: 320 });
+    await expect
+      .poll(() => mounted.host.querySelectorAll(".xterm-screen > canvas:not([class])").length)
+      .toBe(1);
+
+    interface AtlasPageProbe {
+      canvas: HTMLCanvasElement;
+      glyphs: ReadonlyArray<{ texturePage: number }>;
+    }
+    interface TextureAtlasConstructorProbe {
+      maxAtlasPages?: number;
+      maxTextureSize?: number;
+    }
+    interface TextureAtlasProbe {
+      constructor: TextureAtlasConstructorProbe;
+      pages: AtlasPageProbe[];
+      _tmpCanvas: HTMLCanvasElement;
+      _createNewPage(): AtlasPageProbe;
+      getRasterizedGlyph(
+        code: number,
+        bg: number,
+        fg: number,
+        ext: number,
+        restrictToCellHeight: boolean,
+        domContainer: HTMLElement | undefined,
+      ): { texturePage: number };
+    }
+
+    const terminal = window.__paseoTerminal as unknown as {
+      element?: HTMLElement;
+      _core?: {
+        _renderService?: { _renderer?: { value?: { _charAtlas?: TextureAtlasProbe } } };
+      };
+    };
+    const atlas = terminal?._core?._renderService?._renderer?.value?._charAtlas;
+    if (!atlas) {
+      throw new Error("Expected WebGL renderer texture atlas to be initialized");
+    }
+
+    const atlasCtor = atlas.constructor;
+    const originalMaxAtlasPages = atlasCtor.maxAtlasPages;
+    const originalMaxTextureSize = atlasCtor.maxTextureSize;
+    try {
+      atlasCtor.maxAtlasPages = 4;
+      atlasCtor.maxTextureSize = 16_384;
+
+      while (atlas.pages.length < 4) {
+        atlas._createNewPage();
+      }
+      for (let index = 0; index < 4; index++) {
+        const glyph = atlas.getRasterizedGlyph(65 + index, 0, 0, 0, false, terminal.element);
+        glyph.texturePage = index;
+        const atlasPage = atlas.pages[index];
+        if (!atlasPage) {
+          throw new Error(`Expected atlas page ${index} to exist`);
+        }
+        (atlasPage.glyphs as Array<{ texturePage: number }>)[0] = glyph;
+      }
+
+      const firstFourCanvases = atlas.pages.map((atlasPage) => atlasPage.canvas);
+      for (const canvas of firstFourCanvases) {
+        expect(canvas.width).toBe(512);
+        expect(canvas.height).toBe(512);
+      }
+
+      atlas._createNewPage();
+      for (const canvas of firstFourCanvases) {
+        expect(canvas.width).toBe(0);
+        expect(canvas.height).toBe(0);
+      }
+
+      const mergedPage = atlas.pages.find((atlasPage) => atlasPage.canvas.width === 1024);
+      expect(mergedPage?.canvas.height).toBe(1024);
+      if (!mergedPage) {
+        throw new Error("Expected 4x512 atlas pages to merge into a 1024 page");
+      }
+
+      while (atlas.pages.length < 4) {
+        atlas._createNewPage();
+      }
+      for (const [index, atlasPage] of atlas.pages.entries()) {
+        atlasPage.canvas.width = 4096;
+        atlasPage.canvas.height = 4096;
+        const glyph = atlas.getRasterizedGlyph(75 + index, 0, 0, 0, false, terminal.element);
+        glyph.texturePage = index;
+        (atlasPage.glyphs as Array<{ texturePage: number }>)[0] = glyph;
+      }
+
+      const cappedCanvases = atlas.pages.map((atlasPage) => atlasPage.canvas);
+      const postEvictPage = atlas._createNewPage();
+      for (const canvas of cappedCanvases) {
+        expect(canvas.width).toBe(0);
+        expect(canvas.height).toBe(0);
+      }
+      expect(atlas.pages).toHaveLength(1);
+      expect(postEvictPage.canvas.width).toBe(512);
+      expect(postEvictPage.canvas.height).toBe(512);
+
+      const liveCanvasesBeforeDispose = [
+        atlas._tmpCanvas,
+        ...atlas.pages.map((atlasPage) => atlasPage.canvas),
+      ];
+      for (const canvas of liveCanvasesBeforeDispose) {
+        expect(canvas.width).toBeGreaterThan(0);
+        expect(canvas.height).toBeGreaterThan(0);
+      }
+
+      mounted.runtime.unmount();
+
+      for (const canvas of liveCanvasesBeforeDispose) {
+        expect(canvas.width).toBe(0);
+        expect(canvas.height).toBe(0);
+      }
+    } finally {
+      atlasCtor.maxAtlasPages = originalMaxAtlasPages;
+      atlasCtor.maxTextureSize = originalMaxTextureSize;
+    }
+  });
+
   it("loads the search addon on demand when searching instead of eagerly at mount", async () => {
     await page.viewport(900, 600);
     const mounted = createTerminalHost({ width: 720, height: 360 });
@@ -858,6 +979,31 @@ describe("terminal emulator runtime in a real browser", () => {
 
     await waitFor({ predicate: () => refreshCalls.length > 0 });
     expect(refreshCalls.at(-1)).toEqual([0, terminal.rows - 1]);
+  });
+
+  it("preserves bracketed paste when ESC and CSI arrive in separate chunks", async () => {
+    await page.viewport(900, 600);
+    const mounted = createTerminalHost({ width: 720, height: 360 });
+    await waitFor({ predicate: () => mounted.sizes.length > 0 });
+
+    for (const chunk of ["\x1b", "[?2004h"]) {
+      await new Promise<void>((resolve) => {
+        mounted.runtime.write({ data: terminalOutput(chunk), onCommitted: resolve });
+      });
+    }
+    expect(mounted.inputModeChanges.at(-1)?.bracketedPaste).toBe(true);
+    mounted.runtime.paste("split-mode paste");
+    expect(mounted.inputs).toEqual(["\x1b[200~split-mode paste\x1b[201~"]);
+
+    for (const chunk of ["\x1b", "[?2004l"]) {
+      await new Promise<void>((resolve) => {
+        mounted.runtime.write({ data: terminalOutput(chunk), onCommitted: resolve });
+      });
+    }
+    expect(mounted.inputModeChanges.at(-1)?.bracketedPaste).toBe(false);
+    mounted.inputs.length = 0;
+    mounted.runtime.paste("plain paste");
+    expect(mounted.inputs).toEqual(["plain paste"]);
   });
 
   it("intercepts Shift+Enter only after enhanced terminal input mode is active", async () => {

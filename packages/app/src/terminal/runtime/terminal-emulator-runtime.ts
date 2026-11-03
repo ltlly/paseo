@@ -332,6 +332,7 @@ export class TerminalEmulatorRuntime {
   // after another barrier it's false and the barrier applies immediately, saving a parse
   // cycle of latency. Cleared when a barrier starts (it gates every write before it).
   private hasUngatedWrites = false;
+  private hasDecodedInputModeBytes = false;
   private readonly inputModeDecoder = new TextDecoder();
   private suppressInput = false;
   private readonly inputModeTracker = new TerminalInputModeTracker();
@@ -1179,9 +1180,17 @@ export class TerminalEmulatorRuntime {
     this.lastSize = null;
     this.themeBackgroundElements = [];
     this.suppressInput = false;
-    this.inputModeDecoder.decode();
+    this.resetInputModeDecoder();
     this.inputModeTracker.reset();
     this.emitInputModeChange();
+  }
+
+  private resetInputModeDecoder(): void {
+    if (!this.hasDecodedInputModeBytes) {
+      return;
+    }
+    this.hasDecodedInputModeBytes = false;
+    this.inputModeDecoder.decode();
   }
 
   // A barrier op mutates terminal geometry or toggles suppressInput and must apply in
@@ -1247,15 +1256,25 @@ export class TerminalEmulatorRuntime {
     }
   }
 
-  private submitWrite(terminal: Terminal, operation: TerminalOutputOperation): void {
-    this.preserveFindViewport(terminal);
-    // Synchronous per-write tracking must run in frame order; doing it here in the drain
-    // loop preserves that ordering even though the writes are submitted without waiting.
-    const text = this.inputModeDecoder.decode(operation.data, { stream: true });
+  private feedInputModeData(data: TerminalOutputData): void {
+    if (!this.inputModeTracker.hasPendingSequence() && !data.includes(0x1b)) {
+      this.resetInputModeDecoder();
+      return;
+    }
+
+    this.hasDecodedInputModeBytes = true;
+    const text = this.inputModeDecoder.decode(data, { stream: true });
     const result = this.inputModeTracker.feed(text);
     if (result.changed) {
       this.emitInputModeChange();
     }
+  }
+
+  private submitWrite(terminal: Terminal, operation: TerminalOutputOperation): void {
+    this.preserveFindViewport(terminal);
+    // Synchronous per-write tracking must run in frame order; doing it here in the drain
+    // loop preserves that ordering even though the writes are submitted without waiting.
+    this.feedInputModeData(operation.data);
     this.hasUngatedWrites = true;
     const onCommitted = operation.onCommitted;
     const commit = () => {
@@ -1307,7 +1326,7 @@ export class TerminalEmulatorRuntime {
     }
 
     if (operation.type === "clear") {
-      this.inputModeDecoder.decode();
+      this.resetInputModeDecoder();
       this.inputModeTracker.reset();
       this.emitInputModeChange();
       terminal.reset();
@@ -1327,7 +1346,7 @@ export class TerminalEmulatorRuntime {
 
     if (operation.type === "snapshot") {
       this.replayResize ??= { shouldClaim: false };
-      this.inputModeDecoder.decode();
+      this.resetInputModeDecoder();
       this.inputModeTracker.reset();
       this.emitInputModeChange();
       try {
@@ -1346,11 +1365,7 @@ export class TerminalEmulatorRuntime {
 
     const data = operation.data;
     if (operation.type === "write") {
-      const text = this.inputModeDecoder.decode(data, { stream: true });
-      const result = this.inputModeTracker.feed(text);
-      if (result.changed) {
-        this.emitInputModeChange();
-      }
+      this.feedInputModeData(data);
     }
     this.inFlightOutputOperationTimeout = setTimeout(() => {
       finalizeOperation(operation);
@@ -1496,11 +1511,22 @@ export class TerminalEmulatorRuntime {
     terminal: Terminal;
   }): () => void {
     let touchScrollRemainderPx = 0;
-    const measuredLineHeight =
-      input.host.querySelector<HTMLElement>(".xterm-rows > div")?.getBoundingClientRect().height ??
-      0;
-    const touchScrollLineHeightPx =
-      measuredLineHeight > 0 ? measuredLineHeight : DEFAULT_TOUCH_SCROLL_LINE_HEIGHT_PX;
+    let cachedLineHeightPx = 0;
+    function resolveTouchScrollLineHeightPx(): number {
+      const dimensionCellHeight = input.terminal.dimensions?.css.cell.height;
+      if (typeof dimensionCellHeight === "number" && dimensionCellHeight > 0) {
+        return dimensionCellHeight;
+      }
+      if (cachedLineHeightPx <= 0) {
+        const measured =
+          input.host.querySelector<HTMLElement>(".xterm-rows > div")?.getBoundingClientRect()
+            .height ?? 0;
+        if (measured > 0) {
+          cachedLineHeightPx = measured;
+        }
+      }
+      return cachedLineHeightPx > 0 ? cachedLineHeightPx : DEFAULT_TOUCH_SCROLL_LINE_HEIGHT_PX;
+    }
 
     const activeTouch = {
       identifier: -1,
@@ -1566,6 +1592,7 @@ export class TerminalEmulatorRuntime {
         return;
       }
 
+      const touchScrollLineHeightPx = resolveTouchScrollLineHeightPx();
       touchScrollRemainderPx += deltaY;
       const lineDelta = Math.trunc(touchScrollRemainderPx / touchScrollLineHeightPx);
       if (lineDelta !== 0) {

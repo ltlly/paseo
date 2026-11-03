@@ -15,6 +15,22 @@ function wheelRowUnit(event: WheelEvent, cellHeight: number, rows: number): numb
   return 1;
 }
 
+function resolveTerminalCellHeight(
+  terminal: Terminal,
+  cachedScreen: HTMLElement | null,
+): { screen: HTMLElement | null; cellHeight: number } {
+  const dimensionCellHeight = terminal.dimensions?.css.cell.height;
+  if (typeof dimensionCellHeight === "number" && dimensionCellHeight > 0) {
+    return { screen: cachedScreen, cellHeight: dimensionCellHeight };
+  }
+  const screen =
+    cachedScreen && cachedScreen.isConnected
+      ? cachedScreen
+      : (terminal.element?.querySelector<HTMLElement>(".xterm-screen") ?? null);
+  const cellHeight = (screen?.getBoundingClientRect().height ?? 0) / terminal.rows;
+  return { screen, cellHeight };
+}
+
 /**
  * COMPAT(xterm-wheel-distance): added in v0.14.0-ltlly.2, remove after 2027-04-01
  * once xterm preserves wheel line counts and pixel distances in application mode.
@@ -33,6 +49,7 @@ export function attachTerminalWheelHandler(
   let lastDirection = 0;
   let lastTime = 0;
   let lastRoute = "";
+  let cachedScreen: HTMLElement | null = null;
 
   terminal.attachCustomWheelEventHandler((event) => {
     if (replaying) return true;
@@ -42,8 +59,9 @@ export function attachTerminalWheelHandler(
       return true;
     }
     const target = event.target;
-    const screen = terminal.element?.querySelector<HTMLElement>(".xterm-screen");
-    const cellHeight = (screen?.getBoundingClientRect().height ?? 0) / terminal.rows;
+    const resolved = resolveTerminalCellHeight(terminal, cachedScreen);
+    cachedScreen = resolved.screen;
+    const cellHeight = resolved.cellHeight;
     if (!target || cellHeight <= 0 || !Number.isFinite(event.deltaY)) return false;
 
     const direction = Math.sign(event.deltaY);

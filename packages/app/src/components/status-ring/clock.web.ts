@@ -9,7 +9,7 @@ const STATUS_RING_KEYFRAMES: PropertyIndexedKeyframes = {
 };
 const STATUS_RING_TIMING: KeyframeAnimationOptions = {
   duration: STATUS_RING_PERIOD_MS,
-  easing: "linear",
+  easing: "steps(12)",
   iterations: Number.POSITIVE_INFINITY,
 };
 const STATUS_RING_TIMELINE_START_MS = 0;

@@ -83,6 +83,10 @@ export function ResizeHandle({
           index,
           preview: (nextSizes) => onPreviewResizeSplit(groupId, nextSizes),
           commit: (nextSizes) => onResizeSplit(groupId, nextSizes),
+          scheduleFrame:
+            typeof requestAnimationFrame === "function" ? requestAnimationFrame : undefined,
+          cancelFrame:
+            typeof cancelAnimationFrame === "function" ? cancelAnimationFrame : undefined,
         }),
       });
 

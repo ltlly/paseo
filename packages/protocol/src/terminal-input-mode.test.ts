@@ -125,6 +125,41 @@ describe("TerminalInputModeTracker", () => {
 
     expect(tracker.supportsModifiedEnter()).toBe(false);
   });
+
+  it.each([
+    ["Kitty keyboard", "\x1b[>7u"],
+    ["Win32 input", "\x1b[?9001h"],
+    ["bracketed paste", "\x1b[?2004h"],
+    ["mouse tracking", "\x1b[?1003;1006h"],
+  ])("tracks %s sequences split at every byte boundary", (_name, sequence) => {
+    const expected = new TerminalInputModeTracker();
+    expected.feed(sequence);
+
+    for (let boundary = 1; boundary < sequence.length; boundary++) {
+      const tracker = new TerminalInputModeTracker();
+      tracker.feed(sequence.slice(0, boundary));
+      expect(tracker.hasPendingSequence()).toBe(true);
+      expect(tracker.feed(sequence.slice(boundary)).changed).toBe(true);
+      expect(tracker.getState()).toEqual(expected.getState());
+      expect(tracker.getMouseState()).toEqual(expected.getMouseState());
+      expect(tracker.hasPendingSequence()).toBe(false);
+    }
+  });
+
+  it("reports whether an incomplete CSI sequence is pending across chunks", () => {
+    const tracker = new TerminalInputModeTracker();
+
+    expect(tracker.hasPendingSequence()).toBe(false);
+    tracker.feed("plain log output without escapes");
+    expect(tracker.hasPendingSequence()).toBe(false);
+
+    tracker.feed("\x1b[?");
+    expect(tracker.hasPendingSequence()).toBe(true);
+
+    expect(tracker.feed("2004h").changed).toBe(true);
+    expect(tracker.hasPendingSequence()).toBe(false);
+    expect(tracker.getState().bracketedPaste).toBe(true);
+  });
 });
 it("replays mouse tracking, SGR encoding and focus reporting after a restore", () => {
   const tracker = new TerminalInputModeTracker();

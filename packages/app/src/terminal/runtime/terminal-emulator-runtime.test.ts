@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TerminalInputModeTracker } from "@getpaseo/protocol/terminal-input-mode";
 
 vi.mock("@xterm/addon-clipboard", () => ({
   ClipboardAddon: class ClipboardAddon {
@@ -394,6 +395,62 @@ describe("terminal-emulator-runtime", () => {
 
     writeCallbacks[0]?.();
     expect(committed).toEqual(["second", "first"]);
+  });
+
+  it("skips input-mode UTF-8 decoding for plain output without escape bytes unless a CSI tail is pending", () => {
+    const { runtime, writeTexts } = createRuntimeWithTerminal();
+    const states: unknown[] = [];
+    runtime.setCallbacks({
+      callbacks: {
+        onInputModeChange: (state) => {
+          states.push(state);
+        },
+      },
+    });
+    const feedSpy = vi.spyOn(TerminalInputModeTracker.prototype, "feed");
+
+    runtime.write({ data: terminalOutput("plain build log line 1\r\n") });
+    runtime.write({ data: terminalOutput("plain build log line 2\r\n") });
+    expect(feedSpy).not.toHaveBeenCalled();
+
+    // Split CSI across two chunks: first has ESC, second has no ESC but completes the pending sequence.
+    runtime.write({ data: terminalOutput("\x1b[?") });
+    runtime.write({ data: terminalOutput("2004h") });
+    expect(feedSpy).toHaveBeenCalledTimes(2);
+    expect(states).toEqual([
+      expect.objectContaining({
+        bracketedPaste: true,
+      }),
+    ]);
+
+    feedSpy.mockClear();
+    runtime.write({ data: terminalOutput("plain build log line 3\r\n") });
+    expect(feedSpy).not.toHaveBeenCalled();
+    expect(writeTexts).toHaveLength(5);
+    feedSpy.mockRestore();
+  });
+
+  it("tracks input modes when the escape byte arrives in a separate output chunk", () => {
+    const { runtime } = createRuntimeWithTerminal();
+    const states: unknown[] = [];
+    runtime.setCallbacks({
+      callbacks: {
+        onInputModeChange: (state) => {
+          states.push(state);
+        },
+      },
+    });
+
+    runtime.write({ data: terminalOutput("\x1b") });
+    runtime.write({ data: terminalOutput("[?2004h") });
+    expect(states).toEqual([expect.objectContaining({ bracketedPaste: true })]);
+
+    runtime.write({ data: terminalOutput("\x1b") });
+    runtime.write({ data: terminalOutput("[?2004l") });
+    expect(states).toEqual([
+      expect.objectContaining({ bracketedPaste: true }),
+      expect.objectContaining({ bracketedPaste: false }),
+    ]);
   });
 
   it("keeps replay reset and data after preceding writes, without interleaving", () => {

@@ -80,6 +80,10 @@ export class TerminalInputModeTracker {
   private readonly kittyKeyboardStack: number[] = [];
   private pending = "";
 
+  hasPendingSequence(): boolean {
+    return this.pending.length > 0;
+  }
+
   feed(data: string): TerminalInputModeFeedResult {
     if (data.length === 0) {
       return { changed: false, responses: [] };
@@ -111,11 +115,16 @@ export class TerminalInputModeTracker {
     }
 
     const tail = text.slice(consumedUntil);
-    const pendingStart = tail.lastIndexOf(`${ESC}[`);
-    if (pendingStart >= 0) {
-      const pending = tail.slice(pendingStart);
-      if (INCOMPLETE_CSI_INPUT_MODE_SEQUENCE.test(pending)) {
-        this.pending = pending;
+    if (tail.endsWith(ESC)) {
+      // PTY and transport chunks can split immediately after the escape byte.
+      this.pending = ESC;
+    } else {
+      const pendingStart = tail.lastIndexOf(`${ESC}[`);
+      if (pendingStart >= 0) {
+        const pending = tail.slice(pendingStart);
+        if (INCOMPLETE_CSI_INPUT_MODE_SEQUENCE.test(pending)) {
+          this.pending = pending;
+        }
       }
     }
 
