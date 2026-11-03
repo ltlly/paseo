@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.15.0-beta.1 - 2026-11-01
+## 0.15.0-ltlly.1 - 2026-11-03
 
-Daemon restarts now keep terminal programs running and automatically resume interrupted agents in their existing conversations.
+Daemon restarts now keep terminal programs running and can resume interrupted agents in their existing conversations when enabled.
 
 Mobile terminals have native rendering and draggable text-selection handles. Reconnecting restores up to 10,000 lines of terminal history.
 
@@ -74,7 +74,7 @@ Worktree setup can copy ignored files and use plugin-defined locations before ag
 ### Notes
 
 - The first upgrade from 0.14.0 still closes terminals; terminal preservation starts once the new daemon is installed, and Windows desktop app upgrades still close them
-- Automatic agent recovery is on by default and sends `Resume working.`; change the prompt or disable it in Host settings → Agents
+- Automatic agent recovery is off by default and sends `Resume working.` when enabled in Host settings → Agents
 - Before downgrading to 0.14.0, restore a backed-up `config.json` or remove the saved agent-resume and usage-check settings
 
 ## 0.14.0-ltlly.2 - 2026-10-29
