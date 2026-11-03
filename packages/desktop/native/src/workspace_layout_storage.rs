@@ -345,6 +345,7 @@ pub fn validate_layout(layout: SplitLayout) -> Option<SplitLayout> {
         root,
         focused_pane_id: layout.focused_pane_id,
         active_pane_id: None,
+        maximized_pane_id: None,
         explorer,
     };
     let panes = restored.panes();
@@ -730,6 +731,7 @@ mod tests {
                 root: node,
                 focused_pane_id: Some("main".into()),
                 active_pane_id: None,
+                maximized_pane_id: None,
                 explorer: Default::default(),
             }),
             None
@@ -788,6 +790,7 @@ mod tests {
             },
             focused_pane_id: Some("pane-0".into()),
             active_pane_id: None,
+            maximized_pane_id: None,
             explorer: Default::default(),
         };
         assert_eq!(validate_layout(layout), None);
@@ -898,6 +901,7 @@ mod tests {
             },
             focused_pane_id: Some(MAIN_PANE_ID.into()),
             active_pane_id: None,
+            maximized_pane_id: None,
             explorer: Default::default(),
         };
         // The live model refuses the 257th tab instead of accepting it and
@@ -957,6 +961,69 @@ mod tests {
         );
         let reloaded = SplitLayoutStore::load(&path).unwrap();
         assert_eq!(reloaded.layout("host", "workspace-1"), Some(&replacement));
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("lock"));
+    }
+
+    #[test]
+    fn file_tabs_persist_and_restore_without_transient_maximize_or_active_pane_state() {
+        use crate::explorer_layout::{CHANGES_TAB_ID, EXPLORER_PANE_ID, FILES_TAB_ID};
+
+        let path = temporary_path("file-tabs-roundtrip");
+        let mut store = SplitLayoutStore::load(&path).unwrap();
+
+        let main_file = "file:[\"/repos/a\",\"src/main.rs\"]";
+        let side_file = "file:[\"/repos/a\",\"src/lib.rs\"]";
+        let explorer_file = "file:[\"/repos/a\",\"README.md\"]";
+
+        let mut layout = split_layout(&[(MAIN_PANE_ID, &[main_file]), ("pane-1", &[side_file])]);
+        layout.focus_pane(MAIN_PANE_ID);
+        layout.explorer.ensure_pane();
+        layout.explorer.visible = true;
+        layout.focus_pane(EXPLORER_PANE_ID);
+        layout.attach_tab(explorer_file).unwrap();
+
+        // Set transient states (`active_pane_id` in Explorer, `maximized_pane_id` on main).
+        assert_eq!(layout.active_pane_id.as_deref(), Some(EXPLORER_PANE_ID));
+        assert!(layout.toggle_pane_maximized(MAIN_PANE_ID));
+        assert_eq!(layout.maximized_pane_id.as_deref(), Some(MAIN_PANE_ID));
+
+        assert!(store.save("host-a", "workspace-a", layout).unwrap());
+
+        let reloaded = SplitLayoutStore::load(&path).unwrap();
+        let restored = reloaded
+            .layout("host-a", "workspace-a")
+            .expect("restored layout");
+
+        // Transient fields are reset on reload while pane tabs and focused_pane_id survive.
+        assert_eq!(restored.active_pane_id, None);
+        assert_eq!(restored.maximized_pane_id, None);
+        assert_eq!(restored.focused_pane_id.as_deref(), Some(MAIN_PANE_ID));
+        assert_eq!(
+            restored.pane(MAIN_PANE_ID).unwrap().tabs,
+            vec![main_file.to_owned()]
+        );
+        assert_eq!(
+            restored.pane("pane-1").unwrap().tabs,
+            vec![side_file.to_owned()]
+        );
+        assert_eq!(
+            restored.pane(EXPLORER_PANE_ID).unwrap().tabs,
+            vec![
+                FILES_TAB_ID.to_owned(),
+                CHANGES_TAB_ID.to_owned(),
+                explorer_file.to_owned(),
+            ]
+        );
+        assert_eq!(
+            restored
+                .pane(EXPLORER_PANE_ID)
+                .unwrap()
+                .focused_tab
+                .as_deref(),
+            Some(explorer_file)
+        );
+
         let _ = fs::remove_file(&path);
         let _ = fs::remove_file(path.with_extension("lock"));
     }

@@ -276,7 +276,8 @@ impl SettingsPane {
                     &entity,
                     window,
                     move |this, _, event: &crate::text_field::FieldEvent, _, cx| match event {
-                        crate::text_field::FieldEvent::Edited => {}
+                        crate::text_field::FieldEvent::Edited
+                        | crate::text_field::FieldEvent::Cancelled => {}
                         crate::text_field::FieldEvent::Committed => this.commit_field(field, cx),
                     },
                 )

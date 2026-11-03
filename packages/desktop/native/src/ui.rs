@@ -9,7 +9,7 @@ use gpui::{
     AnyWindowHandle, App, Bounds, Context, CursorStyle, Entity, FocusHandle, Focusable, Global,
     MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Render, SharedString,
     SystemNotification, TitlebarOptions, Window, WindowBounds, WindowOptions, actions, canvas, div,
-    point, prelude::*, px, rgb, size,
+    prelude::*, px, rgb, size,
 };
 use paseo_desktop::split_layout::{
     FocusDirection, MAIN_PANE_ID, SplitDirection, SplitIds, SplitLayout, SplitNode, SplitPane,
@@ -17,7 +17,7 @@ use paseo_desktop::split_layout::{
 };
 use serde_json::{Value, json};
 
-use crate::file_editor::{CloseRequested, FileEditor};
+use crate::file_editor::{CloseRequested, DirtyStateChanged, FileEditor};
 use crate::hosts_surface::{HostsPanel, HostsPanelEvent, HostsSnapshot};
 use crate::terminal_view::TerminalView;
 use crate::workspace_tools::{
@@ -351,6 +351,7 @@ actions!(
         MoveTabUp,
         MoveTabDown,
         CloseFocusedPane,
+        CloseWindow,
         NewWindow,
         NewTab,
         NewTerminal,
@@ -366,8 +367,10 @@ actions!(
 /// (`MAX_PANES`) is the practical split ceiling, so a smaller cache would evict
 /// a rendered pane and reopen it on the next frame.
 const TERMINAL_CACHE_CAPACITY: usize = 64;
-/// Hit area around the 1px separator line, in logical pixels.
-const SEPARATOR_HIT: f32 = 8.;
+/// Hit area around the 1px separator line, in logical pixels (`styles.hitArea` in `ResizeHandle`).
+const SEPARATOR_HIT: f32 = 10.;
+/// Highlighted accent bar thickness on hover or drag (`styles.highlight` in `ResizeHandle`).
+const SEPARATOR_HIGHLIGHT: f32 = 3.;
 /// Prefix of a pane tab that owns a browser surface. Persisted layouts carry
 /// these ids, so the prefix is how a restore tells a browser tab from a terminal
 /// or agent tab whose daemon session is simply gone.
@@ -478,6 +481,7 @@ pub struct Paseo {
     tab_drag: Option<TabDrag>,
     focus: FocusHandle,
     error: Option<String>,
+    close_window_prompt: Option<gpui::Task<()>>,
     selected_agent: Option<String>,
     /// This window's handle; activation defers route into the window thread.
     window_handle: Option<AnyWindowHandle>,
@@ -509,6 +513,7 @@ pub struct Paseo {
     explorer_drag: Option<ExplorerDrag>,
     explorer_container_width: f64,
     editors: BTreeMap<EditorKey, Entity<FileEditor>>,
+    file_mounts: paseo_desktop::file_mount_cache::FileMountCache,
     tab_rail: workspace_tab_row::RailCache,
     terminal_commands: terminal_commands::Commands,
     /// Retained browser surfaces keyed by the pane tab that owns them. A pane
@@ -556,7 +561,7 @@ pub struct Paseo {
     /// before keystroke observers run, so presence has to see them earlier.
     _keystrokes: gpui::Subscription,
     _tools: Vec<gpui::Subscription>,
-    editor_subscriptions: BTreeMap<EditorKey, gpui::Subscription>,
+    editor_subscriptions: BTreeMap<EditorKey, Vec<gpui::Subscription>>,
 }
 
 /// Full-window product panes that replace the terminal/conversation area.
@@ -584,7 +589,7 @@ enum SidebarAction {
 /// An editor tab is one file in one workspace. Keying by path alone lets the
 /// second workspace reuse the first workspace's buffer, so edits and the save
 /// land in the other workspace's file.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct EditorKey {
     cwd: String,
     path: String,
@@ -598,12 +603,43 @@ impl EditorKey {
         }
     }
 
+    /// Reads the identity back from a persisted pane tab. The tab is untrusted
+    /// layout data, so an empty or malformed payload is not a file, and a tab
+    /// naming another workspace's cwd must never enter this workspace's editor.
+    fn from_tab_id(tab_id: &str, workspace_cwd: &str) -> Option<Self> {
+        let payload = tab_id.strip_prefix("file:")?;
+        let (cwd, path): (String, String) = serde_json::from_str(payload).ok()?;
+        if cwd.is_empty() || path.is_empty() || cwd != workspace_cwd {
+            return None;
+        }
+        let key = Self { cwd, path };
+        // Only the canonical serialization names a live tab; anything else
+        // could not be removed or compared against the map by `tab_id`.
+        (key.tab_id() == tab_id).then_some(key)
+    }
+
+    fn title(&self) -> String {
+        crate::file_editor::title_for_path(&self.path)
+    }
+
     fn tab_id(&self) -> String {
         format!(
             "file:{}",
             serde_json::to_string(&(&self.cwd, &self.path)).expect("serialize editor identity")
         )
     }
+}
+
+/// Every persisted file tab the current workspace can reload. Identity comes
+/// from the tab, so the editor map never receives another workspace's cwd.
+#[cfg(test)]
+fn restorable_file_tabs(layout: &SplitLayout, workspace_cwd: &str) -> Vec<EditorKey> {
+    layout
+        .all_panes()
+        .into_iter()
+        .flat_map(|pane| pane.tabs)
+        .filter_map(|tab| EditorKey::from_tab_id(&tab, workspace_cwd))
+        .collect()
 }
 
 impl Drop for Paseo {
@@ -617,6 +653,12 @@ impl Drop for Paseo {
 impl Paseo {
     pub fn new(target: Result<Target>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let window_handle = window.window_handle();
+        let entity = cx.entity().downgrade();
+        window.on_window_should_close(cx, move |window, cx| {
+            entity
+                .update(cx, |this, cx| this.request_window_close(window, cx))
+                .unwrap_or(true)
+        });
         let visibility = cx.observe_window_visibility(window, |this, visibility, _, cx| {
             if visibility.is_visible() {
                 this.last_user_activity = std::time::Instant::now();
@@ -756,6 +798,7 @@ impl Paseo {
             error: remembered_error
                 .or(settings_store_error.clone())
                 .or(layout_error),
+            close_window_prompt: None,
             selected_agent: None,
             window_handle: Some(window_handle),
             pending_activation: None,
@@ -772,6 +815,7 @@ impl Paseo {
             explorer_drag: None,
             explorer_container_width: 0.,
             editors: BTreeMap::new(),
+            file_mounts: Default::default(),
             tab_rail: Default::default(),
             terminal_commands: Default::default(),
             browsers: BTreeMap::new(),
@@ -891,6 +935,9 @@ impl Paseo {
     /// touches the daemon's terminals, and the new host never inherits the
     /// previous host's selection or view state.
     fn replace_host(&mut self, input: paseo_desktop::hosts::ConnectInput, cx: &mut Context<Self>) {
+        if self.modal_open() {
+            return;
+        }
         if self
             .editors
             .values()
@@ -936,6 +983,7 @@ impl Paseo {
         }
         self.editors.clear();
         self.editor_subscriptions.clear();
+        self.file_mounts.clear();
         self.workspace_payloads.clear();
         self.workspace_form = None;
         self.history = None;
@@ -1073,7 +1121,7 @@ impl Paseo {
     }
 
     fn on_disconnected(&mut self, cx: &mut Context<Self>) {
-        self.terminal_commands.state.disconnected();
+        self.terminal_commands.disconnected();
         self.terminal_commands.profiles_subscribed = false;
         if let Some(view) = &self.host_terminals {
             view.update(cx, |view, cx| view.disconnected(cx));
@@ -2353,7 +2401,7 @@ impl Paseo {
         cx.notify();
     }
     fn on_search_files(&mut self, _: &SearchFiles, window: &mut Window, cx: &mut Context<Self>) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         if cfg!(target_os = "macos") || !self.terminal_view_focused(window, cx) {
@@ -2368,7 +2416,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.terminal_commands.modal() {
+        if self.modal_open() {
             return;
         }
         if !cfg!(target_os = "macos") && self.terminal_view_focused(window, cx) {
@@ -2409,7 +2457,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         if cfg!(target_os = "macos") || !self.terminal_view_focused(window, cx) {
@@ -2424,7 +2472,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.toggle_explorer(window, cx);
@@ -2453,7 +2501,7 @@ impl Paseo {
     }
 
     fn on_new_window(&mut self, _: &NewWindow, window: &mut Window, cx: &mut Context<Self>) {
-        if self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.command_center_open(cx) || self.modal_open() {
             return;
         }
         // Windows/Linux hand Ctrl+N to a focused terminal program; only the
@@ -2724,6 +2772,9 @@ impl Paseo {
                 | "rpc_error"
         ) {
             let mut handled = false;
+            if kind == "fetch_agent_response" {
+                let _ = self.directory.apply(kind, payload.clone());
+            }
             for composer in self.composers.values() {
                 handled |= composer.update(cx, |view, cx| view.receive(kind, &payload, cx));
             }
@@ -3004,6 +3055,7 @@ impl Paseo {
                         }
                         Operation::Archive(id) => {
                             this.directory.workspaces.remove(id);
+                            this.splits.remove(id);
                             if let Some(host) = &this.info {
                                 this.remembered.forget(&host.server_id, id);
                                 if let Err(error) = this.remembered.save(&this.remembered_path) {
@@ -3292,6 +3344,87 @@ impl Paseo {
         cx.notify();
     }
 
+    /// The directory the selected workspace owns. Persisted file identities
+    /// are checked against it, never against a path named by the layout itself.
+    fn workspace_cwd(&self) -> Option<&str> {
+        let workspace = self
+            .selected_workspace
+            .as_ref()
+            .and_then(|id| self.directory.workspaces.get(id))?;
+        let cwd = workspace
+            .workspace_directory
+            .as_deref()
+            .unwrap_or(&workspace.project_root_path);
+        (!cwd.is_empty()).then_some(cwd)
+    }
+
+    fn file_tab_key(&self, tab_id: &str) -> Option<EditorKey> {
+        EditorKey::from_tab_id(tab_id, self.workspace_cwd()?)
+    }
+
+    /// Builds the editor and its close subscription once. Opening a new file
+    /// and reloading a persisted tab share this so neither path can drift.
+    fn ensure_file_editor(
+        &mut self,
+        key: EditorKey,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if self.editors.contains_key(&key) {
+            return true;
+        }
+        let Some(connection) = self.connection.clone() else {
+            self.error = Some("host is disconnected".into());
+            return false;
+        };
+        let editor =
+            cx.new(|cx| FileEditor::new(key.cwd.clone(), key.path.clone(), connection, cx));
+        let subscription = {
+            let key = key.clone();
+            cx.subscribe_in(
+                &editor,
+                window,
+                move |this, _, _: &CloseRequested, window, cx| {
+                    // The editor resolved its close; drop the tab with it.
+                    this.forget_file(&key, window, cx);
+                },
+            )
+        };
+        let dirty_subscription = cx.subscribe_in(
+            &editor,
+            window,
+            |this, _, _: &DirtyStateChanged, window, cx| {
+                this.sync_mounted_files(window, cx);
+                cx.notify();
+            },
+        );
+        self.editor_subscriptions
+            .insert(key.clone(), vec![subscription, dirty_subscription]);
+        self.editors.insert(key, editor);
+        true
+    }
+
+    fn ensure_file_editor_for_tab(
+        &mut self,
+        tab_id: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Option<Entity<FileEditor>> {
+        if let Some(editor) = self
+            .editors
+            .iter()
+            .find(|(key, _)| key.tab_id() == tab_id)
+            .map(|(_, editor)| editor)
+        {
+            return Some(editor.clone());
+        }
+        let key = self.file_tab_key(tab_id)?;
+        if !self.ensure_file_editor(key.clone(), window, cx) {
+            return None;
+        }
+        self.editors.get(&key).cloned()
+    }
+
     /// Open a host file in an editor tab; the buffer survives workspace switches.
     fn open_file(&mut self, path: String, window: &mut Window, cx: &mut Context<Self>) {
         let Some(tools) = &self.tools else {
@@ -3308,29 +3441,8 @@ impl Paseo {
         self.selected_terminal = None;
         self.terminal = None;
         let key = EditorKey::new(&cwd, &path);
-        if !self.editors.contains_key(&key) {
-            match self.connection.clone().context("host is disconnected") {
-                Ok(connection) => {
-                    let editor = cx.new(|cx| FileEditor::new(cwd, path, connection, cx));
-                    let subscription = {
-                        let key = key.clone();
-                        cx.subscribe_in(
-                            &editor,
-                            window,
-                            move |this, _, _: &CloseRequested, window, cx| {
-                                // The editor resolved its close; drop the tab with it.
-                                this.forget_file(&key, window, cx);
-                            },
-                        )
-                    };
-                    self.editor_subscriptions.insert(key.clone(), subscription);
-                    self.editors.insert(key.clone(), editor);
-                }
-                Err(error) => {
-                    self.error = Some(error.to_string());
-                    return;
-                }
-            }
+        if !self.ensure_file_editor(key.clone(), window, cx) {
+            return;
         }
         let tab = key.tab_id();
         let adopted = self.selected_splits().is_some_and(|layout| {
@@ -3344,6 +3456,12 @@ impl Paseo {
             layout.attach_tab(&tab).is_some()
         });
         if !adopted {
+            if let Some(editor) = self.editors.get(&key)
+                && editor.update(cx, |editor, _| editor.evict())
+            {
+                self.editors.remove(&key);
+                self.editor_subscriptions.remove(&key);
+            }
             self.error = Some("This pane cannot accept another file tab.".into());
             cx.notify();
             return;
@@ -3354,24 +3472,103 @@ impl Paseo {
     }
 
     fn close_file(&mut self, key: &EditorKey, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(editor) = self.editors.get(key) {
-            let editor = editor.clone();
-            if !editor.update(cx, |editor, cx| editor.begin_close(cx)) {
-                // The editor owns its close confirmation. Reveal a modified
-                // background buffer so its existing confirmation is visible.
-                let owner = self.selected_splits().and_then(|layout| {
-                    layout
-                        .all_panes()
-                        .into_iter()
-                        .find(|pane| pane.tabs.contains(&key.tab_id()))
-                });
-                if let Some(pane) = owner {
-                    self.select_pane_tab(pane.id, key.tab_id(), window, cx);
-                }
-                return;
+        if self.modal_open() {
+            return;
+        }
+        let Some(editor) = self
+            .editors
+            .get(key)
+            .filter(|editor| editor.read(cx).is_dirty())
+            .cloned()
+        else {
+            self.forget_file(key, window, cx);
+            return;
+        };
+        editor.update(cx, |editor, _| editor.hold_writes());
+        let answer = crate::native_confirmation::ask(
+            window,
+            cx,
+            self.launch_text("workspace.tabs.confirmations.unsavedTitle"),
+            self.launch_text("workspace.tabs.confirmations.unsavedMessage"),
+            self.launch_text("workspace.tabs.confirmations.cancel"),
+            self.launch_text("workspace.tabs.confirmations.closeWithoutSaving"),
+        );
+        match answer {
+            Err(error) => {
+                editor.update(cx, |editor, cx| editor.resume_writes(cx));
+                self.error = Some(error.to_string());
+                cx.notify();
+            }
+            Ok(answer) => {
+                let previous = window.focused(cx);
+                let key = key.clone();
+                let generation = self.host_generation;
+                self.focus.focus(window, cx);
+                self.close_window_prompt = Some(cx.spawn(async move |this, cx| {
+                    let confirmed = answer.await;
+                    let _ = this.update_in(cx, |this, window, cx| {
+                        this.close_window_prompt = None;
+                        if this.host_generation != generation {
+                            editor.update(cx, |editor, cx| editor.resume_writes(cx));
+                            return;
+                        }
+                        if confirmed && this.editors.get(&key) == Some(&editor) {
+                            this.forget_file(&key, window, cx);
+                        } else {
+                            editor.update(cx, |editor, cx| editor.resume_writes(cx));
+                        }
+                        if let Some(previous) = previous {
+                            previous.focus(window, cx);
+                        }
+                        window.activate_window();
+                        cx.notify();
+                    });
+                }));
             }
         }
-        self.forget_file(key, window, cx);
+    }
+
+    /// Keep recent buffers per workspace pane; unsaved buffers survive until
+    /// their write settles, even when their pane exceeds the normal cap.
+    fn sync_mounted_files(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let mounted_before = self.editors.keys().map(EditorKey::tab_id).collect();
+        let retained = self
+            .editors
+            .iter()
+            .filter(|(_, editor)| !editor.read(cx).can_evict())
+            .map(|(key, _)| key.tab_id())
+            .collect();
+        let outcome = self.file_mounts.sync_layouts(
+            self.splits
+                .iter()
+                .map(|(workspace, layout)| (workspace.as_str(), layout)),
+            &mounted_before,
+            &retained,
+        );
+        let evicted: Vec<_> = self
+            .editors
+            .keys()
+            .filter(|key| outcome.evicted_tabs.contains(&key.tab_id()))
+            .cloned()
+            .collect();
+        for key in evicted {
+            if self
+                .editors
+                .get(&key)
+                .is_some_and(|editor| editor.update(cx, |editor, _| editor.evict()))
+            {
+                self.editors.remove(&key);
+                self.editor_subscriptions.remove(&key);
+            }
+        }
+        let Some(cwd) = self.workspace_cwd().map(str::to_owned) else {
+            return;
+        };
+        for tab in outcome.mounted_tabs {
+            if let Some(key) = EditorKey::from_tab_id(&tab, &cwd) {
+                self.ensure_file_editor(key, window, cx);
+            }
+        }
     }
 
     /// Drop a tab: release its host subscription, its event binding, and its
@@ -3840,12 +4037,8 @@ impl Paseo {
             .and_then(|workspace| self.splits.get(workspace))
             .map(|layout| {
                 layout
-                    .all_panes()
+                    .rendered_all_panes()
                     .into_iter()
-                    .filter(|pane| {
-                        pane.id != paseo_desktop::explorer_layout::EXPLORER_PANE_ID
-                            || layout.explorer.visible
-                    })
                     .filter_map(|pane| pane.focused_tab)
                     .collect()
             })
@@ -3880,7 +4073,9 @@ impl Paseo {
             Some(PaneTabKind::Terminal)
         } else if self.directory.agents.contains_key(tab_id) {
             Some(PaneTabKind::Agent)
-        } else if self.editors.keys().any(|key| key.tab_id() == tab_id) {
+        } else if self.editors.keys().any(|key| key.tab_id() == tab_id)
+            || self.file_tab_key(tab_id).is_some()
+        {
             Some(PaneTabKind::File)
         } else if self.browsers.contains_key(tab_id) {
             Some(PaneTabKind::Browser)
@@ -3905,6 +4100,9 @@ impl Paseo {
         if let Some((_, editor)) = self.editors.iter().find(|(key, _)| key.tab_id() == tab_id) {
             return Some(editor.read(cx).title());
         }
+        if let Some(key) = self.file_tab_key(tab_id) {
+            return Some(key.title());
+        }
         if let Some(browser) = self.browsers.get(tab_id) {
             return Some(browser.read(cx).title());
         }
@@ -3922,7 +4120,7 @@ impl Paseo {
             .and_then(|workspace| self.splits.get(workspace))
             .map(|layout| {
                 layout
-                    .panes()
+                    .rendered_main_panes()
                     .into_iter()
                     .filter_map(|pane| pane.focused_tab)
                     .filter(|tab| self.browsers.contains_key(tab))
@@ -3964,7 +4162,7 @@ impl Paseo {
         // page would otherwise paint over them.
         let obscured = self.scripts_menu.is_some()
             || self.workspace_menu.is_some()
-            || self.terminal_commands.modal()
+            || self.modal_open()
             || self.command_center_open(cx);
         for (tab_id, browser) in self.browsers.iter() {
             let presented = window_visible && rendered.contains(tab_id);
@@ -4147,12 +4345,7 @@ impl Paseo {
                 self.selected_agent = Some(tab);
             }
             Some(PaneTabKind::File) => {
-                if let Some(editor) = self
-                    .editors
-                    .iter()
-                    .find(|(key, _)| key.tab_id() == tab)
-                    .map(|(_, view)| view)
-                {
+                if let Some(editor) = self.ensure_file_editor_for_tab(&tab, window, cx) {
                     editor.read(cx).focus_handle(cx).focus(window, cx);
                 }
                 self.terminal = None;
@@ -4256,12 +4449,7 @@ impl Paseo {
             .and_then(|id| self.splits.get(id))?;
         self.pane_bounds
             .iter()
-            .find(|(id, bounds)| {
-                layout.pane(id).is_some()
-                    && (id.as_str() != paseo_desktop::explorer_layout::EXPLORER_PANE_ID
-                        || layout.explorer.visible)
-                    && bounds.contains(&position)
-            })
+            .find(|(id, bounds)| layout.is_pane_rendered(id) && bounds.contains(&position))
             .map(|(id, _)| id.clone())
     }
     fn track_tab_drag(&mut self, position: gpui::Point<gpui::Pixels>, cx: &mut Context<Self>) {
@@ -4363,15 +4551,29 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let Some(target) = self.selected_splits().map(|layout| {
+            layout
+                .focused_pane()
+                .map(|pane| pane.id.clone())
+                .unwrap_or_else(|| MAIN_PANE_ID.to_owned())
+        }) else {
+            return;
+        };
+        self.split_pane_at(&target, position, window, cx);
+    }
+
+    pub(super) fn split_pane_at(
+        &mut self,
+        target: &str,
+        position: SplitPosition,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(layout) = self.selected_splits() else {
             return;
         };
-        let target = layout
-            .focused_pane()
-            .map(|pane| pane.id.clone())
-            .unwrap_or_else(|| MAIN_PANE_ID.to_owned());
         let mut ids = SplitIds::for_layout(&layout.root);
-        match layout.split_empty(&target, position, &mut ids) {
+        match layout.split_empty(target, position, &mut ids) {
             Some(_) => {
                 // The new pane holds no tab yet, like a new-tab placeholder.
                 self.persist_splits();
@@ -4388,6 +4590,31 @@ impl Paseo {
                 self.error = Some("Close a pane before creating more splits.".into());
                 cx.notify();
             }
+        }
+    }
+
+    pub(super) fn toggle_pane_maximized(
+        &mut self,
+        pane_id: String,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.focus_split_pane(pane_id.clone(), window, cx);
+        let toggled = self
+            .selected_splits()
+            .is_some_and(|layout| layout.toggle_pane_maximized(&pane_id));
+        if toggled {
+            self.apply_terminal_visibility(cx);
+            self.apply_browser_visibility(cx);
+            if self.window_visible {
+                let rendered = self.rendered_terminal_ids();
+                for (id, terminal) in self.terminals.iter() {
+                    if rendered.contains(id) {
+                        terminal.update(cx, |view, cx| view.request_claim(cx));
+                    }
+                }
+            }
+            cx.notify();
         }
     }
 
@@ -4544,8 +4771,8 @@ impl Paseo {
 
     /// Reopens retained views for panes the workspace restored, mirroring the
     /// original app's tab restoration; subscriptions belong to the view, never
-    /// to the pane that shows it. Agent conversations are built here too, so a
-    /// restored agent tab renders inside its pane.
+    /// to the pane that shows it. Agent conversations and file editors are
+    /// built here too, so a restored tab renders inside its pane.
     fn restore_split_panes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(workspace) = self.selected_workspace.clone() else {
             return;
@@ -4558,6 +4785,7 @@ impl Paseo {
             .entry(workspace)
             .or_insert_with(|| SplitLayout::single(MAIN_PANE_ID))
             .clone();
+        self.sync_mounted_files(window, cx);
         let mut opened_agent = false;
         for pane in layout.all_panes().into_iter().filter(|p| {
             p.id != paseo_desktop::explorer_layout::EXPLORER_PANE_ID || layout.explorer.visible
@@ -4595,6 +4823,8 @@ impl Paseo {
                         self.selected_agent = Some(tab.clone());
                     }
                 }
+                // File editors were recreated above for every pane, not only
+                // the focused tab.
                 Some(PaneTabKind::File) => {}
                 Some(
                     PaneTabKind::Browser
@@ -4732,7 +4962,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.split_focused_pane(SplitPosition::Right, window, cx);
@@ -4744,7 +4974,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.split_focused_pane(SplitPosition::Bottom, window, cx);
@@ -4756,7 +4986,7 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Left, window, cx);
@@ -4768,14 +4998,14 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Right, window, cx);
     }
 
     fn on_focus_pane_up(&mut self, _: &FocusPaneUp, window: &mut Window, cx: &mut Context<Self>) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Up, window, cx);
@@ -4787,35 +5017,35 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.focus_adjacent_pane(FocusDirection::Down, window, cx);
     }
 
     fn on_move_tab_left(&mut self, _: &MoveTabLeft, window: &mut Window, cx: &mut Context<Self>) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.move_focused_tab(FocusDirection::Left, window, cx);
     }
 
     fn on_move_tab_right(&mut self, _: &MoveTabRight, window: &mut Window, cx: &mut Context<Self>) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.move_focused_tab(FocusDirection::Right, window, cx);
     }
 
     fn on_move_tab_up(&mut self, _: &MoveTabUp, window: &mut Window, cx: &mut Context<Self>) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.move_focused_tab(FocusDirection::Up, window, cx);
     }
 
     fn on_move_tab_down(&mut self, _: &MoveTabDown, window: &mut Window, cx: &mut Context<Self>) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.move_focused_tab(FocusDirection::Down, window, cx);
@@ -4826,10 +5056,96 @@ impl Paseo {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.pane.is_some() || self.command_center_open(cx) || self.terminal_commands.modal() {
+        if self.pane.is_some() || self.command_center_open(cx) || self.modal_open() {
             return;
         }
         self.close_focused_pane(window, cx);
+    }
+
+    fn modal_open(&self) -> bool {
+        self.close_window_prompt.is_some() || self.terminal_commands.modal()
+    }
+
+    fn request_window_close(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
+        if self.modal_open() {
+            return false;
+        }
+        let dirty: Vec<_> = self
+            .editors
+            .values()
+            .filter(|editor| editor.read(cx).is_dirty())
+            .cloned()
+            .collect();
+        if dirty.is_empty() {
+            return true;
+        }
+        for editor in &dirty {
+            editor.update(cx, |editor, _| editor.hold_writes());
+        }
+        let message = paseo_desktop::locales::translate(
+            paseo_desktop::locales::active_locale(self.shared_settings.get().language),
+            paseo_desktop::locales::Tx::key("workspace.tabs.confirmations.bulkUnsaved")
+                .count(dirty.len() as i64),
+        );
+        let answer = crate::native_confirmation::ask(
+            window,
+            cx,
+            self.launch_text("workspace.tabs.confirmations.unsavedTitle"),
+            message,
+            self.launch_text("workspace.tabs.confirmations.cancel"),
+            self.launch_text("workspace.tabs.confirmations.closeWithoutSaving"),
+        );
+        match answer {
+            Err(error) => {
+                for editor in dirty {
+                    editor.update(cx, |editor, cx| editor.resume_writes(cx));
+                }
+                self.error = Some(error.to_string());
+                cx.notify();
+            }
+            Ok(answer) => {
+                let previous = window.focused(cx);
+                self.focus.focus(window, cx);
+                let generation = self.host_generation;
+                self.close_window_prompt = Some(cx.spawn(async move |this, cx| {
+                    let confirmed = answer.await;
+                    let _ = this.update_in(cx, |this, window, cx| {
+                        this.close_window_prompt = None;
+                        if this.host_generation != generation {
+                            for editor in dirty {
+                                editor.update(cx, |editor, cx| editor.resume_writes(cx));
+                            }
+                            return;
+                        }
+                        if confirmed {
+                            for editor in this.editors.values() {
+                                editor.update(cx, |editor, _| editor.closed());
+                            }
+                            this.editors.clear();
+                            this.editor_subscriptions.clear();
+                            this.file_mounts.clear();
+                            window.remove_window();
+                        } else {
+                            for editor in dirty {
+                                editor.update(cx, |editor, cx| editor.resume_writes(cx));
+                            }
+                            if let Some(previous) = previous {
+                                previous.focus(window, cx);
+                            }
+                            window.activate_window();
+                            cx.notify();
+                        }
+                    });
+                }));
+            }
+        }
+        false
+    }
+
+    fn on_close_window(&mut self, _: &CloseWindow, window: &mut Window, cx: &mut Context<Self>) {
+        if self.request_window_close(window, cx) {
+            window.remove_window();
+        }
     }
 
     fn on_root_mouse_move(
@@ -5451,11 +5767,13 @@ impl Render for Paseo {
                                     cx.listener(|this, _, window, cx| {
                                         cx.stop_propagation();
                                         if let Some(id) = this.selected_workspace.clone() {
-                                            let origin = point(
-                                                this.workspace_menu_bounds.left(),
-                                                this.workspace_menu_bounds.bottom() + px(4.),
+                                            this.open_workspace_menu(
+                                                id,
+                                                false,
+                                                this.workspace_menu_bounds.origin,
+                                                window,
+                                                cx,
                                             );
-                                            this.open_workspace_menu(id, false, origin, window, cx);
                                         }
                                     }),
                                 )
@@ -5538,7 +5856,13 @@ impl Render for Paseo {
                         !cfg!(target_os = "macos")
                             && !window.is_fullscreen()
                             && !explorer_presented,
-                        |header| header.child(crate::window_chrome::controls(window)),
+                        |header| {
+                            header.child(crate::window_chrome::controls(
+                                window,
+                                &palette,
+                                palette.surface0,
+                            ))
+                        },
                     ),
             )
             .when_some(
@@ -5641,6 +5965,7 @@ impl Render for Paseo {
             .line_height(px(20.))
             .key_context("Workspace")
             .track_focus(&self.focus)
+            .on_action(cx.listener(Self::on_close_window))
             .on_action(cx.listener(Self::on_split_pane_right))
             .on_action(cx.listener(Self::on_split_pane_down))
             .on_action(cx.listener(Self::on_focus_pane_left))
@@ -5728,24 +6053,25 @@ impl Render for Paseo {
             })
             .when_some(self.scripts_menu.clone(), |root, menu| {
                 root.child(
-                    gpui::deferred(
-                        gpui::anchored()
-                            .position(point(
-                                self.scripts_bounds.right(),
-                                self.scripts_bounds.bottom() + px(4.),
-                            ))
-                            .anchor(gpui::Anchor::TopRight)
-                            .snap_to_window_with_margin(px(8.))
-                            .child(menu),
-                    )
+                    gpui::deferred(crate::action_menu::anchored_menu(
+                        self.scripts_bounds,
+                        paseo_desktop::menu_position::Alignment::End,
+                        4.,
+                        menu,
+                    ))
                     .with_priority(3),
                 )
             })
             .when_some(
-                self.workspace_menu
-                    .as_ref()
-                    .map(|menu| (menu.view.clone(), menu.position)),
-                |root, (menu, position)| {
+                self.workspace_menu.as_ref().map(|menu| {
+                    let trigger = if menu.header {
+                        self.workspace_menu_bounds
+                    } else {
+                        Bounds::new(menu.position, size(px(0.), px(0.)))
+                    };
+                    (menu.view.clone(), trigger)
+                }),
+                |root, (menu, trigger)| {
                     root.child(
                         div()
                             .absolute()
@@ -5766,20 +6092,19 @@ impl Render for Paseo {
                                 }),
                             )
                             .child(
-                                gpui::deferred(
-                                    gpui::anchored()
-                                        .position(position)
-                                        .anchor(gpui::Anchor::TopLeft)
-                                        .snap_to_window_with_margin(px(8.))
-                                        .child(menu),
-                                )
+                                gpui::deferred(crate::action_menu::anchored_menu(
+                                    trigger,
+                                    paseo_desktop::menu_position::Alignment::Start,
+                                    4.,
+                                    menu,
+                                ))
                                 .with_priority(4),
                             ),
                     )
                 },
             )
             .when_some(profile_overlay, |root, overlay| root.child(overlay))
-            .when_some(self.render_new_tab_overlay(cx), |root, overlay| {
+            .when_some(self.render_new_tab_overlay(window, cx), |root, overlay| {
                 root.child(overlay)
             })
             .when_some(
@@ -5802,15 +6127,22 @@ impl Paseo {
     ) -> gpui::AnyElement {
         self.sync_focused_pane_from_focus(window, cx);
         self.restore_split_panes(window, cx);
+        if let Some(layout) = self.selected_splits() {
+            layout.sync_maximized_pane();
+        }
         self.apply_terminal_visibility(cx);
         self.apply_browser_visibility(cx);
         let layout = self
             .selected_splits()
             .map(|layout| layout.clone())
             .unwrap_or_else(|| SplitLayout::single(MAIN_PANE_ID));
+        let maximized_pane_id = layout.effective_maximized_pane_id().map(str::to_owned);
         let measure = cx.entity();
-        let active_panes: BTreeSet<_> =
-            layout.all_panes().into_iter().map(|pane| pane.id).collect();
+        let active_panes: BTreeSet<_> = layout
+            .rendered_all_panes()
+            .into_iter()
+            .map(|pane| pane.id)
+            .collect();
         self.tab_rail.retain(&layout);
         self.terminal_commands
             .retain(self.selected_workspace.as_deref(), &layout);
@@ -5836,13 +6168,14 @@ impl Paseo {
                 .absolute()
                 .inset_0(),
             )
-            .child(self.render_split_node(&layout.root, window, cx))
+            .child(self.render_split_node(&layout.root, maximized_pane_id.as_deref(), window, cx))
             .into_any_element()
     }
 
     fn render_split_node(
         &mut self,
         node: &SplitNode,
+        maximized_pane_id: Option<&str>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> gpui::AnyElement {
@@ -5852,6 +6185,11 @@ impl Paseo {
                 let group = group.clone();
                 let palette = crate::settings_view::active_palette(&self.shared_settings, window);
                 let horizontal = group.direction == SplitDirection::Horizontal;
+                let visible_flex = paseo_desktop::split_layout::resolve_visible_group_flex(
+                    &group.children,
+                    &group.sizes,
+                    maximized_pane_id,
+                );
                 let container = div().flex().flex_1().min_h_0().min_w_0().overflow_hidden();
                 let container = if horizontal {
                     container.flex_row()
@@ -5860,13 +6198,20 @@ impl Paseo {
                 };
                 let mut children = Vec::new();
                 for (index, child) in group.children.iter().enumerate() {
-                    if index > 0 {
+                    let hidden = child.is_hidden_for_presentation(maximized_pane_id);
+                    if index > 0
+                        && !hidden
+                        && !group.children[index - 1].is_hidden_for_presentation(maximized_pane_id)
+                    {
                         children.push(
                             self.render_separator(&group.id, index - 1, horizontal, &palette, cx)
                                 .into_any_element(),
                         );
                     }
-                    let size = group.sizes.get(index).copied().unwrap_or(0.0).max(0.0001) as f32;
+                    if hidden {
+                        continue;
+                    }
+                    let size = visible_flex.get(index).copied().unwrap_or(0.0).max(0.0001) as f32;
                     let child_node = child.clone();
                     children.push(
                         div()
@@ -5876,7 +6221,12 @@ impl Paseo {
                             .flex_basis(px(0.))
                             .min_h_0()
                             .min_w_0()
-                            .child(self.render_split_node(&child_node, window, cx))
+                            .child(self.render_split_node(
+                                &child_node,
+                                maximized_pane_id,
+                                window,
+                                cx,
+                            ))
                             .into_any_element(),
                     );
                 }
@@ -5894,6 +6244,11 @@ impl Paseo {
         cx: &mut Context<Self>,
     ) -> gpui::Stateful<gpui::Div> {
         let group_id = group_id.to_owned();
+        let hover_group = SharedString::from(format!("split-separator-hover-{group_id}-{index}"));
+        let dragging = self
+            .split_drag
+            .as_ref()
+            .is_some_and(|drag| drag.group_id == group_id && drag.index == index);
         let cursor = if horizontal {
             CursorStyle::ResizeLeftRight
         } else {
@@ -5903,26 +6258,62 @@ impl Paseo {
             .id(SharedString::from(format!(
                 "split-separator-{group_id}-{index}"
             )))
-            .cursor(cursor)
+            .group(hover_group.clone())
+            .relative()
             .flex_shrink_0()
-            .flex()
-            .items_center()
-            .justify_center()
-            .when(horizontal, |separator| separator.w(px(SEPARATOR_HIT)))
-            .when(!horizontal, |separator| separator.h(px(SEPARATOR_HIT)))
+            .bg(rgb(palette.border))
+            .when(horizontal, |separator| separator.w(px(1.)).h_full())
+            .when(!horizontal, |separator| separator.h(px(1.)).w_full())
             .child(
-                div()
-                    .flex_shrink_0()
-                    .bg(rgb(palette.border))
-                    .when(horizontal, |line| line.w(px(1.)).h_full())
-                    .when(!horizontal, |line| line.h(px(1.)).w_full()),
-            )
-            .on_mouse_down(
-                MouseButton::Left,
-                cx.listener(move |this, event: &MouseDownEvent, _, cx| {
-                    this.begin_split_drag(group_id.clone(), index, horizontal, event.position, cx);
-                    cx.stop_propagation();
-                }),
+                gpui::deferred(
+                    div()
+                        .absolute()
+                        .cursor(cursor)
+                        .when(horizontal, |hit| {
+                            hit.top_0().bottom_0().left(px(-5.)).w(px(SEPARATOR_HIT))
+                        })
+                        .when(!horizontal, |hit| {
+                            hit.left_0().right_0().top(px(-5.)).h(px(SEPARATOR_HIT))
+                        })
+                        .child(
+                            div()
+                                .absolute()
+                                .bg(rgb(palette.accent))
+                                .when(!dragging, |accent| {
+                                    accent
+                                        .invisible()
+                                        .group_hover(hover_group, |accent| accent.visible())
+                                })
+                                .when(horizontal, |accent| {
+                                    accent
+                                        .top_0()
+                                        .bottom_0()
+                                        .left(px(4.))
+                                        .w(px(SEPARATOR_HIGHLIGHT))
+                                })
+                                .when(!horizontal, |accent| {
+                                    accent
+                                        .left_0()
+                                        .right_0()
+                                        .top(px(4.))
+                                        .h(px(SEPARATOR_HIGHLIGHT))
+                                }),
+                        )
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(move |this, event: &MouseDownEvent, _, cx| {
+                                this.begin_split_drag(
+                                    group_id.clone(),
+                                    index,
+                                    horizontal,
+                                    event.position,
+                                    cx,
+                                );
+                                cx.stop_propagation();
+                            }),
+                        ),
+                )
+                .with_priority(1),
             )
     }
 
@@ -6053,8 +6444,93 @@ impl Paseo {
 
 #[cfg(test)]
 mod tests {
-    use super::EditorKey;
+    use super::{EditorKey, restorable_file_tabs};
+    use paseo_desktop::explorer_layout::{CHANGES_TAB_ID, EXPLORER_PANE_ID, FILES_TAB_ID};
+    use paseo_desktop::menu_position::{
+        Alignment, Input, Placement, Position, Rect, Size, compute_position,
+    };
+    use paseo_desktop::split_layout::{MAIN_PANE_ID, SplitLayout};
+    use paseo_desktop::workspace_layout_storage::validate_layout;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn workspace_and_scripts_menus_keep_the_authored_alignment() {
+        let input = Input {
+            trigger_rect: Rect {
+                x: 500.,
+                y: 50.,
+                width: 26.,
+                height: 26.,
+            },
+            content_size: Size {
+                width: 220.,
+                height: 38.,
+            },
+            display_area: Rect {
+                x: 0.,
+                y: 0.,
+                width: 1000.,
+                height: 800.,
+            },
+            placement: Placement::Bottom,
+            alignment: Alignment::Start,
+            offset: 4.,
+            flip_horizontal: false,
+        };
+        assert_eq!(
+            compute_position(input),
+            Position {
+                x: 500.,
+                y: 80.,
+                actual_placement: Placement::Bottom
+            }
+        );
+        assert_eq!(
+            compute_position(Input {
+                alignment: Alignment::End,
+                ..input
+            }),
+            Position {
+                x: 306.,
+                y: 80.,
+                actual_placement: Placement::Bottom
+            }
+        );
+    }
+
+    #[test]
+    fn workspace_context_menu_flips_around_the_pointer_not_a_preshifted_origin() {
+        let input = Input {
+            trigger_rect: Rect {
+                x: 300.,
+                y: 760.,
+                width: 0.,
+                height: 0.,
+            },
+            content_size: Size {
+                width: 220.,
+                height: 66.,
+            },
+            display_area: Rect {
+                x: 0.,
+                y: 0.,
+                width: 1000.,
+                height: 800.,
+            },
+            placement: Placement::Bottom,
+            alignment: Alignment::Start,
+            offset: 4.,
+            flip_horizontal: false,
+        };
+        assert_eq!(
+            compute_position(input),
+            Position {
+                x: 300.,
+                y: 690.,
+                actual_placement: Placement::Top
+            }
+        );
+    }
 
     #[test]
     fn the_same_relative_path_in_two_workspaces_is_two_tabs() {
@@ -6068,6 +6544,91 @@ mod tests {
         assert_ne!(
             EditorKey::new("/repos/a", "README.md").tab_id(),
             EditorKey::new("/repos/b", "README.md").tab_id()
+        );
+    }
+
+    #[test]
+    fn a_persisted_file_tab_parses_back_to_the_same_buffer() {
+        let key = EditorKey::new("/repos/a", "src/README.md");
+        let tab = key.tab_id();
+        let restored = EditorKey::from_tab_id(&tab, "/repos/a").expect("restorable tab");
+        assert_eq!(restored, key);
+        // The rail shows this before the editor's first load response.
+        assert_eq!(restored.title(), "README.md");
+        assert_eq!(restored.tab_id(), tab);
+    }
+
+    #[test]
+    fn malformed_or_empty_file_tabs_are_refused() {
+        let valid = EditorKey::new("/repos/a", "README.md").tab_id();
+        let malformed = [
+            String::new(),
+            "file:".into(),
+            "file:[]".into(),
+            "file:[\"/repos/a\"]".into(),
+            "file:[\"/repos/a\",\"\"]".into(),
+            "file:[\"\",\"README.md\"]".into(),
+            "file:[\"/repos/a\",\"README.md\",\"extra\"]".into(),
+            "file:[ \"/repos/a\",\"README.md\" ]".into(),
+            "file:[1,2]".into(),
+            "file:null".into(),
+            format!("{valid}trailing"),
+            "term-1".into(),
+        ];
+        for tab in malformed {
+            assert_eq!(
+                EditorKey::from_tab_id(&tab, "/repos/a"),
+                None,
+                "accepted {tab:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_file_tab_from_another_workspace_is_not_admitted() {
+        let other = EditorKey::new("/repos/b", "README.md");
+        assert_eq!(EditorKey::from_tab_id(&other.tab_id(), "/repos/a"), None);
+        assert_eq!(
+            EditorKey::from_tab_id(&other.tab_id(), "/repos/b"),
+            Some(other)
+        );
+    }
+
+    #[test]
+    fn restore_reloads_only_file_tabs_owned_by_this_workspace() {
+        let cwd = "/repos/a";
+        let main_file = EditorKey::new(cwd, "src/main.rs");
+        let explorer_file = EditorKey::new(cwd, "docs/readme.md");
+        let foreign_file = EditorKey::new("/repos/b", "secret.md");
+        let mut layout = SplitLayout::single(MAIN_PANE_ID);
+        layout.attach_tab(&main_file.tab_id()).unwrap();
+        layout.attach_tab(&foreign_file.tab_id()).unwrap();
+        layout.attach_tab("term-1").unwrap();
+        layout.explorer.ensure_pane();
+        layout.focus_pane(EXPLORER_PANE_ID);
+        layout.attach_tab(&explorer_file.tab_id()).unwrap();
+
+        // Cold start reads the same validated layout the client stores.
+        let persisted = serde_json::to_vec(&layout).unwrap();
+        let restored = validate_layout(serde_json::from_slice(&persisted).unwrap()).unwrap();
+        assert_eq!(
+            restored.pane(EXPLORER_PANE_ID).unwrap().tabs,
+            vec![
+                FILES_TAB_ID.to_owned(),
+                CHANGES_TAB_ID.to_owned(),
+                explorer_file.tab_id(),
+            ]
+        );
+        assert!(
+            !restored
+                .pane(MAIN_PANE_ID)
+                .unwrap()
+                .tabs
+                .contains(&explorer_file.tab_id())
+        );
+        assert_eq!(
+            restorable_file_tabs(&restored, cwd),
+            vec![main_file, explorer_file]
         );
     }
 }

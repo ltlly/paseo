@@ -19,3 +19,12 @@ pub const PRIMARY_ORDER: &[&str] = &[
     "browser",
     "pullRequest",
 ];
+pub const SUPPORTING_ORDER: &[&str] = &[
+    "changes",
+    "terminal",
+    "diff",
+    "files",
+    "agent",
+    "browser",
+    "pullRequest",
+];

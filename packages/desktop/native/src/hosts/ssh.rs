@@ -278,16 +278,18 @@ async fn pump(
     let mut downstream = tokio::spawn(async move {
         let _ = tokio::io::copy(&mut stdout, &mut socket_writer).await;
     });
-    // Either EOF ends this connection. Drop does not cancel a JoinHandle;
-    // abort and join the other pump before accepting the next connection.
+    // A write half-close still permits a final response from ssh. Drain it
+    // with a deadline so a peer that never closes cannot hold reconnects.
     tokio::select! {
         _ = &mut downstream => {
             upstream.abort();
             let _ = upstream.await;
         }
         _ = &mut upstream => {
-            downstream.abort();
-            let _ = downstream.await;
+            if tokio::time::timeout(HANDSHAKE_TIMEOUT, &mut downstream).await.is_err() {
+                downstream.abort();
+                let _ = downstream.await;
+            }
         }
     }
     // Reap the child and capture why it died. An ssh process that is still

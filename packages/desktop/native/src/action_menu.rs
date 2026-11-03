@@ -5,8 +5,9 @@ use crate::{
     theme::{font_size, radius},
 };
 use gpui::{
-    App, BoxShadow, Context, EventEmitter, FocusHandle, Focusable, MouseButton, Render, Window,
-    div, prelude::*, px, rgb, rgba,
+    AnyElement, App, Bounds, BoxShadow, Context, Display, Element, ElementId, EventEmitter,
+    FocusHandle, Focusable, GlobalElementId, InspectorElementId, LayoutId, MouseButton, Pixels,
+    Position, Render, Style, Window, div, point, prelude::*, px, rgb, rgba,
 };
 
 pub struct Item {
@@ -18,6 +19,8 @@ pub struct Item {
     pub heading: bool,
     pub separator: bool,
     pub shortcut: Option<String>,
+    pub hint: Option<String>,
+    pub tooltip: Option<String>,
 }
 impl Item {
     pub fn new(id: &str, label: impl Into<String>, icon: &'static str) -> Self {
@@ -30,6 +33,8 @@ impl Item {
             heading: false,
             separator: false,
             shortcut: None,
+            hint: None,
+            tooltip: None,
         }
     }
 }
@@ -40,6 +45,7 @@ pub struct ActionMenu {
     focus: FocusHandle,
     shared: SharedSettings,
     compact_icons: bool,
+    fixed_width: Option<f32>,
     measured_width: Option<(gpui::SharedString, f32, f32)>,
 }
 impl EventEmitter<Chosen> for ActionMenu {}
@@ -56,6 +62,7 @@ impl ActionMenu {
             focus: cx.focus_handle(),
             shared,
             compact_icons: false,
+            fixed_width: None,
             measured_width: None,
         }
     }
@@ -63,12 +70,21 @@ impl ActionMenu {
         self.compact_icons = true;
         self
     }
+    pub fn pane_menu(mut self) -> Self {
+        self.compact_icons = true;
+        self.fixed_width = Some(paseo_desktop::workspace_tab_layout::p::DROPDOWN_WIDTH);
+        self
+    }
+    pub fn context_menu(mut self) -> Self {
+        self.fixed_width = Some(paseo_desktop::workspace_tab_layout::p::DROPDOWN_WIDTH);
+        self
+    }
     fn key_down(&mut self, event: &gpui::KeyDownEvent, _: &mut Window, cx: &mut Context<Self>) {
         let enabled: Vec<usize> = self
             .items
             .iter()
             .enumerate()
-            .filter(|(_, item)| item.enabled)
+            .filter(|(_, item)| item.enabled && !item.separator && !item.heading)
             .map(|(i, _)| i)
             .collect();
         match event.keystroke.key.as_str() {
@@ -110,7 +126,9 @@ impl Render for ActionMenu {
             font_size::BASE,
             self.shared.get().ui_base_font_size,
         );
-        let width = if self.compact_icons {
+        let width = if let Some(fixed) = self.fixed_width {
+            fixed
+        } else if self.compact_icons {
             let family = crate::fonts::ui_family_for(&self.shared.get().ui_font_family);
             if self
                 .measured_width
@@ -164,8 +182,12 @@ impl Render for ActionMenu {
                 .2
                 .min((window.viewport_size().width.to_f64() as f32 - 16.).max(0.))
         } else {
-            220.
+            paseo_desktop::workspace_tab_layout::p::DROPDOWN_WIDTH
         };
+        let font_sm = paseo_desktop::appearance::scale_ui_font(
+            font_size::SM,
+            self.shared.get().ui_base_font_size,
+        );
         div()
             .id("action-menu")
             .occlude()
@@ -272,9 +294,29 @@ impl Render for ActionMenu {
                             )
                         },
                     )
-                    .child(div().flex_1().child(item.label.clone()))
+                    .child(
+                        div()
+                            .min_w_0()
+                            .flex_1()
+                            .truncate()
+                            .child(item.label.clone()),
+                    )
+                    .when_some(item.hint.clone(), |row, hint| {
+                        row.child(
+                            div()
+                                .flex_shrink_0()
+                                .text_size(px(font_sm))
+                                .text_color(rgb(palette.foreground_muted))
+                                .child(hint),
+                        )
+                    })
                     .when_some(item.shortcut.clone(), |row, shortcut| {
                         row.child(crate::chrome::shortcut_badge(shortcut, &palette))
+                    })
+                    .when_some(item.tooltip.clone(), |row, tooltip| {
+                        row.tooltip(move |_, cx| {
+                            cx.new(|_| crate::chrome::Tooltip(tooltip.clone())).into()
+                        })
                     })
                     .on_mouse_move(cx.listener(move |this, _, _, cx| {
                         if enabled && this.active != Some(index) {
@@ -293,5 +335,118 @@ impl Render for ActionMenu {
                     )
                     .into_any_element()
             }))
+    }
+}
+
+// Layout and placement resolve in one prepaint pass, including content that changes after opening.
+pub struct AnchoredMenu {
+    trigger: Bounds<Pixels>,
+    alignment: paseo_desktop::menu_position::Alignment,
+    offset: f64,
+    child: AnyElement,
+}
+
+pub fn anchored_menu(
+    trigger: Bounds<Pixels>,
+    alignment: paseo_desktop::menu_position::Alignment,
+    offset: f64,
+    child: impl IntoElement,
+) -> AnchoredMenu {
+    AnchoredMenu {
+        trigger,
+        alignment,
+        offset,
+        child: child.into_any_element(),
+    }
+}
+
+impl IntoElement for AnchoredMenu {
+    type Element = Self;
+    fn into_element(self) -> Self {
+        self
+    }
+}
+
+impl Element for AnchoredMenu {
+    type RequestLayoutState = LayoutId;
+    type PrepaintState = ();
+
+    fn id(&self) -> Option<ElementId> {
+        None
+    }
+    fn source_location(&self) -> Option<&'static std::panic::Location<'static>> {
+        None
+    }
+
+    fn request_layout(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> (LayoutId, LayoutId) {
+        let child = self.child.request_layout(window, cx);
+        let layout = window.request_layout(
+            Style {
+                position: Position::Absolute,
+                display: Display::Flex,
+                ..Style::default()
+            },
+            [child],
+            cx,
+        );
+        (layout, child)
+    }
+
+    fn prepaint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        _: Bounds<Pixels>,
+        child: &mut LayoutId,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        use paseo_desktop::menu_position::{Input, Placement, Rect, Size, compute_position};
+        let content = window.layout_bounds(*child);
+        let viewport = window.viewport_size();
+        let position = compute_position(Input {
+            trigger_rect: Rect {
+                x: self.trigger.left().to_f64(),
+                y: self.trigger.top().to_f64(),
+                width: self.trigger.size.width.to_f64(),
+                height: self.trigger.size.height.to_f64(),
+            },
+            content_size: Size {
+                width: content.size.width.to_f64(),
+                height: content.size.height.to_f64(),
+            },
+            display_area: Rect {
+                width: viewport.width.to_f64(),
+                height: viewport.height.to_f64(),
+                ..Rect::default()
+            },
+            placement: Placement::Bottom,
+            alignment: self.alignment,
+            offset: self.offset,
+            flip_horizontal: false,
+        });
+        let offset = point(px(position.x as f32), px(position.y as f32)) - content.origin;
+        window.with_element_offset(offset, |window| {
+            self.child.prepaint(window, cx);
+        });
+    }
+
+    fn paint(
+        &mut self,
+        _: Option<&GlobalElementId>,
+        _: Option<&InspectorElementId>,
+        _: Bounds<Pixels>,
+        _: &mut LayoutId,
+        _: &mut (),
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        self.child.paint(window, cx);
     }
 }

@@ -1,6 +1,8 @@
 // Generated from the authored workspace tab rail. Do not edit.
+pub const DROPDOWN_WIDTH: f32 = 220.0;
 pub const ADD_INLINE_SIZE: f32 = 28.0;
 pub const ADD_INLINE_PADDING: f32 = 4.0;
+pub const ADD_INLINE_RESERVED: f32 = 36.0;
 pub const ADD_TOOLBAR_PADDING: f32 = 2.0;
 pub const ROW_HEIGHT: f32 = 36.0;
 pub const CHIP_HEIGHT: f32 = 28.0;
@@ -20,7 +22,10 @@ pub const CLOSE_RIGHT: f32 = 4.0;
 pub const CLOSE_RADIUS: f32 = 2.0;
 pub const SCRIM_WIDTH: f32 = 48.0;
 pub const SCRIM_SOLID: f32 = 0.55;
+pub const SPLIT_ACTIONS_RESERVED: f32 = 27.0;
+pub const MAXIMIZE_ACTION_RESERVED: f32 = 21.0;
 pub const ADD_TOOLBAR_SIZE: f32 = 20.0;
 pub const ADD_GLYPH_SIZE: f32 = 14.0;
 pub const ADD_TOOLBAR_MARGIN: f32 = 3.0;
+pub const TOOLBAR_CONTROL_GAP: f32 = 1.0;
 pub const EXPLORER_ACTION_MARGIN: f32 = 4.0;

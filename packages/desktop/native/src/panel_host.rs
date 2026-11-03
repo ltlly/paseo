@@ -33,9 +33,29 @@ pub fn supports(kind: &str, host: Host) -> bool {
         Host::Explorer => panel.explorer,
     })
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LaunchSurface {
+    Menu,
+    Panel,
+}
+
 pub fn can_launch(kind: &str, host: Host, existing: &[&str]) -> bool {
+    can_launch_on_surface(kind, host, existing, LaunchSurface::Menu)
+}
+
+pub fn can_launch_on_surface(
+    kind: &str,
+    host: Host,
+    existing: &[&str],
+    surface: LaunchSurface,
+) -> bool {
     supports(kind, host)
-        && manifest(kind).is_some_and(|panel| !panel.singleton || !existing.contains(&kind))
+        && match surface {
+            LaunchSurface::Panel => manifest(kind).is_some(),
+            LaunchSurface::Menu => {
+                manifest(kind).is_some_and(|panel| !panel.singleton || !existing.contains(&kind))
+            }
+        }
 }
 
 #[cfg(test)]
@@ -63,8 +83,13 @@ mod tests {
                 case["supported"].as_bool().unwrap(),
                 "{case}"
             );
+            let surface = if case["surface"] == "panel" {
+                LaunchSurface::Panel
+            } else {
+                LaunchSurface::Menu
+            };
             assert_eq!(
-                can_launch(kind, host, &existing),
+                can_launch_on_surface(kind, host, &existing, surface),
                 case["canLaunch"].as_bool().unwrap(),
                 "{case}"
             );

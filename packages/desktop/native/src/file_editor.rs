@@ -28,6 +28,12 @@ pub struct CloseRequested;
 
 impl EventEmitter<CloseRequested> for FileEditor {}
 
+/// The editor's dirty/retention state changed (e.g., an async save settled a
+/// background buffer back to clean, so the mount cache may evict excess tabs).
+pub struct DirtyStateChanged;
+
+impl EventEmitter<DirtyStateChanged> for FileEditor {}
+
 /// Which side of the disk round-trip the editor is on. Mirrors the original
 /// file editor states: a clean buffer follows the disk, a modified one
 /// conflicts when the disk moves underneath it.
@@ -45,6 +51,180 @@ pub enum Status {
 // explicit Overwrite control may use the new host version with local text.
 fn permits_save(status: Status, overwrite: bool) -> bool {
     status == Status::Dirty || (overwrite && status == Status::Conflict { deleted: false })
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct VersionMarker {
+    modified_at: Option<String>,
+    revision: Option<String>,
+}
+
+impl VersionMarker {
+    fn from_version_json(version: &Value) -> Option<Self> {
+        (version["status"].as_str() == Some("ready")).then(|| Self {
+            modified_at: version["modifiedAt"].as_str().map(str::to_owned),
+            revision: version["revision"].as_str().map(str::to_owned),
+        })
+    }
+
+    fn from_file_json(file: &Value) -> Self {
+        Self {
+            modified_at: file["modifiedAt"].as_str().map(str::to_owned),
+            revision: file["revision"].as_str().map(str::to_owned),
+        }
+    }
+}
+
+/// Selects the compare-and-swap baseline for a write. Ordinary saves always
+/// compare against the last read or written `base`; only an explicit Overwrite
+/// (`overwrite == true`) prefers the latest observed conflict version.
+fn select_write_version<'a>(
+    base: &'a VersionMarker,
+    conflict: Option<&'a VersionMarker>,
+    overwrite: bool,
+) -> &'a VersionMarker {
+    if overwrite {
+        conflict.unwrap_or(base)
+    } else {
+        base
+    }
+}
+
+/// Whether the buffer has seen its initial file read and may accept edits.
+fn can_edit_buffer(status: Status) -> bool {
+    !matches!(status, Status::Loading | Status::Failed)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum UpdateDisposition {
+    Ignore,
+    QueueWhileSaving,
+    FetchLatest,
+    Conflict {
+        deleted: bool,
+        version: Option<VersionMarker>,
+    },
+    DeletedClean,
+    Error(Option<String>),
+}
+
+/// Decides how a pushed `fs.file.update` affects the editor without letting an
+/// external disk version replace the ordinary save baseline.
+fn classify_file_update(
+    version: &Value,
+    base: &VersionMarker,
+    dirty: bool,
+    saving: bool,
+) -> UpdateDisposition {
+    if saving {
+        return UpdateDisposition::QueueWhileSaving;
+    }
+    if is_known_version(
+        version,
+        base.revision.as_deref(),
+        base.modified_at.as_deref(),
+    ) {
+        return UpdateDisposition::Ignore;
+    }
+    match version["status"].as_str() {
+        Some("missing") => {
+            if dirty {
+                UpdateDisposition::Conflict {
+                    deleted: true,
+                    version: None,
+                }
+            } else {
+                UpdateDisposition::DeletedClean
+            }
+        }
+        Some("error") => UpdateDisposition::Error(version["error"].as_str().map(str::to_owned)),
+        Some("ready") => {
+            if dirty {
+                UpdateDisposition::Conflict {
+                    deleted: false,
+                    version: VersionMarker::from_version_json(version),
+                }
+            } else {
+                UpdateDisposition::FetchLatest
+            }
+        }
+        _ => UpdateDisposition::Ignore,
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum ReadReconciliation {
+    AdoptClean {
+        normalized_text: String,
+        separator: &'static str,
+        version: VersionMarker,
+    },
+    PreserveDirtyMatch {
+        version: VersionMarker,
+    },
+    PreserveDirtyConflict {
+        version: VersionMarker,
+    },
+}
+
+fn detect_separator(content: &str) -> &'static str {
+    if content.contains("\r\n") {
+        "\r\n"
+    } else if content.contains('\r') {
+        "\r"
+    } else {
+        "\n"
+    }
+}
+
+/// Reconciles an arriving `file_explorer_response` against the live buffer so a
+/// background read started before a keystroke cannot wipe unsaved local edits.
+fn reconcile_loaded_file(
+    file: &Value,
+    dirty: bool,
+    current_text: &str,
+    force_reload: bool,
+) -> anyhow::Result<ReadReconciliation> {
+    if file["kind"].as_str() == Some("binary") || file["encoding"].as_str() != Some("utf-8") {
+        anyhow::bail!("This file is not UTF-8 text. Paseo edits text files.");
+    }
+    let content = file["content"]
+        .as_str()
+        .context("the host returned no file content")?;
+    let separator = detect_separator(content);
+    let normalized_text = content.replace("\r\n", "\n").replace('\r', "\n");
+    let version = VersionMarker::from_file_json(file);
+    if dirty && !force_reload {
+        if normalized_text == current_text {
+            Ok(ReadReconciliation::PreserveDirtyMatch { version })
+        } else {
+            Ok(ReadReconciliation::PreserveDirtyConflict { version })
+        }
+    } else {
+        Ok(ReadReconciliation::AdoptClean {
+            normalized_text,
+            separator,
+            version,
+        })
+    }
+}
+
+/// Whether the buffer has unsaved edits or an in-flight write, which protects
+/// the editor from LRU eviction and requires confirmation before closing.
+fn is_dirty_state(dirty: bool, status: Status) -> bool {
+    dirty || status == Status::Saving
+}
+
+/// Only a clean editor with no in-flight write or active close prompt may be
+/// evicted when its tab leaves the pane's mounted LRU window.
+fn can_evict_state(dirty: bool, status: Status) -> bool {
+    !is_dirty_state(dirty, status)
+}
+
+/// The tab label for a host path. Split layouts persist this path, so a
+/// restored tab can show its label before the editor exists.
+pub(crate) fn title_for_path(path: &str) -> String {
+    path.rsplit('/').next().unwrap_or(path).to_owned()
 }
 
 fn adopt_content(editing: &mut Editing, text: String) {
@@ -88,8 +268,16 @@ pub struct FileEditor {
     /// Separator the file uses on disk; edits use `\n` internally.
     separator: &'static str,
     status: Status,
+    /// Last version this editor read or wrote itself; the CAS baseline for
+    /// ordinary saves.
     modified_at: Option<String>,
     revision: Option<String>,
+    /// Latest conflicting host version observed while dirty or from a write
+    /// conflict; used only by explicit Overwrite, never by ordinary saves.
+    conflict_version: Option<VersionMarker>,
+    /// A pushed `fs.file.update` that arrived while a write was in flight,
+    /// reconciled after the write settles.
+    pending_update: Option<Value>,
     error: Option<String>,
     /// The in-memory buffer differs from the last read or saved version.
     dirty: bool,
@@ -98,6 +286,9 @@ pub struct FileEditor {
     /// round trip keeps the tab dirty when that write acknowledges.
     save_snapshot: Option<String>,
     load_request: Option<String>,
+    /// True when `load_request` was initiated by an explicit user Reload from a
+    /// conflict and should replace the dirty buffer once the read succeeds.
+    load_forces_reload: bool,
     /// The host-bound subscription request awaiting its response.
     subscribe_request: Option<String>,
     /// Set when the user asked to close after the in-flight save lands.
@@ -108,6 +299,7 @@ pub struct FileEditor {
     subscription: Option<String>,
     connected: bool,
     autosave: Option<gpui::Task<()>>,
+    writes_held: bool,
     lines: Vec<Line>,
     content_height: Pixels,
     bounds: Bounds<Pixels>,
@@ -190,9 +382,15 @@ fn file_subscription_key(cwd: &str, path: &str) -> String {
 /// A disconnect ends every round trip. A save that was in flight can never
 /// acknowledge, so its dirty buffer has to become editable and savable again
 /// instead of staying in `Saving`, which no guard lets the user leave.
+#[cfg(test)]
 fn status_after_disconnect(status: Status) -> Status {
+    status_after_failed_save(status, None)
+}
+
+fn status_after_failed_save(status: Status, conflict_version: Option<&VersionMarker>) -> Status {
     match status {
         Status::Loading => Status::Failed,
+        Status::Saving if conflict_version.is_some() => Status::Conflict { deleted: false },
         Status::Saving => Status::Dirty,
         status => status,
     }
@@ -280,17 +478,21 @@ impl FileEditor {
             status: Status::Loading,
             modified_at: None,
             revision: None,
+            conflict_version: None,
+            pending_update: None,
             error: None,
             dirty: false,
             save_request: None,
             save_snapshot: None,
             load_request: None,
+            load_forces_reload: false,
             subscribe_request: None,
             close_after_save: false,
             pending_scroll: false,
             subscription: None,
             connected: true,
             autosave: None,
+            writes_held: false,
             lines: Vec::new(),
             content_height: px(0.),
             bounds: Bounds::default(),
@@ -308,33 +510,42 @@ impl FileEditor {
     }
 
     pub fn is_dirty(&self) -> bool {
-        self.dirty || self.status == Status::Saving
+        is_dirty_state(self.dirty, self.status)
+    }
+
+    /// Whether the mount cache may evict this editor when its tab leaves the
+    /// pane's recent LRU window. Dirty, saving, or close-prompt-held buffers
+    /// must stay mounted.
+    pub fn can_evict(&self) -> bool {
+        can_evict_state(self.dirty, self.status) && !self.writes_held
     }
 
     pub fn title(&self) -> String {
-        self.path
-            .rsplit('/')
-            .next()
-            .unwrap_or(&self.path)
-            .to_owned()
+        title_for_path(&self.path)
     }
 
     pub fn disconnected(&mut self, cx: &mut Context<Self>) {
+        let was_dirty = self.is_dirty();
         self.connected = false;
         self.subscription = None;
         self.subscribe_request = None;
         self.save_request = None;
         self.save_snapshot = None;
         self.load_request = None;
+        self.load_forces_reload = false;
         self.close_after_save = false;
         let saving = matches!(self.status, Status::Saving);
-        self.status = status_after_disconnect(self.status);
+        self.status = status_after_failed_save(self.status, self.conflict_version.as_ref());
         if self.status == Status::Failed {
             self.error = Some("Host is disconnected.".into());
         } else if saving {
             // The write can never acknowledge, so the buffer stays unsaved and
             // must become editable again instead of sitting in Saving forever.
             self.error = Some("The host disconnected before the save was acknowledged.".into());
+        }
+        self.flush_pending_update(cx);
+        if was_dirty != self.is_dirty() {
+            cx.emit(DirtyStateChanged);
         }
         cx.notify();
     }
@@ -368,8 +579,17 @@ impl FileEditor {
         }
     }
 
-    /// Called when the tab is closed. Releases the host file subscription.
+    /// Called when the tab is closed or its clean editor is evicted from the
+    /// mount cache. Releases the host file subscription and cancels pending
+    /// async reads/writes/timers so late replies cannot mutate or leak state.
     pub fn closed(&mut self) {
+        self.autosave = None;
+        self.load_request = None;
+        self.load_forces_reload = false;
+        self.save_request = None;
+        self.save_snapshot = None;
+        self.pending_update = None;
+        self.close_after_save = false;
         self.subscribe_request = None;
         self.subscription = None;
         // `Connection::unsubscribe` releases by the local bookkeeping key; the
@@ -378,11 +598,22 @@ impl FileEditor {
         self.connection.unsubscribe(&self.subscription_key());
     }
 
+    /// Evicts a clean editor when its tab falls outside the pane's mounted LRU
+    /// window. Refuses if the buffer is dirty or saving.
+    pub fn evict(&mut self) -> bool {
+        if !self.can_evict() {
+            return false;
+        }
+        self.closed();
+        true
+    }
+
     fn subscription_key(&self) -> String {
         file_subscription_key(&self.cwd, &self.path)
     }
 
     fn load(&mut self, cx: &mut Context<Self>) {
+        self.load_forces_reload = false;
         match self.connection.request(
             "file_explorer_request",
             json!({
@@ -409,6 +640,15 @@ impl FileEditor {
     }
 
     pub fn receive(&mut self, kind: &str, payload: &Value, cx: &mut Context<Self>) -> bool {
+        let was_dirty = self.is_dirty();
+        let handled = self.receive_inner(kind, payload, cx);
+        if handled && was_dirty != self.is_dirty() {
+            cx.emit(DirtyStateChanged);
+        }
+        handled
+    }
+
+    fn receive_inner(&mut self, kind: &str, payload: &Value, cx: &mut Context<Self>) -> bool {
         if let Some(request_id) = payload["requestId"].as_str() {
             if kind == "fs.file.subscribe.response"
                 && self.subscribe_request.as_deref() == Some(request_id)
@@ -442,15 +682,21 @@ impl FileEditor {
                         self.modified_at =
                             payload["result"]["modifiedAt"].as_str().map(str::to_owned);
                         self.revision = payload["result"]["revision"].as_str().map(str::to_owned);
+                        self.conflict_version = None;
                         self.error = None;
+                        self.flush_pending_update(cx);
                         if self.close_after_save {
-                            if unsaved {
+                            if matches!(self.status, Status::Conflict { .. }) {
+                                self.close_after_save = false;
+                            } else if self.dirty {
                                 // Save the newer text before the tab goes away.
                                 self.save(cx);
                             } else {
                                 self.close_after_save = false;
                                 cx.emit(CloseRequested);
                             }
+                        } else if self.dirty && !matches!(self.status, Status::Conflict { .. }) {
+                            self.schedule_autosave(cx);
                         }
                     }
                     WriteOutcome::Conflict { deleted } => {
@@ -460,22 +706,24 @@ impl FileEditor {
                         self.close_after_save = false;
                         // Only explicit Overwrite uses this host version.
                         // Ordinary saves remain blocked by the conflict.
-                        self.adopt_version(&payload["result"]["version"]);
+                        self.adopt_conflict_version(&payload["result"]["version"]);
                         self.status = if self.dirty {
                             Status::Conflict { deleted }
                         } else {
                             Status::Clean
                         };
+                        self.flush_pending_update(cx);
                     }
                     WriteOutcome::Error(error) => {
                         self.save_snapshot = None;
                         self.close_after_save = false;
                         self.status = if self.dirty {
-                            Status::Dirty
+                            status_after_failed_save(Status::Saving, self.conflict_version.as_ref())
                         } else {
                             Status::Clean
                         };
                         self.error = Some(error);
+                        self.flush_pending_update(cx);
                     }
                 }
                 cx.notify();
@@ -484,25 +732,66 @@ impl FileEditor {
             if kind == "file_explorer_response" && self.load_request.as_deref() == Some(request_id)
             {
                 self.load_request = None;
+                let force_reload = std::mem::replace(&mut self.load_forces_reload, false);
                 if let Some(error) = payload["error"].as_str() {
-                    self.status = Status::Failed;
+                    if !self.dirty {
+                        self.status = Status::Failed;
+                    }
                     self.error = Some(error.to_owned());
                     cx.notify();
                     return true;
                 }
                 match &payload["file"] {
                     Value::Null => {
-                        self.status = Status::Failed;
+                        if !self.dirty {
+                            self.status = Status::Failed;
+                        }
                         self.error = Some("File unavailable.".into());
                     }
-                    file => match self.apply_file(file) {
-                        Ok(()) => {
+                    file => match reconcile_loaded_file(
+                        file,
+                        self.dirty,
+                        &self.editing.text,
+                        force_reload,
+                    ) {
+                        Ok(ReadReconciliation::AdoptClean {
+                            normalized_text,
+                            separator,
+                            version,
+                        }) => {
+                            self.separator = separator;
+                            adopt_content(&mut self.editing, normalized_text);
+                            self.modified_at = version.modified_at;
+                            self.revision = version.revision;
+                            self.conflict_version = None;
+                            if let Some(find) = &mut self.find {
+                                find.run(&self.editing.text);
+                            }
                             self.status = Status::Clean;
                             self.dirty = false;
                             self.error = None;
                         }
+                        Ok(ReadReconciliation::PreserveDirtyMatch { version }) => {
+                            self.modified_at = version.modified_at;
+                            self.revision = version.revision;
+                            self.conflict_version = None;
+                            self.dirty = false;
+                            if !matches!(self.status, Status::Saving) {
+                                self.status = Status::Clean;
+                            }
+                            self.error = None;
+                        }
+                        Ok(ReadReconciliation::PreserveDirtyConflict { version }) => {
+                            self.conflict_version = Some(version);
+                            if !matches!(self.status, Status::Saving) {
+                                self.status = Status::Conflict { deleted: false };
+                            }
+                            self.error = None;
+                        }
                         Err(error) => {
-                            self.status = Status::Failed;
+                            if !self.dirty {
+                                self.status = Status::Failed;
+                            }
                             self.error = Some(format!("{error:#}"));
                         }
                     },
@@ -527,6 +816,9 @@ impl FileEditor {
                 if self.owns_request(request_id) {
                     let saving = self.save_request.take().is_some();
                     let loading = self.load_request.take().is_some();
+                    if loading {
+                        self.load_forces_reload = false;
+                    }
                     if saving {
                         self.save_snapshot = None;
                         // A refused save leaves the tab open.
@@ -534,13 +826,16 @@ impl FileEditor {
                     }
                     self.error = payload["error"].as_str().map(str::to_owned);
                     if loading {
-                        self.status = Status::Failed;
+                        if !self.dirty {
+                            self.status = Status::Failed;
+                        }
                     } else if saving {
                         self.status = if self.dirty {
-                            Status::Dirty
+                            status_after_failed_save(Status::Saving, self.conflict_version.as_ref())
                         } else {
                             Status::Clean
                         };
+                        self.flush_pending_update(cx);
                     }
                     cx.notify();
                     return true;
@@ -553,48 +848,61 @@ impl FileEditor {
         false
     }
 
+    fn base_version(&self) -> VersionMarker {
+        VersionMarker {
+            modified_at: self.modified_at.clone(),
+            revision: self.revision.clone(),
+        }
+    }
+
+    fn flush_pending_update(&mut self, cx: &mut Context<Self>) {
+        if let Some(update) = self.pending_update.take() {
+            let _ = self.receive_update(&update, cx);
+        }
+    }
+
     fn receive_update(&mut self, payload: &Value, cx: &mut Context<Self>) -> bool {
         if !update_targets(self.subscription.as_deref(), payload) {
             return false;
         }
         let version = &payload["version"];
-        // A notification for an acknowledged write can arrive after the next
-        // local edit. It does not introduce a new disk revision or a conflict.
-        if is_known_version(
+        match classify_file_update(
             version,
-            self.revision.as_deref(),
-            self.modified_at.as_deref(),
+            &self.base_version(),
+            self.dirty,
+            self.save_request.is_some(),
         ) {
-            return true;
-        }
-        match version["status"].as_str() {
-            Some("missing") => {
+            UpdateDisposition::QueueWhileSaving => {
+                self.pending_update = Some(payload.clone());
+                true
+            }
+            UpdateDisposition::Ignore => true,
+            UpdateDisposition::DeletedClean => {
+                self.conflict_version = None;
                 self.apply_deleted(cx);
                 true
             }
-            Some("error") => {
-                self.error = version["error"].as_str().map(str::to_owned);
+            UpdateDisposition::Error(error) => {
+                self.error = error;
                 cx.notify();
                 true
             }
-            Some("ready") => {
-                self.modified_at = version["modifiedAt"].as_str().map(str::to_owned);
-                self.revision = version["revision"].as_str().map(str::to_owned);
-                if self.dirty {
-                    // A dirty buffer conflicts; it only adopts the disk version
-                    // through an explicit reload or a conflicting save.
-                    self.status = Status::Conflict { deleted: false };
-                    cx.notify();
-                } else {
-                    self.fetch_latest();
-                }
+            UpdateDisposition::Conflict { deleted, version } => {
+                self.autosave = None;
+                self.conflict_version = version;
+                self.status = Status::Conflict { deleted };
+                cx.notify();
                 true
             }
-            _ => false,
+            UpdateDisposition::FetchLatest => {
+                self.fetch_latest();
+                true
+            }
         }
     }
 
     fn fetch_latest(&mut self) {
+        self.load_forces_reload = false;
         match self.connection.request(
             "file_explorer_request",
             json!({
@@ -611,6 +919,7 @@ impl FileEditor {
 
     fn apply_deleted(&mut self, cx: &mut Context<Self>) {
         if self.dirty {
+            self.conflict_version = None;
             self.status = Status::Conflict { deleted: true };
         } else {
             self.status = Status::Failed;
@@ -620,41 +929,14 @@ impl FileEditor {
         cx.notify();
     }
 
-    fn apply_file(&mut self, file: &Value) -> anyhow::Result<()> {
-        if file["kind"].as_str() == Some("binary") || file["encoding"].as_str() != Some("utf-8") {
-            anyhow::bail!("This file is not UTF-8 text. Paseo edits text files.");
-        }
-        let content = file["content"]
-            .as_str()
-            .context("the host returned no file content")?;
-        self.separator = if content.contains("\r\n") {
-            "\r\n"
-        } else if content.contains('\r') {
-            "\r"
-        } else {
-            "\n"
-        };
-        adopt_content(
-            &mut self.editing,
-            content.replace("\r\n", "\n").replace('\r', "\n"),
-        );
-        self.modified_at = file["modifiedAt"].as_str().map(str::to_owned);
-        self.revision = file["revision"].as_str().map(str::to_owned);
-        if let Some(find) = &mut self.find {
-            find.run(&self.editing.text);
-        }
-        Ok(())
-    }
-
-    /// Adopt a version payload from a write conflict.
-    fn adopt_version(&mut self, version: &Value) {
-        if version["status"].as_str() == Some("ready") {
-            self.modified_at = version["modifiedAt"].as_str().map(str::to_owned);
-            self.revision = version["revision"].as_str().map(str::to_owned);
-        }
+    /// Record a conflicting host version for explicit Overwrite without
+    /// advancing the ordinary compare-and-swap baseline.
+    fn adopt_conflict_version(&mut self, version: &Value) {
+        self.conflict_version = VersionMarker::from_version_json(version);
     }
 
     fn edited(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let was_dirty = self.is_dirty();
         self.pending_scroll = true;
         if !self.dirty && !matches!(self.status, Status::Conflict { .. }) {
             self.dirty = true;
@@ -666,6 +948,9 @@ impl FileEditor {
             find.run(&self.editing.text);
         }
         self.schedule_autosave(cx);
+        if was_dirty != self.is_dirty() {
+            cx.emit(DirtyStateChanged);
+        }
         window.notify_text_input_changed(&self.focus);
         cx.notify();
     }
@@ -678,7 +963,22 @@ impl FileEditor {
         cx.notify();
     }
 
+    pub(crate) fn hold_writes(&mut self) {
+        self.writes_held = true;
+        self.autosave = None;
+    }
+
+    pub(crate) fn resume_writes(&mut self, cx: &mut Context<Self>) {
+        self.writes_held = false;
+        if self.dirty {
+            self.schedule_autosave(cx);
+        }
+    }
+
     fn schedule_autosave(&mut self, cx: &mut Context<Self>) {
+        if self.writes_held {
+            return;
+        }
         let timer = cx
             .background_executor()
             .timer(Duration::from_millis(AUTOSAVE_DELAY_MS));
@@ -686,7 +986,8 @@ impl FileEditor {
             timer.await;
             let _ = this.update(cx, |this, cx| {
                 this.autosave = None;
-                if this.dirty && this.save_request.is_none() && this.connected {
+                if !this.writes_held && this.dirty && this.save_request.is_none() && this.connected
+                {
                     this.save(cx);
                 }
             });
@@ -698,21 +999,27 @@ impl FileEditor {
     }
 
     fn save_with_intent(&mut self, overwrite: bool, cx: &mut Context<Self>) {
-        if !self.connected || self.save_request.is_some() || !permits_save(self.status, overwrite) {
+        if self.writes_held
+            || !self.connected
+            || self.save_request.is_some()
+            || !permits_save(self.status, overwrite)
+        {
             return;
         }
         // The snapshot records what this write carries; the acknowledgement
         // compares the buffer against it.
         let text = self.editing.text.clone();
         let content = text.replace('\n', self.separator);
-        // The compare-and-swap markers are the versions the editor last read,
-        // adopted from a conflict, or received from a write. Never a blank.
+        // Ordinary saves compare against the last read or written version;
+        // only explicit Overwrite uses the conflicting host version.
+        let base = self.base_version();
+        let chosen = select_write_version(&base, self.conflict_version.as_ref(), overwrite);
         let fields = match write_fields(
             &self.cwd,
             &self.path,
             &content,
-            self.modified_at.as_deref(),
-            self.revision.as_deref(),
+            chosen.modified_at.as_deref(),
+            chosen.revision.as_deref(),
         ) {
             Ok(fields) => fields,
             Err(_) => {
@@ -731,18 +1038,26 @@ impl FileEditor {
                 cx.spawn(async move |this, cx| {
                     timer.await;
                     let _ = this.update(cx, |this, cx| {
+                        let was_dirty = this.is_dirty();
                         if this.save_request.take().is_some() {
                             this.save_snapshot = None;
                             // No acknowledgement: the tab stays open.
                             this.close_after_save = false;
                             this.status = if this.dirty {
-                                Status::Dirty
+                                status_after_failed_save(
+                                    Status::Saving,
+                                    this.conflict_version.as_ref(),
+                                )
                             } else {
                                 Status::Clean
                             };
                             this.error = Some(
                                 "No save acknowledgement. Check the connection and retry.".into(),
                             );
+                            this.flush_pending_update(cx);
+                            if was_dirty != this.is_dirty() {
+                                cx.emit(DirtyStateChanged);
+                            }
                             cx.notify();
                         }
                     });
@@ -760,6 +1075,7 @@ impl FileEditor {
 
     fn reload(&mut self, cx: &mut Context<Self>) {
         self.fetch_latest();
+        self.load_forces_reload = self.load_request.is_some();
         cx.notify();
     }
 
@@ -910,14 +1226,16 @@ impl FileEditor {
                         cx.write_to_clipboard(ClipboardItem::new_string(
                             self.editing.text[selection].to_owned(),
                         ));
-                        if key.key == "x" {
+                        if key.key == "x" && can_edit_buffer(self.status) {
                             self.editing.replace(None, "", false, None);
                             changed = true;
                         }
                     }
                 }
                 "v" => {
-                    if let Some(text) = cx.read_from_clipboard().and_then(|c| c.text()) {
+                    if can_edit_buffer(self.status)
+                        && let Some(text) = cx.read_from_clipboard().and_then(|c| c.text())
+                    {
                         self.editing
                             .replace(None, &text.replace("\r\n", "\n"), false, None);
                         changed = true;
@@ -939,15 +1257,24 @@ impl FileEditor {
         } else {
             match key.key.as_str() {
                 "enter" => {
+                    if !can_edit_buffer(self.status) {
+                        return;
+                    }
                     self.editing.replace(None, "\n", false, None);
                     changed = true;
                 }
                 "backspace" | "delete" => {
+                    if !can_edit_buffer(self.status) {
+                        return;
+                    }
                     let before = self.editing.text.len();
                     self.editing.delete(key.key == "delete");
                     changed = before != self.editing.text.len();
                 }
                 "tab" => {
+                    if !can_edit_buffer(self.status) {
+                        return;
+                    }
                     self.editing.replace(None, "  ", false, None);
                     changed = true;
                 }
@@ -1201,7 +1528,7 @@ impl FileEditor {
             }
             cx.notify();
             let _ = window;
-        } else {
+        } else if can_edit_buffer(self.status) {
             self.editing.replace(range, text, false, None);
             self.edited(window, cx);
         }
@@ -1324,7 +1651,7 @@ impl EntityInputHandler for FileEditor {
                 find.run(&self.editing.text);
             }
             cx.notify();
-        } else {
+        } else if can_edit_buffer(self.status) {
             self.editing.replace(range, text, true, selected);
             self.edited(window, cx);
         }
@@ -1527,8 +1854,6 @@ impl Render for FileEditor {
                                 MouseButton::Left,
                                 cx.listener(|this, _, _, cx| {
                                     cx.stop_propagation();
-                                    this.dirty = false;
-                                    this.status = Status::Clean;
                                     this.reload(cx);
                                 }),
                             ),
@@ -2054,9 +2379,11 @@ mod tests {
     }
     use super::permits_save;
     use super::{
-        Status, WriteOutcome, file_subscription_key, find_matches, status_after_disconnect,
-        subscription_from_response, unsaved_after_write, update_targets, write_fields,
-        write_outcome,
+        ReadReconciliation, Status, UpdateDisposition, VersionMarker, WriteOutcome,
+        can_edit_buffer, can_evict_state, classify_file_update, file_subscription_key,
+        find_matches, is_dirty_state, reconcile_loaded_file, select_write_version,
+        status_after_disconnect, status_after_failed_save, subscription_from_response,
+        unsaved_after_write, update_targets, write_fields, write_outcome,
     };
     use serde_json::json;
     use std::ops::Range;
@@ -2233,6 +2560,167 @@ mod tests {
             &json!({"subscriptionId":"0f4c2a5e-6d7b-4c1a-9f2e-2b6f5a8c9d01"})
         ));
     }
+
+    #[test]
+    fn dirty_and_saving_buffers_refuse_lru_eviction_while_clean_states_allow_it() {
+        for status in [Status::Loading, Status::Failed, Status::Clean] {
+            assert!(!is_dirty_state(false, status), "{status:?}");
+            assert!(can_evict_state(false, status), "{status:?}");
+        }
+        // Any buffer with unsaved local text or an in-flight save is protected.
+        assert!(is_dirty_state(true, Status::Dirty));
+        assert!(!can_evict_state(true, Status::Dirty));
+        assert!(is_dirty_state(false, Status::Saving));
+        assert!(!can_evict_state(false, Status::Saving));
+        assert!(is_dirty_state(true, Status::Saving));
+        assert!(!can_evict_state(true, Status::Saving));
+        assert!(is_dirty_state(true, Status::Conflict { deleted: false }));
+        assert!(!can_evict_state(true, Status::Conflict { deleted: false }));
+        assert!(is_dirty_state(true, Status::Conflict { deleted: true }));
+        assert!(!can_evict_state(true, Status::Conflict { deleted: true }));
+    }
+
+    #[test]
+    fn updates_during_save_queue_until_the_write_settles_and_ignore_own_version() {
+        let base = VersionMarker {
+            modified_at: Some("m1".into()),
+            revision: Some("r1".into()),
+        };
+        let own_update = json!({"status":"ready","modifiedAt":"m2","revision":"r2"});
+        let external_update = json!({"status":"ready","modifiedAt":"m3","revision":"r3"});
+
+        // Any update arriving while a write is in flight is queued instead of
+        // flashing a false conflict against the pre-write baseline.
+        assert_eq!(
+            classify_file_update(&own_update, &base, true, true),
+            UpdateDisposition::QueueWhileSaving
+        );
+        assert_eq!(
+            classify_file_update(&external_update, &base, true, true),
+            UpdateDisposition::QueueWhileSaving
+        );
+
+        // Once the write acknowledges r2, the queued notification for r2 is
+        // recognized as the editor's own version and ignored.
+        let written_base = VersionMarker {
+            modified_at: Some("m2".into()),
+            revision: Some("r2".into()),
+        };
+        assert_eq!(
+            classify_file_update(&own_update, &written_base, false, false),
+            UpdateDisposition::Ignore
+        );
+        assert_eq!(
+            classify_file_update(&own_update, &written_base, true, false),
+            UpdateDisposition::Ignore
+        );
+
+        // A genuinely different disk version after the write settles enters
+        // Conflict when dirty (recording the conflict version for Overwrite
+        // without changing `written_base`), or triggers a fetch when clean.
+        assert_eq!(
+            classify_file_update(&external_update, &written_base, true, false),
+            UpdateDisposition::Conflict {
+                deleted: false,
+                version: Some(VersionMarker {
+                    modified_at: Some("m3".into()),
+                    revision: Some("r3".into()),
+                }),
+            }
+        );
+        assert_eq!(
+            classify_file_update(&external_update, &written_base, false, false),
+            UpdateDisposition::FetchLatest
+        );
+    }
+
+    #[test]
+    fn external_versions_never_replace_the_ordinary_save_baseline() {
+        let base = VersionMarker {
+            modified_at: Some("m1".into()),
+            revision: Some("r1".into()),
+        };
+        let conflict = VersionMarker {
+            modified_at: Some("m_ext".into()),
+            revision: Some("r_ext".into()),
+        };
+
+        // Ordinary saves keep comparing against `base`; only explicit Overwrite
+        // (`overwrite = true`) uses the observed conflict version.
+        assert_eq!(select_write_version(&base, Some(&conflict), false), &base);
+        assert_eq!(
+            select_write_version(&base, Some(&conflict), true),
+            &conflict
+        );
+        assert_eq!(select_write_version(&base, None, true), &base);
+
+        // If an Overwrite attempt fails, times out, or disconnects, the buffer
+        // returns to `Conflict` rather than `Dirty` so a subsequent Ctrl+S or
+        // autosave remains blocked.
+        assert_eq!(
+            status_after_failed_save(Status::Saving, Some(&conflict)),
+            Status::Conflict { deleted: false }
+        );
+        assert_eq!(
+            status_after_failed_save(Status::Saving, None),
+            Status::Dirty
+        );
+    }
+
+    #[test]
+    fn background_reads_preserve_dirty_edits_while_explicit_reload_replaces_them() {
+        assert!(!can_edit_buffer(Status::Loading));
+        assert!(!can_edit_buffer(Status::Failed));
+        assert!(can_edit_buffer(Status::Clean));
+        assert!(can_edit_buffer(Status::Dirty));
+        assert!(can_edit_buffer(Status::Saving));
+        assert!(can_edit_buffer(Status::Conflict { deleted: false }));
+
+        let disk_file = json!({
+            "kind": "text",
+            "encoding": "utf-8",
+            "content": "disk line 1\r\ndisk line 2",
+            "modifiedAt": "m2",
+            "revision": "r2",
+        });
+
+        // A background read arriving after the user dirtied the buffer must
+        // not overwrite the local text; it records the conflict version.
+        assert_eq!(
+            reconcile_loaded_file(&disk_file, true, "local unsaved edit", false).unwrap(),
+            ReadReconciliation::PreserveDirtyConflict {
+                version: VersionMarker {
+                    modified_at: Some("m2".into()),
+                    revision: Some("r2".into()),
+                },
+            }
+        );
+
+        // If the disk content already matches the dirty buffer, the buffer
+        // settles cleanly to the disk version without losing cursor state.
+        assert_eq!(
+            reconcile_loaded_file(&disk_file, true, "disk line 1\ndisk line 2", false).unwrap(),
+            ReadReconciliation::PreserveDirtyMatch {
+                version: VersionMarker {
+                    modified_at: Some("m2".into()),
+                    revision: Some("r2".into()),
+                },
+            }
+        );
+
+        // An explicit "Reload from host" forces adoption of the disk file.
+        assert_eq!(
+            reconcile_loaded_file(&disk_file, true, "local unsaved edit", true).unwrap(),
+            ReadReconciliation::AdoptClean {
+                normalized_text: "disk line 1\ndisk line 2".into(),
+                separator: "\r\n",
+                version: VersionMarker {
+                    modified_at: Some("m2".into()),
+                    revision: Some("r2".into()),
+                },
+            }
+        );
+    }
 }
 
 /// A fake host over a real websocket: bind the subscribe response to a
@@ -2333,7 +2821,7 @@ async fn subscribe_save_and_conflict_round_trip_against_a_host_socket() {
 
     let connection =
         Connection::start(Target::remote(format!("ws://{address}/ws"), None).unwrap()).unwrap();
-    let mut events = connection.events.clone();
+    let events = connection.events.clone();
     while !matches!(
         tokio::time::timeout(std::time::Duration::from_secs(5), events.recv()).await,
         Ok(Ok(paseo_desktop::client::Event::Ready(_)))
@@ -2539,6 +3027,112 @@ async fn closing_a_tab_releases_the_host_subscription_by_its_local_key() {
         released.lock().unwrap().as_slice(),
         [SUBSCRIPTION.to_owned()],
         "exactly the bound host id is released, once"
+    );
+    connection.close();
+    server.abort();
+}
+
+/// Evicting a clean editor while its `fs.file.subscribe.request` is still in
+/// flight must release the late host-assigned subscription ID as soon as the
+/// response arrives, without delivering it to the client.
+#[tokio::test]
+async fn evicting_an_editor_before_subscribe_acknowledges_releases_the_late_host_id() {
+    use futures_util::{SinkExt, StreamExt};
+    use paseo_desktop::client::{Connection, Target};
+    use std::sync::{Arc, Mutex};
+    use tokio::net::TcpListener;
+    use tokio_tungstenite::tungstenite::Message;
+
+    const LATE_SUBSCRIPTION: &str = "late-subscription-uuid-evicted";
+    let key = file_subscription_key("/repos/a", "evicted.rs");
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let released = Arc::new(Mutex::new(Vec::<String>::new()));
+    let host_released = released.clone();
+    let (allow_reply_tx, allow_reply_rx) = tokio::sync::oneshot::channel::<()>();
+    let server = tokio::spawn(async move {
+        let (stream, _) = listener.accept().await.unwrap();
+        let mut socket = tokio_tungstenite::accept_async(stream).await.unwrap();
+        socket
+            .send(Message::Text(
+                json!({"type":"session","message":{"type":"status","payload":{
+                        "status":"server_info","serverId":"fixture","features":{}}}})
+                .to_string(),
+            ))
+            .await
+            .unwrap();
+        let mut allow_reply = Some(allow_reply_rx);
+        while let Some(message) = socket.next().await {
+            let Message::Text(text) = message.unwrap() else {
+                continue;
+            };
+            let envelope: Json = serde_json::from_str(&text).unwrap();
+            if envelope["type"] != "session" {
+                continue;
+            }
+            let message = &envelope["message"];
+            match message["type"].as_str().unwrap_or_default() {
+                "fs.file.subscribe.request" => {
+                    let request_id = message["requestId"].as_str().unwrap_or_default().to_owned();
+                    if let Some(rx) = allow_reply.take() {
+                        let _ = rx.await;
+                    }
+                    socket
+                        .send(Message::Text(
+                            json!({"type":"session","message":{"type":"fs.file.subscribe.response","payload":{
+                                    "subscriptionId":LATE_SUBSCRIPTION,
+                                    "requestId":request_id}}})
+                            .to_string(),
+                        ))
+                        .await
+                        .unwrap();
+                }
+                "subscription.release.request" => {
+                    host_released.lock().unwrap().push(
+                        message["subscriptionId"]
+                            .as_str()
+                            .unwrap_or_default()
+                            .to_owned(),
+                    );
+                }
+                _ => continue,
+            }
+        }
+    });
+
+    let connection =
+        Connection::start(Target::remote(format!("ws://{address}/ws"), None).unwrap()).unwrap();
+    let events = connection.events.clone();
+    while !matches!(
+        tokio::time::timeout(std::time::Duration::from_secs(5), events.recv()).await,
+        Ok(Ok(paseo_desktop::client::Event::Ready(_)))
+    ) {}
+
+    let _request = connection
+        .subscribe(
+            &key,
+            "fs.file.subscribe.request",
+            json!({"cwd":"/repos/a","path":"evicted.rs"}),
+        )
+        .unwrap();
+
+    // Evict/close before the subscribe response arrives.
+    connection.unsubscribe(&key);
+    let _ = allow_reply_tx.send(());
+
+    let waited = std::time::Instant::now();
+    while released.lock().unwrap().is_empty() {
+        assert!(
+            waited.elapsed() < std::time::Duration::from_secs(5),
+            "late subscribe response after eviction was not released"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert_eq!(
+        released.lock().unwrap().as_slice(),
+        [LATE_SUBSCRIPTION.to_owned()],
+        "the late host subscription id must be automatically released on arrival"
     );
     connection.close();
     server.abort();

@@ -17,6 +17,8 @@ pub enum FieldEvent {
     Edited,
     /// The user pressed Enter or the field lost focus.
     Committed,
+    /// The user pressed Escape.
+    Cancelled,
 }
 
 /// A single-line settings text field with the authored input presentation:
@@ -29,6 +31,7 @@ pub struct TextField {
     width: f32,
     height: f32,
     fill_width: bool,
+    modal_surface: bool,
     align_right: bool,
     shared: SharedSettings,
     focus: FocusHandle,
@@ -60,6 +63,7 @@ impl TextField {
             width,
             height: 36.,
             fill_width: false,
+            modal_surface: false,
             align_right,
             shared,
             focus: cx.focus_handle(),
@@ -75,6 +79,15 @@ impl TextField {
         self.height = crate::profile_settings_presentation::FIELD_HEIGHT;
         self.fill_width = true;
         self.editing.select(self.editing.text.len(), false);
+        self
+    }
+
+    pub fn modal(mut self, height: f32) -> Self {
+        self.height = height;
+        self.fill_width = true;
+        self.modal_surface = true;
+        self.editing.select(0, false);
+        self.editing.select(self.editing.text.len(), true);
         self
     }
     /// Repaint the input chrome after the active theme or interface size changed.
@@ -166,6 +179,7 @@ impl TextField {
         } else {
             match key.key.as_str() {
                 "enter" => cx.emit(FieldEvent::Committed),
+                "escape" if self.modal_surface => cx.emit(FieldEvent::Cancelled),
                 "up" | "down" | "escape" | "tab" => return,
                 "backspace" | "delete" => self.editing.delete(key.key == "delete"),
                 "left" | "right" => self
@@ -359,20 +373,26 @@ impl Render for TextField {
             .min_w(px(self.width))
             .h(px(self.height))
             .when(self.fill_width, |view| view.w_full())
-            .px(px(if self.fill_width {
+            .px(px(if self.fill_width && !self.modal_surface {
                 crate::profile_settings_presentation::FIELD_PADDING_X
             } else {
                 12.
             }))
             .flex()
             .items_center()
-            .rounded(px(if self.fill_width {
+            .rounded(px(if self.fill_width && !self.modal_surface {
                 crate::profile_settings_presentation::FIELD_RADIUS
             } else {
                 6.
             }))
             .border_1()
-            .border_color(if self.fill_width {
+            .border_color(if self.modal_surface {
+                if self.focus.is_focused(window) {
+                    gpui::Hsla::from(rgb(palette.border_accent))
+                } else {
+                    rgb(palette.border).into()
+                }
+            } else if self.fill_width {
                 if self.focus.is_focused(window) {
                     gpui::Hsla::from(rgb(palette.border_accent))
                 } else {
@@ -381,10 +401,14 @@ impl Render for TextField {
             } else {
                 rgb(palette.border).into()
             })
-            .when(self.fill_width, |v| {
+            .when(self.fill_width && !self.modal_surface, |v| {
                 v.hover(|v| v.border_color(rgb(palette.border_accent)))
             })
-            .bg(rgb(palette.input))
+            .bg(rgb(if self.modal_surface {
+                palette.surface0
+            } else {
+                palette.input
+            }))
             .cursor_text()
             .on_mouse_down(MouseButton::Left, cx.listener(Self::pressed))
             .on_mouse_move(cx.listener(Self::dragged))

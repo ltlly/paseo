@@ -22,3 +22,7 @@ pub const LINUX: Geometry = Geometry {
     circular: true,
 };
 pub const DEFAULT_SIDEBAR_WIDTH: f32 = 320.0;
+pub const CIRCLE_SIZE: f32 = 24.0;
+pub const CIRCLE_RADIUS: f32 = 12.0;
+pub const CLOSE_HOVER_COLOR: u32 = 0xe81123;
+pub const CLOSE_HOVER_OPACITY: f32 = 0.9;

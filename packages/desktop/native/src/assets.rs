@@ -121,6 +121,10 @@ impl AssetSource for Assets {
             }
             "icons/panel-left.svg" => include_bytes!("../assets/icons/panel-left.svg"),
             "icons/panel-right.svg" => include_bytes!("../assets/icons/panel-right.svg"),
+            "icons/columns-2.svg" => include_bytes!("../assets/icons/columns-2.svg"),
+            "icons/rows-2.svg" => include_bytes!("../assets/icons/rows-2.svg"),
+            "icons/maximize.svg" => include_bytes!("../assets/icons/maximize.svg"),
+            "icons/minimize.svg" => include_bytes!("../assets/icons/minimize.svg"),
             "icons/ellipsis.svg" => include_bytes!("../assets/icons/ellipsis.svg"),
             "icons/chevron-down.svg" => include_bytes!("../assets/icons/chevron-down.svg"),
             "icons/chevron-right.svg" => include_bytes!("../assets/icons/chevron-right.svg"),
@@ -162,6 +166,14 @@ impl AssetSource for Assets {
             "icons/image.svg" => include_bytes!("../assets/icons/image.svg"),
             "icons/file-text.svg" => include_bytes!("../assets/icons/file-text.svg"),
             "icons/copy.svg" => include_bytes!("../assets/icons/copy.svg"),
+            "icons/copy-x.svg" => include_bytes!("../assets/icons/copy-x.svg"),
+            "icons/arrow-left-to-line.svg" => {
+                include_bytes!("../assets/icons/arrow-left-to-line.svg")
+            }
+            "icons/arrow-right-to-line.svg" => {
+                include_bytes!("../assets/icons/arrow-right-to-line.svg")
+            }
+            "icons/rotate-cw.svg" => include_bytes!("../assets/icons/rotate-cw.svg"),
             "icons/archive.svg" => include_bytes!("../assets/icons/archive.svg"),
             "icons/files.svg" => include_bytes!("../assets/icons/files.svg"),
             "icons/file-diff.svg" => include_bytes!("../assets/icons/file-diff.svg"),
@@ -253,6 +265,10 @@ impl AssetSource for Assets {
             "icons/sliders-horizontal.svg",
             "icons/panel-left.svg",
             "icons/panel-right.svg",
+            "icons/columns-2.svg",
+            "icons/rows-2.svg",
+            "icons/maximize.svg",
+            "icons/minimize.svg",
             "icons/ellipsis.svg",
             "icons/chevron-down.svg",
             "icons/chevron-right.svg",
@@ -292,6 +308,10 @@ impl AssetSource for Assets {
             "icons/image.svg",
             "icons/file-text.svg",
             "icons/copy.svg",
+            "icons/copy-x.svg",
+            "icons/arrow-left-to-line.svg",
+            "icons/arrow-right-to-line.svg",
+            "icons/rotate-cw.svg",
             "icons/archive.svg",
             "icons/files.svg",
             "icons/file-diff.svg",

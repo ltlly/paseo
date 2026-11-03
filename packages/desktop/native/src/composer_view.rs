@@ -413,6 +413,13 @@ impl Composer {
         cx.notify();
     }
 
+    pub fn reload_agent_config(&mut self, cx: &mut Context<Self>) {
+        self.controls.models = None;
+        self.controls.mode_visuals = None;
+        self.refresh_config(cx);
+        cx.notify();
+    }
+
     /// Appearance or content-size change. Draft shaping depends on the content
     /// size and family, so the cached lines are rebuilt on the next layout.
     pub fn settings_changed(&mut self, cx: &mut Context<Self>) {

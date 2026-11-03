@@ -1,4 +1,4 @@
-use super::{EditorKey, PaneTabKind, Paseo};
+use super::{PaneTabKind, Paseo};
 use crate::{chrome, file_icon_view::FileIconCache};
 use gpui::{
     Context, MouseButton, MouseDownEvent, ScrollHandle, SharedString, Window, div, prelude::*, px,
@@ -172,18 +172,35 @@ impl Paseo {
             .get(&pane.id)
             .map_or(window.viewport_size().width, |bounds| bounds.size.width)
             .to_f64() as f32;
-        // The authored row reserves the 36px add-button slot before shrinking labels.
+        // The authored row reserves the 36px add-button slot before shrinking labels,
+        // plus the main-pane split and maximize toolbar slots when shown.
         // Explorer's header-action wrapper keeps its trailing margin even
         // when the toggle renders in the main header (and its child is empty).
+        let show_split_actions = !explorer;
+        let (show_maximize_action, pane_maximized) = if explorer {
+            (false, false)
+        } else {
+            self.selected_workspace
+                .as_ref()
+                .and_then(|id| self.splits.get(id))
+                .map_or((false, false), |split_layout| {
+                    (
+                        split_layout.has_multiple_main_panes(),
+                        split_layout.is_pane_maximized(&pane.id),
+                    )
+                })
+        };
         let action_margin = if explorer {
             p::EXPLORER_ACTION_MARGIN
         } else {
             0.
         };
+        let reserved =
+            workspace_tab_layout::actions_reserved_width(show_split_actions, show_maximize_action);
         let layout = workspace_tab_layout::layout(
             (width - controls_width - action_margin).max(0.),
             &labels,
-            p::ADD_INLINE_SIZE + p::ADD_INLINE_PADDING * 2.,
+            reserved,
             false,
         );
         let scroll = self.tab_rail.scrolls.entry(pane.id.clone()).or_default();
@@ -302,9 +319,26 @@ impl Paseo {
                 })
                 .on_mouse_down(
                     MouseButton::Left,
+                    cx.listener({
+                        let owner = owner.clone();
+                        let selected = selected.clone();
+                        move |this, event: &MouseDownEvent, window, cx| {
+                            cx.stop_propagation();
+                            this.begin_tab_drag(
+                                owner.clone(),
+                                selected.clone(),
+                                event.position,
+                                window,
+                                cx,
+                            );
+                        }
+                    }),
+                )
+                .on_mouse_down(
+                    MouseButton::Right,
                     cx.listener(move |this, event: &MouseDownEvent, window, cx| {
                         cx.stop_propagation();
-                        this.begin_tab_drag(
+                        this.open_tab_context_menu(
                             owner.clone(),
                             selected.clone(),
                             event.position,
@@ -313,23 +347,22 @@ impl Paseo {
                         );
                     }),
                 );
-            // Closing a terminal stops its process only after system confirmation.
+            // Closing a terminal or running archive-policy agent prompts for system confirmation.
             if matches!(
                 kind,
-                PaneTabKind::Terminal
+                PaneTabKind::Agent
+                    | PaneTabKind::Terminal
                     | PaneTabKind::Launcher
                     | PaneTabKind::File
                     | PaneTabKind::Browser
             ) {
-                let key = file.as_ref().map(|(key, _)| key.clone());
                 let close_id = id.clone();
-                let middle_key = key.clone();
                 let middle_id = close_id.clone();
                 chip = chip.on_mouse_down(
                     MouseButton::Middle,
                     cx.listener(move |this, _, window, cx| {
                         cx.stop_propagation();
-                        this.close_passive_pane_tab(middle_key.as_ref(), &middle_id, window, cx);
+                        this.close_pane_tab(&middle_id, window, cx);
                     }),
                 );
                 chip = chip.child(
@@ -371,12 +404,7 @@ impl Paseo {
                                     MouseButton::Left,
                                     cx.listener(move |this, _, window, cx| {
                                         cx.stop_propagation();
-                                        this.close_passive_pane_tab(
-                                            key.as_ref(),
-                                            &close_id,
-                                            window,
-                                            cx,
-                                        );
+                                        this.close_pane_tab(&close_id, window, cx);
                                     }),
                                 ),
                         ),
@@ -392,47 +420,144 @@ impl Paseo {
         } else {
             p::ADD_INLINE_SIZE
         };
-        let add = div()
-            .w(px(if layout.overflow {
-                p::ADD_TOOLBAR_SIZE + p::ADD_TOOLBAR_PADDING * 2. + p::ADD_TOOLBAR_MARGIN
-            } else {
-                p::ADD_INLINE_SIZE + p::ADD_INLINE_PADDING * 2.
-            }))
-            .h_full()
-            .flex_shrink_0()
-            .when(!layout.overflow, |v| v.ml(px(-p::CHIP_GAP / 2.)))
+        let add_button = div()
+            .id(SharedString::from(format!("pane-add-{owner}")))
+            .relative()
+            .size(px(control_size))
+            .rounded(px(p::CHIP_RADIUS))
             .flex()
             .items_center()
-            .pl(px(if layout.overflow {
-                p::ADD_TOOLBAR_PADDING
-            } else {
-                p::ADD_INLINE_PADDING
-            }))
+            .justify_center()
+            .cursor_pointer()
+            .when(self.new_tab_menu_owns_pane(&owner), |v| {
+                v.bg(rgb(highlight))
+            })
+            .hover(|v| v.bg(rgb(highlight)))
             .child(
+                chrome::icon("plus", p::ADD_GLYPH_SIZE)
+                    .text_color(rgb(palette.foreground_extra_muted)),
+            )
+            .child(
+                gpui::canvas(
+                    move |bounds, _, cx| {
+                        measure.update(cx, |this, _| {
+                            this.terminal_commands
+                                .anchors
+                                .insert(measured.clone(), bounds);
+                        });
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .size_full(),
+            )
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, _, window, cx| {
+                    cx.stop_propagation();
+                    this.open_new_tab_menu(owner.clone(), window, cx);
+                }),
+            )
+            .into_any_element();
+        let mut toolbar_controls = Vec::new();
+        if layout.overflow {
+            toolbar_controls.push(add_button);
+        } else {
+            chips.push(
                 div()
-                    .id(SharedString::from(format!("pane-add-{owner}")))
-                    .relative()
-                    .size(px(control_size))
+                    .w(px(p::ADD_INLINE_SIZE + p::ADD_INLINE_PADDING * 2.))
+                    .h_full()
+                    .flex_shrink_0()
+                    .ml(px(-p::CHIP_GAP / 2.))
+                    .flex()
+                    .items_center()
+                    .pl(px(p::ADD_INLINE_PADDING))
+                    .child(add_button)
+                    .into_any_element(),
+            );
+        }
+        if show_maximize_action {
+            let max_owner = pane.id.clone();
+            let max_tooltip = self.launch_text(if pane_maximized {
+                "workspace.tabs.actions.restorePane"
+            } else {
+                "workspace.tabs.actions.maximizePane"
+            });
+            toolbar_controls.push(
+                div()
+                    .id(SharedString::from(format!(
+                        "{}-{max_owner}",
+                        if pane_maximized {
+                            "workspace-restore-pane"
+                        } else {
+                            "workspace-maximize-pane"
+                        }
+                    )))
+                    .size(px(p::ADD_TOOLBAR_SIZE))
                     .rounded(px(p::CHIP_RADIUS))
+                    .flex_shrink_0()
                     .flex()
                     .items_center()
                     .justify_center()
                     .cursor_pointer()
-                    .when(self.new_tab_menu_owns_pane(&owner), |v| {
+                    .when(pane_maximized, |v| v.bg(rgb(highlight)))
+                    .hover(|v| v.bg(rgb(highlight)))
+                    .tooltip(move |_, cx| cx.new(|_| chrome::Tooltip(max_tooltip.clone())).into())
+                    .child(
+                        chrome::icon(
+                            if pane_maximized {
+                                "minimize"
+                            } else {
+                                "maximize"
+                            },
+                            p::ADD_GLYPH_SIZE,
+                        )
+                        .text_color(rgb(palette.foreground_extra_muted)),
+                    )
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(move |this, _, window, cx| {
+                            cx.stop_propagation();
+                            this.toggle_pane_maximized(max_owner.clone(), window, cx);
+                        }),
+                    )
+                    .into_any_element(),
+            );
+        }
+        if show_split_actions {
+            let split_owner = pane.id.clone();
+            let split_measure = cx.entity();
+            let split_measured = split_owner.clone();
+            let split_tooltip = self.launch_text("workspace.git.actions.moreActions");
+            toolbar_controls.push(
+                div()
+                    .id(SharedString::from(format!(
+                        "workspace-split-pane-menu-{split_owner}"
+                    )))
+                    .relative()
+                    .size(px(p::ADD_TOOLBAR_SIZE))
+                    .rounded(px(p::CHIP_RADIUS))
+                    .flex_shrink_0()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .cursor_pointer()
+                    .when(self.split_menu_owns_pane(&split_owner), |v| {
                         v.bg(rgb(highlight))
                     })
                     .hover(|v| v.bg(rgb(highlight)))
+                    .tooltip(move |_, cx| cx.new(|_| chrome::Tooltip(split_tooltip.clone())).into())
                     .child(
-                        chrome::icon("plus", p::ADD_GLYPH_SIZE)
+                        chrome::icon("ellipsis", p::ADD_GLYPH_SIZE)
                             .text_color(rgb(palette.foreground_extra_muted)),
                     )
                     .child(
                         gpui::canvas(
                             move |bounds, _, cx| {
-                                measure.update(cx, |this, _| {
+                                split_measure.update(cx, |this, _| {
                                     this.terminal_commands
-                                        .anchors
-                                        .insert(measured.clone(), bounds);
+                                        .split_anchors
+                                        .insert(split_measured.clone(), bounds);
                                 });
                             },
                             |_, _, _, _| {},
@@ -444,17 +569,24 @@ impl Paseo {
                         MouseButton::Left,
                         cx.listener(move |this, _, window, cx| {
                             cx.stop_propagation();
-                            this.open_new_tab_menu(owner.clone(), window, cx);
+                            this.open_split_pane_menu(split_owner.clone(), window, cx);
                         }),
-                    ),
-            )
-            .into_any_element();
-        let mut fixed = None;
-        if layout.overflow {
-            fixed = Some(add);
-        } else {
-            chips.push(add);
+                    )
+                    .into_any_element(),
+            );
         }
+        let fixed = (!toolbar_controls.is_empty()).then(|| {
+            div()
+                .h_full()
+                .flex_shrink_0()
+                .px(px(p::ADD_TOOLBAR_PADDING))
+                .mr(px(p::ADD_TOOLBAR_MARGIN))
+                .flex()
+                .items_center()
+                .gap(px(p::TOOLBAR_CONTROL_GAP))
+                .children(toolbar_controls)
+                .into_any_element()
+        });
         div()
             .h(px(p::ROW_HEIGHT))
             .flex_shrink_0()
@@ -489,22 +621,21 @@ impl Paseo {
                 })
             })
             .when(owns_controls, |row| {
-                row.child(crate::window_chrome::controls(window))
+                row.child(crate::window_chrome::controls(window, &palette, resting))
             })
             .into_any_element()
     }
-    fn close_passive_pane_tab(
-        &mut self,
-        file: Option<&EditorKey>,
-        id: &str,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if let Some(key) = file {
-            self.close_file(key, window, cx);
+    pub(super) fn close_pane_tab(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(key) = self.file_tab_key(id) {
+            self.close_file(&key, window, cx);
         } else if self.directory.terminals.contains_key(id) {
             self.confirm_close_terminal(id, window, cx);
-        } else if id.starts_with(super::terminal_commands::PREFIX) {
+        } else if self.directory.agents.contains_key(id) {
+            self.close_agent_tab(id, window, cx);
+        } else if id.starts_with(super::terminal_commands::PREFIX)
+            || id == paseo_desktop::explorer_layout::FILES_TAB_ID
+            || id == paseo_desktop::explorer_layout::CHANGES_TAB_ID
+        {
             self.close_launcher_tab(id, window, cx);
         } else {
             self.forget_browser(id, window, cx);

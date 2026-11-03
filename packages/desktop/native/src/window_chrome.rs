@@ -1,5 +1,6 @@
-use crate::{chrome::icon, theme::colors as c, window_geometry};
-use gpui::{MouseButton, Window, WindowControlArea, div, prelude::*, px, rgb, rgba};
+use crate::{action_menu_presentation as p, chrome::icon, window_geometry};
+use gpui::{MouseButton, Window, WindowControlArea, div, prelude::*, px, rgb};
+use paseo_desktop::appearance::{Palette, interaction_background};
 
 pub fn configure(window: &Window) -> anyhow::Result<()> {
     #[cfg(target_os = "linux")]
@@ -85,12 +86,33 @@ pub fn resize_handles(window: &Window) -> Vec<gpui::AnyElement> {
     .collect()
 }
 
-pub fn controls(window: &Window) -> impl IntoElement {
+fn control_hover(palette: &Palette, background: u32, close: bool) -> u32 {
+    let (color, opacity) = if close {
+        (
+            window_geometry::CLOSE_HOVER_COLOR,
+            window_geometry::CLOSE_HOVER_OPACITY,
+        )
+    } else if palette.is_dark {
+        (
+            p::DARK_HEADER_HIGHLIGHT_COLOR,
+            p::DARK_HEADER_HIGHLIGHT_OPACITY,
+        )
+    } else {
+        (
+            p::LIGHT_HEADER_HIGHLIGHT_COLOR,
+            p::LIGHT_HEADER_HIGHLIGHT_OPACITY,
+        )
+    };
+    interaction_background(color, background, opacity)
+}
+
+pub fn controls(window: &Window, palette: &Palette, background: u32) -> impl IntoElement {
     let (mode, geometry) = if cfg!(target_os = "windows") {
         ("custom-windows", &window_geometry::WINDOWS)
     } else {
         ("custom-linux", &window_geometry::LINUX)
     };
+    let palette = *palette;
     let maximize = if window.is_maximized() {
         "restore"
     } else {
@@ -107,6 +129,7 @@ pub fn controls(window: &Window) -> impl IntoElement {
                 "close" => "window-close",
                 _ => "window-maximize",
             };
+            let hover_background = rgb(control_hover(&palette, background, kind == "close"));
             let control = div()
                 .id(id)
                 .group(id)
@@ -117,32 +140,30 @@ pub fn controls(window: &Window) -> impl IntoElement {
                 .justify_center()
                 .child(
                     div()
+                        .id("surface")
                         .flex()
                         .items_center()
                         .justify_center()
                         .map(|surface| {
                             if geometry.circular {
-                                surface.size(px(24.)).rounded(px(12.))
+                                surface
+                                    .size(px(window_geometry::CIRCLE_SIZE))
+                                    .rounded(px(window_geometry::CIRCLE_RADIUS))
                             } else {
                                 surface.size_full()
                             }
                         })
-                        .group_hover(id, move |surface| {
-                            surface.bg(if kind == "close" {
-                                rgba(0xe81123e6)
-                            } else {
-                                rgba(0xffffff14)
-                            })
-                        })
+                        .group_hover(id, move |surface| surface.bg(hover_background))
+                        .group_active(id, move |surface| surface.bg(hover_background))
                         .child(
-                            icon(&format!("window-{mode}-{kind}"), geometry.glyph_size).when(
-                                kind == "close",
-                                |glyph| {
-                                    glyph.group_hover(id, |glyph| {
-                                        glyph.text_color(rgb(c::ACCENT_FOREGROUND))
-                                    })
-                                },
-                            ),
+                            icon(&format!("window-{mode}-{kind}"), geometry.glyph_size)
+                                .id("glyph")
+                                .text_color(rgb(palette.foreground_muted))
+                                .when(kind == "close", |glyph| {
+                                    glyph
+                                        .group_hover(id, |glyph| glyph.text_color(rgb(0xffffff)))
+                                        .group_active(id, |glyph| glyph.text_color(rgb(0xffffff)))
+                                }),
                         ),
                 );
             if cfg!(target_os = "windows") {
@@ -153,15 +174,19 @@ pub fn controls(window: &Window) -> impl IntoElement {
                     _ => WindowControlArea::Max,
                 })
             } else {
-                control.on_mouse_down(MouseButton::Left, move |_, window, cx| {
-                    cx.stop_propagation();
-                    match kind {
-                        "minimize" => window.minimize_window(),
-                        "close" => window.remove_window(),
-                        _ => window.zoom_window(),
-                    }
-                    window.refresh();
-                })
+                control
+                    .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                        cx.stop_propagation();
+                    })
+                    .on_click(move |_, window, cx| {
+                        cx.stop_propagation();
+                        match kind {
+                            "minimize" => window.minimize_window(),
+                            "close" => window.dispatch_action(Box::new(crate::ui::CloseWindow), cx),
+                            _ => window.zoom_window(),
+                        }
+                        window.refresh();
+                    })
             }
         }))
 }
@@ -184,4 +209,27 @@ pub fn drag_region() -> impl IntoElement {
         .on_mouse_down(MouseButton::Right, |event, window, _| {
             window.show_window_menu(event.position)
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use paseo_desktop::settings::ThemePreference;
+
+    #[test]
+    fn window_control_hover_uses_the_current_rail_and_theme() {
+        let dark = paseo_desktop::appearance::resolve(ThemePreference::Dark, true);
+        let light = paseo_desktop::appearance::resolve(ThemePreference::Light, false);
+        assert_eq!(control_hover(&dark, 0x181b1a, false), 0x2a2c2b);
+        assert_eq!(control_hover(&light, 0xffffff, false), 0xf0f0f0);
+        assert_eq!(control_hover(&dark, dark.surface_sidebar, false), 0x262928);
+        assert_eq!(
+            control_hover(&light, light.surface_sidebar, false),
+            0xe5e5e6
+        );
+        assert_eq!(control_hover(&dark, dark.surface0, true), 0xd31122);
+        assert_eq!(control_hover(&dark, dark.surface_sidebar, true), 0xd31122);
+        assert_eq!(control_hover(&light, light.surface0, true), 0xea2839);
+        assert_eq!(control_hover(&light, light.surface_sidebar, true), 0xe92738);
+    }
 }

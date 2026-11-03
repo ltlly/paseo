@@ -88,6 +88,79 @@ pub enum SplitNode {
     Group { group: SplitGroup },
 }
 
+impl SplitNode {
+    /// Ports `splitNodeContainsPane` from `packages/app/src/components/split-container-focus.ts`.
+    pub fn contains_pane(&self, pane_id: &str) -> bool {
+        match self {
+            SplitNode::Pane { pane } => pane.id == pane_id,
+            SplitNode::Group { group } => group
+                .children
+                .iter()
+                .any(|child| child.contains_pane(pane_id)),
+        }
+    }
+
+    /// Ports `hasMultipleVisiblePanes` from `packages/app/src/components/split-container-focus.ts`.
+    pub fn has_multiple_visible_panes(&self) -> bool {
+        fn visit(node: &SplitNode, count: &mut usize) {
+            match node {
+                SplitNode::Pane { .. } => *count += 1,
+                SplitNode::Group { group } => {
+                    for child in &group.children {
+                        visit(child, count);
+                        if *count > 1 {
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        let mut count = 0;
+        visit(self, &mut count);
+        count > 1
+    }
+
+    /// Ports `isSplitNodeHiddenForPresentation` from `packages/app/src/components/split-container.tsx`.
+    pub fn is_hidden_for_presentation(&self, maximized_pane_id: Option<&str>) -> bool {
+        maximized_pane_id.is_some_and(|id| !self.contains_pane(id))
+    }
+}
+
+/// Ports `resolveVisibleGroupFlex` from `packages/app/src/components/split-container.tsx`:
+/// renormalizes visible children so a hidden sibling gives its space back while
+/// stored `sizes` stay untouched for restore.
+pub fn resolve_visible_group_flex(
+    children: &[SplitNode],
+    sizes: &[f64],
+    maximized_pane_id: Option<&str>,
+) -> Vec<f64> {
+    let visible_total: f64 = children
+        .iter()
+        .enumerate()
+        .map(|(index, child)| {
+            if child.is_hidden_for_presentation(maximized_pane_id) {
+                0.0
+            } else {
+                sizes.get(index).copied().unwrap_or(1.0)
+            }
+        })
+        .sum();
+    if visible_total <= 0.0 {
+        return vec![0.0; children.len()];
+    }
+    children
+        .iter()
+        .enumerate()
+        .map(|(index, child)| {
+            if child.is_hidden_for_presentation(maximized_pane_id) {
+                0.0
+            } else {
+                sizes.get(index).copied().unwrap_or(1.0) / visible_total
+            }
+        })
+        .collect()
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SplitLayout {
@@ -98,6 +171,11 @@ pub struct SplitLayout {
     /// changes the remembered main-workspace pane.
     #[serde(skip)]
     pub active_pane_id: Option<String>,
+    /// Transient per-workspace maximized main pane (`SplitContainer` state).
+    /// Hides other main panes for presentation without touching stored sizes,
+    /// tab ownership, or PTYs.
+    #[serde(skip)]
+    pub maximized_pane_id: Option<String>,
     #[serde(
         default,
         skip_serializing_if = "crate::explorer_layout::ExplorerState::is_default"
@@ -248,7 +326,86 @@ impl SplitLayout {
             },
             focused_pane_id: Some(pane_id.to_owned()),
             active_pane_id: None,
+            maximized_pane_id: None,
             explorer: Default::default(),
+        }
+    }
+
+    pub fn has_multiple_main_panes(&self) -> bool {
+        self.root.has_multiple_visible_panes()
+    }
+
+    pub fn effective_maximized_pane_id(&self) -> Option<&str> {
+        let id = self.maximized_pane_id.as_deref()?;
+        if self.has_multiple_main_panes() && self.root.contains_pane(id) {
+            Some(id)
+        } else {
+            None
+        }
+    }
+
+    pub fn is_pane_maximized(&self, pane_id: &str) -> bool {
+        self.effective_maximized_pane_id() == Some(pane_id)
+    }
+
+    pub fn is_main_pane_rendered(&self, pane_id: &str) -> bool {
+        if !self.root.contains_pane(pane_id) {
+            return false;
+        }
+        self.effective_maximized_pane_id()
+            .is_none_or(|maximized| maximized == pane_id)
+    }
+
+    pub fn is_pane_rendered(&self, pane_id: &str) -> bool {
+        if pane_id == crate::explorer_layout::EXPLORER_PANE_ID {
+            self.explorer.visible && self.explorer.pane.is_some()
+        } else {
+            self.is_main_pane_rendered(pane_id)
+        }
+    }
+
+    pub fn rendered_main_panes(&self) -> Vec<SplitPane> {
+        let maximized = self.effective_maximized_pane_id();
+        self.panes()
+            .into_iter()
+            .filter(|pane| maximized.is_none_or(|id| id == pane.id))
+            .collect()
+    }
+
+    pub fn rendered_all_panes(&self) -> Vec<SplitPane> {
+        let mut panes = self.rendered_main_panes();
+        if self.explorer.visible {
+            panes.extend(self.explorer.pane.iter().cloned());
+        }
+        panes
+    }
+
+    /// Ports `SplitContainer`'s `handleTogglePaneMaximized` and auto-reset effect:
+    /// only a main pane in a multi-pane workspace can be maximized; toggling the
+    /// currently maximized pane restores the split tree.
+    pub fn toggle_pane_maximized(&mut self, pane_id: &str) -> bool {
+        if pane_id == crate::explorer_layout::EXPLORER_PANE_ID
+            || !self.has_multiple_main_panes()
+            || !self.root.contains_pane(pane_id)
+        {
+            return false;
+        }
+        if self.effective_maximized_pane_id() == Some(pane_id) {
+            self.maximized_pane_id = None;
+        } else {
+            self.focused_pane_id = Some(pane_id.to_owned());
+            self.maximized_pane_id = Some(pane_id.to_owned());
+        }
+        true
+    }
+
+    pub fn sync_maximized_pane(&mut self) {
+        if self.maximized_pane_id.is_some()
+            && self
+                .effective_maximized_pane_id()
+                .is_none_or(|id| self.focused_pane_id.as_deref() != Some(id))
+        {
+            self.maximized_pane_id = None;
         }
     }
 
@@ -406,6 +563,7 @@ impl SplitLayout {
         }
         candidate.focused_pane_id = Some(new_pane_id.clone());
         candidate.active_pane_id = None;
+        candidate.maximized_pane_id = None;
         *self = candidate;
         Some(new_pane_id)
     }
@@ -429,6 +587,7 @@ impl SplitLayout {
         if self.active_pane_id.as_deref() == Some(pane_id) {
             self.active_pane_id = None;
         }
+        self.sync_maximized_pane();
         true
     }
 
@@ -436,17 +595,23 @@ impl SplitLayout {
         if self.pane(pane_id).is_none() {
             return false;
         }
-        if self.active_pane().is_some_and(|pane| pane.id == pane_id) {
-            return false;
-        }
+        let was_active = self.active_pane().is_some_and(|pane| pane.id == pane_id);
         self.active_pane_id =
             (pane_id == crate::explorer_layout::EXPLORER_PANE_ID).then(|| pane_id.to_owned());
         if pane_id == crate::explorer_layout::EXPLORER_PANE_ID {
             self.explorer.visible = true;
         } else {
             self.focused_pane_id = Some(pane_id.to_owned());
+            if self
+                .maximized_pane_id
+                .as_deref()
+                .is_some_and(|maximized| maximized != pane_id)
+            {
+                self.maximized_pane_id = None;
+                return true;
+            }
         }
-        true
+        !was_active
     }
 
     /// Ports `resizeSplitInLayout` + `clampNormalizedSizes`.
@@ -1324,6 +1489,7 @@ mod tests {
             },
             focused_pane_id: Some(MAIN_PANE_ID.into()),
             active_pane_id: None,
+            maximized_pane_id: None,
             explorer: Default::default(),
         };
         let mut ids = SplitIds::for_layout(&layout.root);
@@ -1635,5 +1801,215 @@ mod tests {
         let area = (0.0, 0.0, 1000.0, 500.0);
         assert_eq!(layout.group_size_px(&group_id, area), Some(1000.0));
         assert_eq!(layout.group_size_px("group-missing", area), None);
+    }
+
+    #[test]
+    fn maximize_and_restore_preserve_split_sizes_and_gate_rendered_panes() {
+        use crate::explorer_layout::EXPLORER_PANE_ID as DOCK;
+        let mut layout = SplitLayout::single(MAIN_PANE_ID);
+        let mut ids = SplitIds::default();
+        layout.explorer.ensure_pane();
+        layout.explorer.visible = true;
+
+        // A single main pane cannot be maximized even when Explorer is visible.
+        assert!(!layout.has_multiple_main_panes());
+        assert!(!layout.toggle_pane_maximized(MAIN_PANE_ID));
+        assert!(!layout.toggle_pane_maximized(DOCK));
+        assert_eq!(layout.effective_maximized_pane_id(), None);
+
+        let right = layout
+            .split_empty(MAIN_PANE_ID, SplitPosition::Right, &mut ids)
+            .expect("split right");
+        let down = layout
+            .split_empty(&right, SplitPosition::Bottom, &mut ids)
+            .expect("split down");
+        let root_group_id = match &layout.root {
+            SplitNode::Group { group } => group.id.clone(),
+            _ => panic!("expected root group"),
+        };
+        assert!(layout.resize_group(&root_group_id, vec![0.35, 0.65]));
+        let saved_sizes = layout.group_sizes(&root_group_id).unwrap();
+        assert!((saved_sizes[0] - 0.35).abs() < 1e-9);
+        assert!((saved_sizes[1] - 0.65).abs() < 1e-9);
+
+        // Explorer still refuses maximize in a multi-pane workspace.
+        assert!(layout.has_multiple_main_panes());
+        assert!(!layout.toggle_pane_maximized(DOCK));
+        assert!(!layout.toggle_pane_maximized("missing"));
+
+        // Maximizing the nested bottom-right pane hides the left sibling and the
+        // top-right sibling for presentation while keeping stored group sizes.
+        assert!(layout.toggle_pane_maximized(&down));
+        assert_eq!(layout.effective_maximized_pane_id(), Some(down.as_str()));
+        assert!(layout.is_pane_maximized(&down));
+        assert!(!layout.is_pane_maximized(MAIN_PANE_ID));
+        assert!(!layout.is_main_pane_rendered(MAIN_PANE_ID));
+        assert!(!layout.is_main_pane_rendered(&right));
+        assert!(layout.is_main_pane_rendered(&down));
+        assert!(layout.is_pane_rendered(DOCK));
+        assert_eq!(
+            layout
+                .rendered_main_panes()
+                .into_iter()
+                .map(|pane| pane.id)
+                .collect::<Vec<_>>(),
+            vec![down.clone()]
+        );
+        assert_eq!(
+            layout
+                .rendered_all_panes()
+                .into_iter()
+                .map(|pane| pane.id)
+                .collect::<Vec<_>>(),
+            vec![down.clone(), DOCK.to_owned()]
+        );
+
+        let SplitNode::Group { group: root_group } = &layout.root else {
+            panic!("expected root group");
+        };
+        assert_eq!(
+            resolve_visible_group_flex(
+                &root_group.children,
+                &root_group.sizes,
+                layout.effective_maximized_pane_id(),
+            ),
+            vec![0.0, 1.0]
+        );
+        let SplitNode::Group { group: right_group } = &root_group.children[1] else {
+            panic!("expected right vertical group");
+        };
+        assert_eq!(
+            resolve_visible_group_flex(
+                &right_group.children,
+                &right_group.sizes,
+                layout.effective_maximized_pane_id(),
+            ),
+            vec![0.0, 1.0]
+        );
+
+        // Stored sizes are untouched and transient maximize is not serialized.
+        assert_eq!(layout.group_sizes(&root_group_id).unwrap(), saved_sizes);
+        let serialized = serde_json::to_string(&layout).unwrap();
+        assert!(!serialized.contains("maximized"));
+
+        // Restoring returns the original split fractions and rendered panes.
+        assert!(layout.toggle_pane_maximized(&down));
+        assert_eq!(layout.effective_maximized_pane_id(), None);
+        assert_eq!(layout.group_sizes(&root_group_id).unwrap(), saved_sizes);
+        let SplitNode::Group { group: root_group } = &layout.root else {
+            panic!("expected root group");
+        };
+        let restored_flex = resolve_visible_group_flex(
+            &root_group.children,
+            &root_group.sizes,
+            layout.effective_maximized_pane_id(),
+        );
+        assert!((restored_flex[0] - 0.35).abs() < 1e-9);
+        assert!((restored_flex[1] - 0.65).abs() < 1e-9);
+        assert_eq!(
+            layout
+                .rendered_main_panes()
+                .into_iter()
+                .map(|pane| pane.id)
+                .collect::<Vec<_>>(),
+            vec![MAIN_PANE_ID.to_owned(), right.clone(), down.clone()]
+        );
+
+        // Collapsing back to a single main pane clears transient maximize.
+        assert!(layout.toggle_pane_maximized(MAIN_PANE_ID));
+        assert!(layout.close_pane(&down));
+        assert_eq!(
+            layout.effective_maximized_pane_id(),
+            Some(MAIN_PANE_ID),
+            "still two main panes remain"
+        );
+        assert!(layout.close_pane(&right));
+        assert!(!layout.has_multiple_main_panes());
+        assert_eq!(layout.effective_maximized_pane_id(), None);
+        assert_eq!(layout.maximized_pane_id, None);
+    }
+
+    #[test]
+    fn closing_the_maximized_pane_in_a_three_pane_layout_unhides_remaining_siblings() {
+        let mut layout = SplitLayout::single(MAIN_PANE_ID);
+        let mut ids = SplitIds::default();
+        let second = layout
+            .split_empty(MAIN_PANE_ID, SplitPosition::Right, &mut ids)
+            .expect("split second");
+        let third = layout
+            .split_empty(&second, SplitPosition::Right, &mut ids)
+            .expect("split third");
+
+        assert!(layout.toggle_pane_maximized(&third));
+        assert_eq!(layout.effective_maximized_pane_id(), Some(third.as_str()));
+
+        // Closing the maximized pane itself leaves two main panes and clears
+        // maximize so the remaining siblings are both rendered again.
+        assert!(layout.close_pane(&third));
+        assert!(layout.has_multiple_main_panes());
+        assert_eq!(layout.effective_maximized_pane_id(), None);
+        assert_eq!(layout.maximized_pane_id, None);
+        assert_eq!(
+            layout
+                .rendered_main_panes()
+                .into_iter()
+                .map(|pane| pane.id)
+                .collect::<Vec<_>>(),
+            vec![MAIN_PANE_ID.to_owned(), second]
+        );
+    }
+
+    #[test]
+    fn splitting_or_focusing_another_main_pane_resets_maximized_pane_while_explorer_focus_preserves_it()
+     {
+        use crate::explorer_layout::EXPLORER_PANE_ID as DOCK;
+        let mut layout = SplitLayout::single(MAIN_PANE_ID);
+        let mut ids = SplitIds::default();
+        layout.explorer.ensure_pane();
+        layout.explorer.visible = true;
+
+        layout.attach_tab("term-main");
+        let second = layout
+            .split_empty(MAIN_PANE_ID, SplitPosition::Right, &mut ids)
+            .expect("split second");
+        layout.attach_tab("term-second");
+
+        assert!(layout.toggle_pane_maximized(MAIN_PANE_ID));
+        assert_eq!(layout.focused_pane_id.as_deref(), Some(MAIN_PANE_ID));
+        assert_eq!(layout.effective_maximized_pane_id(), Some(MAIN_PANE_ID));
+
+        // Focusing Explorer is transient keyboard ownership; the maximized main
+        // pane stays maximized until another main pane takes focus or splits.
+        assert!(layout.focus_pane(DOCK));
+        assert_eq!(layout.effective_maximized_pane_id(), Some(MAIN_PANE_ID));
+
+        // Focusing or revealing a tab in another main pane exits maximize so
+        // the newly focused pane is visible on screen.
+        assert_eq!(
+            layout.attach_tab("term-second").as_deref(),
+            Some(second.as_str())
+        );
+        assert_eq!(layout.focused_pane_id.as_deref(), Some(second.as_str()));
+        assert_eq!(layout.effective_maximized_pane_id(), None);
+        assert_eq!(layout.maximized_pane_id, None);
+
+        // Splitting while maximized resets maximize so both the original pane
+        // and the new split placeholder are rendered side by side.
+        assert!(layout.toggle_pane_maximized(&second));
+        assert_eq!(layout.effective_maximized_pane_id(), Some(second.as_str()));
+        let third = layout
+            .split_empty(&second, SplitPosition::Bottom, &mut ids)
+            .expect("split third");
+        assert_eq!(layout.focused_pane_id.as_deref(), Some(third.as_str()));
+        assert_eq!(layout.effective_maximized_pane_id(), None);
+        assert_eq!(layout.maximized_pane_id, None);
+        assert_eq!(
+            layout
+                .rendered_main_panes()
+                .into_iter()
+                .map(|pane| pane.id)
+                .collect::<Vec<_>>(),
+            vec![MAIN_PANE_ID.to_owned(), second, third]
+        );
     }
 }

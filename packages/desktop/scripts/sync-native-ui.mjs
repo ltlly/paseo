@@ -427,6 +427,8 @@ await output(
 );
 const tabFile = "packages/app/src/screens/workspace/workspace-desktop-tabs-row.tsx";
 const tabSymbols = [
+  "DROPDOWN_WIDTH",
+  "DEFAULT_INLINE_ADD_BUTTON_RESERVED_WIDTH",
   "TAB_CHIP_HORIZONTAL_PADDING",
   "TAB_CHIP_GAP",
   "TAB_ROW_PADDING_HORIZONTAL",
@@ -438,6 +440,9 @@ const tabSymbols = [
   "TAB_LABEL_LAYOUT_ALLOWANCE",
   "TAB_MODIFIED_DOT_SIZE",
   "PANE_SPLIT_ACTIONS_HORIZONTAL_PADDING",
+  "PANE_SPLIT_ACTIONS_OUTER_MARGIN",
+  "PANE_SPLIT_ACTIONS_RESERVED_WIDTH",
+  "PANE_MAXIMIZE_ACTION_RESERVED_WIDTH",
 ];
 const tabStyles = await authoredStyles(tabFile, [
   "tabsContainer",
@@ -448,15 +453,21 @@ const tabStyles = await authoredStyles(tabFile, [
   "inlineAddButton",
   "inlineNewTabButton",
 ]);
-const tabContext = { theme, exports: {} };
+const tabContext = { theme, SPACING: theme.spacing, exports: {} };
 const tabGeometry = `
+${await authoredNode("packages/app/src/components/ui/icon-button-chrome.ts", "SMALL_ICON_BUTTON_SIZE")}
+${await authoredNode("packages/app/src/components/ui/icon-button-chrome.ts", "iconButtonChromeGlyphSize")}
+${await authoredNode("packages/app/src/components/ui/icon-button-chrome.ts", "smallIconButtonChromeFrameSize")}
+${await authoredNode("packages/app/src/components/tree-primitives.tsx", "WORKSPACE_PANE_TRAILING_GLYPH_RAIL")}
+${await authoredNode("packages/app/src/components/ui/pane-content-toolbar.tsx", "paneContentToolbarIconSize")}
+${await authoredNode("packages/app/src/components/ui/pane-content-toolbar.tsx", "paneContentToolbarTrailingPadding")}
 ${await authoredNode("packages/app/src/constants/layout.ts", "WORKSPACE_SECONDARY_HEADER_HEIGHT")}
 ${(await Promise.all(["TIGHT_CONTROL_HEIGHT", "COMPACT_CONTROL_HEIGHT", "FIELD_CONTROL_HEIGHT", "CONTROL_HEIGHTS", "buttonControlHeight"].map((symbol) => authoredNode("packages/app/src/components/ui/control-geometry.ts", symbol)))).join("\n")}
 ${(await Promise.all(tabSymbols.map((symbol) => authoredNode(tabFile, symbol)))).join("\n")}
 ${await authoredNode("packages/app/src/components/ui/trailing-action-scrim.tsx", "SCRIM_WIDTH")}
 ${await authoredNode("packages/app/src/components/ui/trailing-action-scrim.tsx", "SCRIM_SOLID_OFFSET")}
 const styles=({${tabStyles}});
-globalThis.values={ADD_INLINE_SIZE:styles.inlineNewTabButton.width,ADD_INLINE_PADDING:styles.inlineAddButton.paddingHorizontal,ADD_TOOLBAR_PADDING:PANE_SPLIT_ACTIONS_HORIZONTAL_PADDING,ROW_HEIGHT:styles.tabsContainer.height,CHIP_HEIGHT:styles.tab.height,CHIP_PADDING_X:styles.tab.paddingHorizontal,CHIP_RADIUS:styles.tab.borderRadius,CHIP_GAP:TAB_CHIP_GAP,ROW_PADDING_X:TAB_ROW_PADDING_HORIZONTAL,ICON_SIZE:TAB_ICON_WIDTH,CONTENT_GAP:TAB_CONTENT_GAP,MIN_WIDTH:TAB_MIN_WIDTH,MAX_WIDTH:TAB_MAX_WIDTH,CLOSE_RESERVED:TAB_CLOSE_BUTTON_RESERVED_WIDTH,LABEL_ALLOWANCE:TAB_LABEL_LAYOUT_ALLOWANCE,MODIFIED_SIZE:styles.tabModifiedDot.width,CLOSE_SIZE:styles.tabCloseButton.width,CLOSE_RIGHT:styles.tabCloseButton.right,CLOSE_RADIUS:styles.tabCloseButton.borderRadius,SCRIM_WIDTH,SCRIM_SOLID:parseFloat(SCRIM_SOLID_OFFSET)/100};`;
+globalThis.values={DROPDOWN_WIDTH,ADD_INLINE_SIZE:styles.inlineNewTabButton.width,ADD_INLINE_PADDING:styles.inlineAddButton.paddingHorizontal,ADD_INLINE_RESERVED:DEFAULT_INLINE_ADD_BUTTON_RESERVED_WIDTH,ADD_TOOLBAR_PADDING:PANE_SPLIT_ACTIONS_HORIZONTAL_PADDING,ROW_HEIGHT:styles.tabsContainer.height,CHIP_HEIGHT:styles.tab.height,CHIP_PADDING_X:styles.tab.paddingHorizontal,CHIP_RADIUS:styles.tab.borderRadius,CHIP_GAP:TAB_CHIP_GAP,ROW_PADDING_X:TAB_ROW_PADDING_HORIZONTAL,ICON_SIZE:TAB_ICON_WIDTH,CONTENT_GAP:TAB_CONTENT_GAP,MIN_WIDTH:TAB_MIN_WIDTH,MAX_WIDTH:TAB_MAX_WIDTH,CLOSE_RESERVED:TAB_CLOSE_BUTTON_RESERVED_WIDTH,LABEL_ALLOWANCE:TAB_LABEL_LAYOUT_ALLOWANCE,MODIFIED_SIZE:styles.tabModifiedDot.width,CLOSE_SIZE:styles.tabCloseButton.width,CLOSE_RIGHT:styles.tabCloseButton.right,CLOSE_RADIUS:styles.tabCloseButton.borderRadius,SCRIM_WIDTH,SCRIM_SOLID:parseFloat(SCRIM_SOLID_OFFSET)/100,SPLIT_ACTIONS_RESERVED:PANE_SPLIT_ACTIONS_RESERVED_WIDTH,MAXIMIZE_ACTION_RESERVED:PANE_MAXIMIZE_ACTION_RESERVED_WIDTH};`;
 runInNewContext(
   ts.transpileModule(tabGeometry, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
@@ -469,6 +480,7 @@ Object.assign(tabContext.values, {
   ADD_GLYPH_SIZE: explorerPresentationContext.values.GLYPH_SIZE,
   ADD_TOOLBAR_MARGIN:
     explorerPresentationContext.values.TRAILING_PADDING - tabContext.values.ADD_TOOLBAR_PADDING,
+  TOOLBAR_CONTROL_GAP: explorerPresentationContext.values.CONTROL_GAP,
 });
 const explorerRailContext = { theme, exports: {} };
 runInNewContext(
@@ -548,7 +560,7 @@ if (check) {
 const profileBundle = await bundle({
   stdin: {
     contents:
-      'export {DEFAULT_TERMINAL_PROFILES,PROMPT_SENTINEL,resolveTerminalProfileLaunch,getTerminalProfileIcon} from "./packages/protocol/src/terminal-profiles.ts"; export {KNOWN_PROVIDER_ICON_NAMES} from "./packages/protocol/src/provider-icon-names.ts"; export {ACP_PROVIDER_ICON_SVGS} from "./packages/app/src/assets/acp-provider-icons.ts"; export {panelSupportsHost,panelCanLaunchInPane} from "./packages/app/src/panels/panel-manifest.ts"; export {PRIMARY_LAUNCH_ORDER} from "./packages/app/src/workspace-tabs/launcher/internal/catalog.ts";',
+      'export {DEFAULT_TERMINAL_PROFILES,PROMPT_SENTINEL,resolveTerminalProfileLaunch,getTerminalProfileIcon} from "./packages/protocol/src/terminal-profiles.ts"; export {KNOWN_PROVIDER_ICON_NAMES} from "./packages/protocol/src/provider-icon-names.ts"; export {ACP_PROVIDER_ICON_SVGS} from "./packages/app/src/assets/acp-provider-icons.ts"; export {panelSupportsHost,panelCanLaunchInPane} from "./packages/app/src/panels/panel-manifest.ts"; export {PRIMARY_LAUNCH_ORDER,SUPPORTING_LAUNCH_ORDER} from "./packages/app/src/workspace-tabs/launcher/internal/catalog.ts";',
     resolveDir: root,
   },
   bundle: true,
@@ -580,19 +592,26 @@ await output(
   "packages/desktop/native/src/panel_manifest.rs",
   `// Generated from panels/panel-manifest.ts. Do not edit.\nuse super::Manifest;\npub const MANIFESTS:&[Manifest]=&[${panelManifests.map((p) => `Manifest{kind:${JSON.stringify(p.kind)},main:${p.main},explorer:${p.explorer},show_close:${p.showClose},singleton:${p.singleton}}`).join(",")}];\n`,
 );
-const hostCases = panelManifests.flatMap(({ kind }) =>
-  ["main", "explorer"].flatMap((host) =>
-    [[], [kind], ["files", "changes_tree"]].map((existing) => ({
-      kind,
-      host,
-      existing,
-      supported: profileSource.panelSupportsHost(kind, host),
-      canLaunch:
-        profileSource.panelSupportsHost(kind, host) &&
-        profileSource.panelCanLaunchInPane(kind, existing),
-    })),
-  ),
-);
+const hostCases = [];
+for (const { kind } of panelManifests) {
+  for (const host of ["main", "explorer"]) {
+    for (const existing of [[], [kind], ["files", "changes_tree"]]) {
+      for (const surface of ["menu", "panel"]) {
+        const supported = profileSource.panelSupportsHost(kind, host);
+        hostCases.push({
+          kind,
+          host,
+          existing,
+          surface,
+          supported,
+          canLaunch:
+            supported &&
+            (surface === "panel" || profileSource.panelCanLaunchInPane(kind, existing)),
+        });
+      }
+    }
+  }
+}
 const hostOraclePath = path.join(root, "packages/desktop/native/src/testdata/panel-host.json");
 if (check) {
   if (
@@ -670,7 +689,7 @@ await output(
     .map(([key, value]) => `pub const ${key}:f32=${Number(value).toFixed(1)};`)
     .join(
       "\n",
-    )}\npub const PRIMARY_ORDER:&[&str]=&${JSON.stringify(profileSource.PRIMARY_LAUNCH_ORDER)};\n`,
+    )}\npub const PRIMARY_ORDER:&[&str]=&${JSON.stringify(profileSource.PRIMARY_LAUNCH_ORDER)};\npub const SUPPORTING_ORDER:&[&str]=&${JSON.stringify(profileSource.SUPPORTING_LAUNCH_ORDER)};\n`,
 );
 
 const profileEditorFile = "packages/app/src/screens/settings/terminal-profile-edit-modal.tsx";
@@ -1276,6 +1295,19 @@ const windowGlyph = await authoredNode(
   "packages/app/src/components/desktop/window-controls.tsx",
   "WindowControlGlyph",
 );
+const windowStyleContext = { theme, exports: {} };
+runInNewContext(
+  `const styles=({${await authoredStyles("packages/app/src/components/desktop/window-controls.tsx", ["circularControlSurface", "closeHovered"])}});globalThis.values=styles;`,
+  windowStyleContext,
+);
+const closeHover = windowStyleContext.values.closeHovered.backgroundColor.match(
+  /^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/,
+);
+if (!closeHover) throw new Error("Unsupported authored close-control highlight");
+const closeHoverColor = closeHover
+  .slice(1, 4)
+  .map((value) => Number(value).toString(16).padStart(2, "0"))
+  .join("");
 const layoutFile = "packages/app/src/constants/layout.ts";
 const windowLayout = [
   await authoredNode(layoutFile, "HEADER_INNER_HEIGHT"),
@@ -1366,7 +1398,7 @@ const geometry = Object.entries(windowPresentation)
   .join("\n");
 await output(
   "packages/desktop/native/src/window_geometry.rs",
-  `// Generated by npm run sync:desktop:native-ui from the authored desktop chrome. Do not edit.\n#![allow(dead_code)]\npub struct Geometry {pub control_width:f32,pub rail_height:f32,pub control_height:f32,pub glyph_size:f32,pub circular:bool}\n${geometry}\npub const DEFAULT_SIDEBAR_WIDTH:f32=${defaultSidebarWidth}.0;\n`,
+  `// Generated by npm run sync:desktop:native-ui from the authored desktop chrome. Do not edit.\n#![allow(dead_code)]\npub struct Geometry {pub control_width:f32,pub rail_height:f32,pub control_height:f32,pub glyph_size:f32,pub circular:bool}\n${geometry}\npub const DEFAULT_SIDEBAR_WIDTH:f32=${defaultSidebarWidth}.0;\npub const CIRCLE_SIZE:f32=${windowStyleContext.values.circularControlSurface.width}.0;\npub const CIRCLE_RADIUS:f32=${windowStyleContext.values.circularControlSurface.borderRadius}.0;\npub const CLOSE_HOVER_COLOR:u32=0x${closeHoverColor};\npub const CLOSE_HOVER_OPACITY:f32=${Number(closeHover[4])};\n`,
 );
 assets.set(
   "status-ring-arc",
@@ -1397,6 +1429,10 @@ for (const id of [
   "sliders-horizontal",
   "panel-left",
   "panel-right",
+  "columns-2",
+  "rows-2",
+  "maximize",
+  "minimize",
   "ellipsis",
   "chevron-down",
   "chevron-right",
@@ -1436,6 +1472,10 @@ for (const id of [
   "image",
   "file-text",
   "copy",
+  "copy-x",
+  "arrow-left-to-line",
+  "arrow-right-to-line",
+  "rotate-cw",
   "archive",
   "files",
   "file-diff",

@@ -85,6 +85,8 @@ pub enum AgentExecution {
     #[serde(rename_all = "camelCase")]
     Terminal {
         terminal_id: String,
+        #[serde(default)]
+        provider_session_id: Option<String>,
         icon: Option<String>,
         profile_id: Option<String>,
     },
@@ -116,6 +118,10 @@ pub struct Agent {
     pub pending_permissions: Vec<Value>,
     #[serde(default, deserialize_with = "deserialize_active_turn")]
     pub active_turn: Option<Value>,
+    #[serde(default)]
+    pub runtime_info: Option<Value>,
+    #[serde(default)]
+    pub persistence: Option<Value>,
 }
 
 fn deserialize_active_turn<'de, D: serde::Deserializer<'de>>(
@@ -180,6 +186,63 @@ impl Agent {
             .map(str::trim)
             .filter(|id| !id.is_empty())
     }
+    pub fn provider_session_id(&self) -> Option<&str> {
+        self.runtime_info
+            .as_ref()
+            .and_then(|info| info["sessionId"].as_str())
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .or_else(|| {
+                self.persistence
+                    .as_ref()
+                    .and_then(|persistence| persistence["sessionId"].as_str())
+                    .map(str::trim)
+                    .filter(|id| !id.is_empty())
+            })
+            .or_else(|| match &self.execution {
+                Some(AgentExecution::Terminal {
+                    provider_session_id,
+                    ..
+                }) => provider_session_id
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|id| !id.is_empty()),
+                _ => None,
+            })
+    }
+    pub fn resume_command(&self) -> Option<String> {
+        build_provider_resume_command(&self.provider, self.provider_session_id()?)
+    }
+    pub fn close_tab_policy(&self) -> CloseAgentTabPolicy {
+        if self.parent_agent_id().is_some() || self.execution.is_some() {
+            CloseAgentTabPolicy::LayoutOnly
+        } else {
+            CloseAgentTabPolicy::ArchiveOnClose
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CloseAgentTabPolicy {
+    ArchiveOnClose,
+    LayoutOnly,
+}
+
+/// Port of `buildProviderCommand` (`packages/app/src/utils/provider-command-templates.ts`).
+pub fn build_provider_resume_command(provider: &str, session_id: &str) -> Option<String> {
+    let session_id = session_id.trim();
+    if session_id.is_empty() {
+        return None;
+    }
+    Some(match provider {
+        "codex" => format!("codex resume {session_id}"),
+        "claude" => format!("claude --resume {session_id}"),
+        "hermes" => format!("hermes --resume {session_id}"),
+        "pi" => format!("pi --session {session_id}"),
+        "omp" => format!("omp --session {session_id}"),
+        "opencode" => format!("opencode --session {session_id}"),
+        _ => return None,
+    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -630,22 +693,56 @@ impl Directory {
                             agent.requires_attention = true;
                             agent.attention_reason = event["reason"].as_str().map(str::to_owned);
                         }
+                        Some("thread_started") => {
+                            if let Some(session_id) = event["sessionId"].as_str() {
+                                let mut info = agent
+                                    .runtime_info
+                                    .take()
+                                    .and_then(|v| v.as_object().cloned())
+                                    .unwrap_or_default();
+                                info.insert(
+                                    "sessionId".into(),
+                                    Value::String(session_id.to_owned()),
+                                );
+                                agent.runtime_info = Some(Value::Object(info));
+                            }
+                        }
+                        Some("model_changed") => {
+                            if event["runtimeInfo"].is_object() {
+                                agent.runtime_info = Some(event["runtimeInfo"].clone());
+                            }
+                        }
                         _ => {}
                     }
                 }
             }
             "fetch_agents_response" => {
                 let page: AgentPage = serde_json::from_value(payload)?;
-                self.agents.extend(
-                    page.entries
-                        .into_iter()
-                        .map(|entry| (entry.agent.id.clone(), entry.agent)),
-                );
+                for entry in page.entries {
+                    let mut incoming = entry.agent;
+                    if let Some(existing) = self.agents.get(&incoming.id) {
+                        if incoming.runtime_info.is_none() {
+                            incoming.runtime_info = existing.runtime_info.clone();
+                        }
+                        if incoming.persistence.is_none() {
+                            incoming.persistence = existing.persistence.clone();
+                        }
+                    }
+                    self.agents.insert(incoming.id.clone(), incoming);
+                }
             }
             "agent_update" => match payload["kind"].as_str() {
                 Some("upsert") => {
-                    let agent: Agent = serde_json::from_value(payload["agent"].clone())?;
-                    self.agents.insert(agent.id.clone(), agent);
+                    let mut incoming: Agent = serde_json::from_value(payload["agent"].clone())?;
+                    if let Some(existing) = self.agents.get(&incoming.id) {
+                        if incoming.runtime_info.is_none() {
+                            incoming.runtime_info = existing.runtime_info.clone();
+                        }
+                        if incoming.persistence.is_none() {
+                            incoming.persistence = existing.persistence.clone();
+                        }
+                    }
+                    self.agents.insert(incoming.id.clone(), incoming);
                 }
                 Some("remove") => {
                     if let Some(id) = payload["agentId"].as_str() {
@@ -655,8 +752,30 @@ impl Directory {
                 _ => {}
             },
             "agent_status" => {
-                let agent: Agent = serde_json::from_value(payload["info"].clone())?;
-                self.agents.insert(agent.id.clone(), agent);
+                let mut incoming: Agent = serde_json::from_value(payload["info"].clone())?;
+                if let Some(existing) = self.agents.get(&incoming.id) {
+                    if incoming.runtime_info.is_none() {
+                        incoming.runtime_info = existing.runtime_info.clone();
+                    }
+                    if incoming.persistence.is_none() {
+                        incoming.persistence = existing.persistence.clone();
+                    }
+                }
+                self.agents.insert(incoming.id.clone(), incoming);
+            }
+            "fetch_agent_response" => {
+                if payload["agent"].is_object() {
+                    let mut incoming: Agent = serde_json::from_value(payload["agent"].clone())?;
+                    if let Some(existing) = self.agents.get(&incoming.id) {
+                        if incoming.runtime_info.is_none() {
+                            incoming.runtime_info = existing.runtime_info.clone();
+                        }
+                        if incoming.persistence.is_none() {
+                            incoming.persistence = existing.persistence.clone();
+                        }
+                    }
+                    self.agents.insert(incoming.id.clone(), incoming);
+                }
             }
             "project.list.response" => {
                 let list: ProjectList = serde_json::from_value(payload)?;
@@ -1380,5 +1499,180 @@ mod tests {
         }
         let workspace: Workspace = serde_json::from_value(workspace("w")).unwrap();
         assert!(workspace.available());
+    }
+
+    #[test]
+    fn provider_resume_commands_session_id_precedence_and_close_tab_policy_match_authored_contract()
+    {
+        for (provider, session_id, expected) in [
+            ("codex", "thread_123", Some("codex resume thread_123")),
+            ("claude", "ses_claude", Some("claude --resume ses_claude")),
+            (
+                "hermes",
+                "20260813_111500_abc123",
+                Some("hermes --resume 20260813_111500_abc123"),
+            ),
+            (
+                "pi",
+                "/tmp/pi-session.jsonl",
+                Some("pi --session /tmp/pi-session.jsonl"),
+            ),
+            (
+                "omp",
+                "/tmp/omp-session.jsonl",
+                Some("omp --session /tmp/omp-session.jsonl"),
+            ),
+            (
+                "opencode",
+                "ses_abc123",
+                Some("opencode --session ses_abc123"),
+            ),
+            ("copilot", "ses_1", None),
+            ("antigravity", "ses_1", None),
+            ("muse", "ses_1", None),
+            ("kiro", "ses_1", None),
+            ("minimax", "ses_1", None),
+            ("grok", "ses_1", None),
+        ] {
+            assert_eq!(
+                build_provider_resume_command(provider, session_id).as_deref(),
+                expected,
+                "{provider}"
+            );
+        }
+        assert_eq!(build_provider_resume_command("codex", "   "), None);
+
+        let mut directory = Directory::default();
+        directory
+            .apply(
+                "agent_update",
+                json!({
+                    "kind": "upsert",
+                    "agent": {
+                        "id": "root",
+                        "provider": "codex",
+                        "workspaceId": "w",
+                        "status": "idle",
+                        "persistence": { "sessionId": "persisted-id" }
+                    }
+                }),
+            )
+            .unwrap();
+        assert_eq!(
+            directory.agents["root"].provider_session_id(),
+            Some("persisted-id")
+        );
+        assert_eq!(
+            directory.agents["root"].resume_command().as_deref(),
+            Some("codex resume persisted-id")
+        );
+        assert_eq!(
+            directory.agents["root"].close_tab_policy(),
+            CloseAgentTabPolicy::ArchiveOnClose
+        );
+
+        directory
+            .apply(
+                "agent_stream",
+                json!({
+                    "agentId": "root",
+                    "event": { "type": "thread_started", "sessionId": "stream-id" }
+                }),
+            )
+            .unwrap();
+        assert_eq!(
+            directory.agents["root"].provider_session_id(),
+            Some("stream-id")
+        );
+
+        directory
+            .apply(
+                "agent_stream",
+                json!({
+                    "agentId": "root",
+                    "event": {
+                        "type": "model_changed",
+                        "runtimeInfo": { "sessionId": "model-id", "model": "gpt-5" }
+                    }
+                }),
+            )
+            .unwrap();
+        assert_eq!(
+            directory.agents["root"].provider_session_id(),
+            Some("model-id")
+        );
+
+        directory
+            .apply(
+                "agent_status",
+                json!({
+                    "agentId": "root",
+                    "status": "running",
+                    "info": {
+                        "id": "root",
+                        "provider": "codex",
+                        "workspaceId": "w",
+                        "status": "running"
+                    }
+                }),
+            )
+            .unwrap();
+        assert_eq!(
+            directory.agents["root"].provider_session_id(),
+            Some("model-id")
+        );
+        assert_eq!(
+            directory.agents["root"].persistence.as_ref().unwrap()["sessionId"].as_str(),
+            Some("persisted-id")
+        );
+
+        directory
+            .apply(
+                "fetch_agent_response",
+                json!({
+                    "agent": {
+                        "id": "root",
+                        "provider": "codex",
+                        "workspaceId": "w",
+                        "status": "idle",
+                        "runtimeInfo": { "sessionId": "   " }
+                    }
+                }),
+            )
+            .unwrap();
+        assert_eq!(
+            directory.agents["root"].provider_session_id(),
+            Some("persisted-id")
+        );
+
+        let subagent: Agent = serde_json::from_value(json!({
+            "id": "child",
+            "provider": "claude",
+            "status": "idle",
+            "labels": { "paseo.parent-agent-id": "root" }
+        }))
+        .unwrap();
+        assert_eq!(subagent.close_tab_policy(), CloseAgentTabPolicy::LayoutOnly);
+        assert_eq!(subagent.resume_command(), None);
+
+        let terminal_agent: Agent = serde_json::from_value(json!({
+            "id": "term-agent",
+            "provider": "pi",
+            "status": "idle",
+            "execution": {
+                "kind": "terminal",
+                "terminalId": "pty-1",
+                "providerSessionId": "term-session.jsonl"
+            }
+        }))
+        .unwrap();
+        assert_eq!(
+            terminal_agent.close_tab_policy(),
+            CloseAgentTabPolicy::LayoutOnly
+        );
+        assert_eq!(
+            terminal_agent.resume_command().as_deref(),
+            Some("pi --session term-session.jsonl")
+        );
     }
 }

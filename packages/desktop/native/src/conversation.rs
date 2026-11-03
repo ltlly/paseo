@@ -194,6 +194,67 @@ impl Conversation {
         }
         cx.notify();
     }
+
+    /// Reloads the timeline after `refresh_agent_request`: sends the existing
+    /// cursor with a tail query so the host detects the new epoch and returns
+    /// `reset: true`.
+    pub fn reload_after_agent_refresh(&mut self, cx: &mut Context<Self>) {
+        if !self.connected {
+            return;
+        }
+        self.pending = None;
+        self.error = None;
+        self.foreground_sync = true;
+        self.schedule_generation = self.schedule_generation.saturating_add(1);
+        self.refresh_scheduled = false;
+        self.retry_ms = 1000;
+        let from = self.history.cursor();
+        let mut fields =
+            json!({"agentId":self.agent_id,"direction":"tail","projection":"projected","limit":40});
+        if self.whole_turns {
+            fields["wholeTurns"] = true.into();
+        }
+        if let Some(cursor) = &from {
+            fields["cursor"] = json!({"epoch":cursor.epoch,"seq":cursor.seq});
+        }
+        match self
+            .connection
+            .request("fetch_agent_timeline_request", fields)
+        {
+            Ok(id) => {
+                self.pending = Some(Pending {
+                    id: id.clone(),
+                    query: Query::Tail,
+                    from,
+                    generation: self.buffer.generation(),
+                });
+                self.dirty = false;
+                self.want_tail = false;
+                let timer = cx.background_executor().timer(Duration::from_secs(30));
+                cx.spawn(async move |this, cx| {
+                    timer.await;
+                    let _ = this.update(cx, |this, cx| {
+                        if this
+                            .pending
+                            .as_ref()
+                            .is_some_and(|pending| pending.id == id)
+                        {
+                            let pending = this.pending.take().unwrap();
+                            this.failed(
+                                "Timed out while updating messages. Retry to update the conversation."
+                                    .into(),
+                                Some(pending.query),
+                                cx,
+                            );
+                        }
+                    });
+                })
+                .detach();
+            }
+            Err(error) => self.failed(error.to_string(), Some(Query::Tail), cx),
+        }
+        cx.notify();
+    }
     /// Appearance, content width or message sizes changed. Message views read
     /// the shared settings during render; notify them so cached layouts redraw.
     pub fn settings_changed(&mut self, cx: &mut Context<Self>) {
