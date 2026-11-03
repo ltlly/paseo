@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.15.0-ltlly.3 - 2026-11-04
+
+### Added
+
+- Consume OSC 7501 Program Status reports (`working`, `blocked`, `done`, `error`, `idle`, `clear`) and answer `ESC ] 7501 ; ? ST` capability queries, with traditional agent hooks as fallback for agents that do not emit OSC 7501
+
+### Improved
+
+- Coalesce resize-handle drags with `requestAnimationFrame`, reuse terminal cell height on wheel scrolling, and raise the WebGL glyph atlas ceiling to 4096 pixels
+
+### Fixed
+
+- Fixed terminal activity indicators remaining stuck when a foreground agent is killed externally, including in shells without prompt integration marks
+- Fixed standalone `ESC` bytes split across output chunks breaking terminal input-mode tracking
+
 ## 0.15.0-ltlly.2 - 2026-11-03
 
 ### Improved

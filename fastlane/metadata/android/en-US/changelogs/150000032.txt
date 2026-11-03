@@ -1,0 +1,7 @@
+Added
+- Consume OSC 7501 Program Status reports (working, blocked, done, error, idle, clear) and answer ESC ] 7501 ; ? ST capability queries, with traditional agent hooks as fallback for agents that do not emit OSC 7501
+
+Improved
+- Coalesce resize-handle drags with requestAnimationFrame, reuse terminal cell height on wheel scrolling, and raise the WebGL glyph atlas ceiling to 4096 pixels
+
+Full notes: https://paseo.sh/changelog
