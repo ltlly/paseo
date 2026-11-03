@@ -97,6 +97,7 @@ function NativeTerminalEmulator({
   testId = "terminal-surface",
   xtermTheme = DEFAULT_XTERM_THEME,
   scrollbackLines,
+  characterWidths,
   fontFamily,
   fontSize,
   keyboardInset = 0,
@@ -378,6 +379,7 @@ function NativeTerminalEmulator({
       rows: size.rows,
       cols: size.cols,
       scrollbackLines,
+      characterWidths,
     });
     terminalRef.current = terminal;
     screenModelRef.current = createNativeTerminalScreenModel({ terminal });
@@ -392,6 +394,7 @@ function NativeTerminalEmulator({
     resetInputModeTracker,
     resolveTerminalScreen,
     scrollbackLines,
+    characterWidths,
     clearSelection,
   ]);
 
