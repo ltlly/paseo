@@ -1,0 +1,5 @@
+Improved
+- Retained the WebGL character atlas across terminal resizes and unchanged theme updates instead of rebuilding a 2048-pixel link-layer atlas on every resize
+- Kept settled terminals idle during post-mount measurement retries, loaded the terminal search addon on demand, and reused cached browser font measurements
+
+Full notes: https://paseo.sh/changelog
