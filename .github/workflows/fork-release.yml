@@ -118,7 +118,7 @@ jobs:
           - runner: ${{ vars.FORK_MACOS_ARM_RUNNER || 'macos-26' }}
             platform: macos-arm64
             flags: --mac --arm64 -c.mac.identity=- -c.mac.notarize=false -c.mac.hardenedRuntime=false
-          - runner: macos-15-intel
+          - runner: macos-26-intel
             platform: macos-x64
             flags: --mac --x64 -c.mac.identity=- -c.mac.notarize=false -c.mac.hardenedRuntime=false
           - runner: windows-latest
