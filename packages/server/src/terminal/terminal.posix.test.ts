@@ -17,6 +17,7 @@ import {
   mkdtempSync,
   mkdirSync,
   realpathSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -756,6 +757,158 @@ describe.skipIf(isPlatform("win32"))("terminal POSIX-only", () => {
   });
 
   describe("program status", () => {
+    it.skipIf(process.env.PASEO_REAL_PI_ACCEPTANCE !== "1")(
+      "accepts real Pi OSC negotiation, permission, hook fallback and crash recovery",
+      async () => {
+        const { default: express } = await import("express");
+        const { createTerminalActivityRouteHandler } = await import("../server/bootstrap.js");
+        const { createTerminalManager } = await import("./terminal-manager.js");
+        const packageRoot = mkdtempSync(join(tmpdir(), "terminal-real-pi-"));
+        temporaryDirs.push(packageRoot);
+        const extensionPath = join(packageRoot, "permission.ts");
+        writeFileSync(
+          extensionPath,
+          'export default function(pi) { pi.on("tool_call", async (event, ctx) => {\n' +
+            'if (event.toolName === "bash" && !(await ctx.ui.confirm("PASEO_QA_PERMISSION", "Allow printf?")))\n' +
+            'return { block: true, reason: "Permission rejected" }; }); }\n',
+        );
+        const app = express();
+        app.use(express.json());
+        const manager = createTerminalManager();
+        const reports: Array<{ terminalId: string; event: string }> = [];
+        app.post(
+          "/api/terminal-activity",
+          (req, _res, next) => {
+            reports.push({ terminalId: req.body.terminalId, event: req.body.event });
+            next();
+          },
+          createTerminalActivityRouteHandler(manager),
+        );
+        const server = app.listen(0, "127.0.0.1");
+        await new Promise<void>((resolve) => server.once("listening", resolve));
+        const address = server.address();
+        if (!address || typeof address === "string") throw new Error("Expected TCP server");
+        try {
+          for (const osc of [true, false]) {
+            const session = trackSession(
+              await manager.createTerminal({
+                cwd: packageRoot,
+                workspaceId: "real-pi",
+                command: "/bin/bash",
+                args: ["--noprofile", "--norc"],
+                activityUrl: `http://127.0.0.1:${address.port}/api/terminal-activity`,
+                paseoCliPath: join(__dirname, "../../../cli/bin/paseo"),
+                env: { PS1: "$ ", PI_OFFLINE: "1", ...(osc ? {} : { PI_PROGRAM_STATUS: "0" }) },
+                rows: 40,
+                cols: 120,
+              }),
+            );
+            let output = "";
+            session.subscribe((message) => {
+              if (message.type === "output") output += message.data;
+            });
+            session.send({
+              type: "input",
+              data: `pi --offline --no-mcp --no-context-files --no-session --extension ${extensionPath} --tools bash 'Call bash once with printf PASEO_PERMISSION_OK. Then reply PASEO_FINISHED_OK.'\r`,
+            });
+            await waitForActivity(session, (activity) => activity?.state === "working", 60_000);
+            if (osc) {
+              await waitForActivity(
+                session,
+                (activity) => activity?.attentionReason === "needs_input",
+                60_000,
+              );
+              expect(output).toContain("\x1b]7501;?\x1b\\");
+              expect(output).toContain("state=blocked:app=pi:kind=permission");
+              session.send({ type: "input", data: "\r" });
+              await waitForActivity(
+                session,
+                (activity) => activity?.attentionReason === "finished",
+                60_000,
+              );
+              expect(output).toContain("state=done:app=pi");
+              session.clearActivityAttention();
+              session.send({ type: "input", data: "Use bash to sleep 30.\r" });
+              await waitForActivity(session, (activity) => activity?.state === "working", 60_000);
+            }
+            await new Promise((resolve) => setTimeout(resolve, 700));
+            const processRows = spawnSync("ps", ["-eo", "pid=,ppid=,args="], { encoding: "utf8" });
+            const child = processRows.stdout.split("\n").find((row) => {
+              const match = row.match(/^\s*(\d+)\s+(\d+)\s+(.+)$/);
+              return match && Number(match[2]) === session.pid && match[3].includes("pi");
+            });
+            expect(child).toBeDefined();
+            process.kill(Number(child!.trim().split(/\s+/)[0]), "SIGKILL");
+            await waitForActivity(session, (activity) => activity === null, 10_000);
+            session.send({
+              type: "input",
+              data: "pi --offline --no-mcp --no-context-files --no-session --no-tools 'Reply PASEO_RECOVERY_OK.'\r",
+            });
+            await waitForActivity(session, (activity) => activity?.state === "working", 60_000);
+            await waitForActivity(
+              session,
+              (activity) => activity?.attentionReason === "finished",
+              60_000,
+            );
+            expect(reports).toContainEqual({ terminalId: session.id, event: "Stop" });
+            if (!osc) expect(output).not.toContain("\x1b]7501;");
+            await manager.killTerminalAndWait(session.id);
+          }
+        } finally {
+          for (const cwd of manager.listDirectories()) {
+            for (const terminal of await manager.getTerminals(cwd)) {
+              await manager.killTerminalAndWait(terminal.id);
+            }
+          }
+          await new Promise<void>((resolve) => server.close(() => resolve()));
+        }
+      },
+      240_000,
+    );
+
+    it.each(["working", "blocked"])(
+      "clears %s after an externally killed foreground process without shell prompt marks",
+      async (state) => {
+        const packageRoot = mkdtempSync(join(tmpdir(), "terminal-program-status-crash-"));
+        temporaryDirs.push(packageRoot);
+        const pidPath = join(packageRoot, "reporter.pid");
+        const scriptPath = join(packageRoot, "reporter.cjs");
+        writeFileSync(
+          scriptPath,
+          `require("node:fs").writeFileSync(${JSON.stringify(pidPath)}, String(process.pid));\n` +
+            `process.stdout.write("\\x1b]7501;state=${state}:app=pi\\x07");\n` +
+            "setInterval(() => {}, 1000);\n",
+        );
+        const session = trackSession(
+          await createTerminal({
+            workspaceId: "ws-test",
+            cwd: packageRoot,
+            shell: "/bin/sh",
+            env: { PS1: "$ " },
+          }),
+        );
+        await waitForLines(session, ["$"]);
+        session.send({ type: "input", data: `${process.execPath} ${scriptPath}\r` });
+        await waitForActivity(session, (activity) =>
+          state === "working"
+            ? activity?.state === "working"
+            : activity?.attentionReason === "needs_input",
+        );
+        const reporterPid = Number(readFileSync(pidPath, "utf8"));
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        process.kill(reporterPid, "SIGKILL");
+        await waitForActivity(session, (activity) => activity === null);
+        session.send({ type: "input", data: "echo RECOVERED\r" });
+        await waitForState(session, (snapshot) => getLines(snapshot).includes("RECOVERED"));
+        session.setActivity("working");
+        expect(session.getActivity()).toMatchObject({ state: "working" });
+        session.setActivity("attention");
+        expect(session.getActivity()).toMatchObject({ attentionReason: "needs_input" });
+        session.setActivity("idle");
+        expect(session.getActivity()).toMatchObject({ state: "idle" });
+      },
+    );
+
     it("maps OSC 7501 reports onto terminal activity and answers feature queries", async () => {
       const packageRoot = mkdtempSync(join(tmpdir(), "terminal-program-status-"));
       temporaryDirs.push(packageRoot);

@@ -36,6 +36,10 @@ import type { TerminalReplayOptions, TerminalReplayMetadata } from "./terminal-r
 import { TerminalInputModeTracker } from "@getpaseo/protocol/terminal-input-mode";
 import { TerminalActivityTracker } from "./activity/terminal-activity-tracker.js";
 import {
+  createTerminalWorkerProcessInspector,
+  type ProcessTableEntry,
+} from "./terminal-worker-processes.js";
+import {
   ProgramStatusRecords,
   parseProgramStatusReport,
   type ProgramStatusState,
@@ -754,6 +758,16 @@ export async function assertTerminalCommandCanStart(
   }
 }
 
+function readLinuxActivityProcessStartTime(pid: number): string | null {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+    return stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw error;
+  }
+}
+
 export async function createTerminal(
   options: CreateTerminalOptions,
 ): Promise<LocalTerminalSession> {
@@ -952,14 +966,107 @@ export async function createTerminal(
   // Set by any accepted OSC 7501 report; a new shell prompt or a full reset
   // lifts it. While set, agent hook reports are ignored (see setActivity).
   let programReportsStatus = false;
+  const activityProcessInspector = createTerminalWorkerProcessInspector();
+  let activityProcessTimer: ReturnType<typeof setTimeout> | null = null;
+  let activityProcessGeneration = 0;
+  let activityProgram: ProcessTableEntry | null = null;
+  function emitInferredCommandFinished(): void {
+    for (const listener of Array.from(commandFinishedListeners)) {
+      try {
+        listener({ exitCode: null });
+      } catch {
+        // no-op
+      }
+    }
+  }
+
+  function stopActivityProcessWatch(): void {
+    activityProcessGeneration += 1;
+    if (activityProcessTimer) clearTimeout(activityProcessTimer);
+    activityProcessTimer = null;
+    activityProgram = null;
+  }
+
+  // Poll only active unintegrated shells. A PID and birth time captured while
+  // reporting prevent a reused PID from keeping a crashed agent active.
+  function watchActivityProcess(): void {
+    if (activityProcessTimer || commandRunning || disposed || killed) return;
+    if (!activityProgram && process.platform === "linux") {
+      try {
+        const childPids = readFileSync(
+          `/proc/${ptyProcess.pid}/task/${ptyProcess.pid}/children`,
+          "utf8",
+        )
+          .trim()
+          .split(/\s+/);
+        const pid = Number(childPids[0]);
+        if (pid > 0) {
+          const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+          activityProgram = {
+            pid,
+            ppid: ptyProcess.pid,
+            sessionId: ptyProcess.pid,
+            startedAt: stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19],
+          };
+        }
+      } catch {
+        // A process that vanished before inspection has no confirmed identity.
+      }
+    }
+    const generation = activityProcessGeneration;
+    activityProcessTimer = setTimeout(async () => {
+      try {
+        const snapshot = await activityProcessInspector.listProcesses();
+        if (generation !== activityProcessGeneration || disposed || killed) return;
+        if (!activityProgram) {
+          activityProgram = snapshot.find((entry) => entry.ppid === ptyProcess.pid) ?? null;
+        } else {
+          const watchedProgram = activityProgram;
+          let programAlive: boolean;
+          if (process.platform === "linux" && /^\d+$/.test(watchedProgram.startedAt)) {
+            programAlive =
+              readLinuxActivityProcessStartTime(watchedProgram.pid) === watchedProgram.startedAt;
+          } else {
+            programAlive = snapshot.some(
+              (entry) =>
+                entry.pid === watchedProgram.pid && entry.startedAt === watchedProgram.startedAt,
+            );
+          }
+          if (!programAlive) {
+            activityProgram = null;
+            dropLiveProgramStatus();
+            emitInferredCommandFinished();
+          }
+        }
+      } catch {
+        // Failed inspection never establishes that a program exited.
+      } finally {
+        if (generation === activityProcessGeneration) {
+          activityProcessTimer = null;
+          const activity = activityTracker.getSnapshot();
+          if (activity.state === "working" || activity.attentionReason === "needs_input") {
+            watchActivityProcess();
+          }
+        }
+      }
+    }, 250);
+    activityProcessTimer.unref();
+  }
 
   // A new shell prompt drops `working` and `blocked` program status records
   // (OSC 7501 lifetime rule) and ends the program run that owned activity.
   function dropLiveProgramStatus(): void {
     programReportsStatus = false;
-    if (!disposed && !killed && programStatusRecords.dropLiveRecords()) {
+    if (disposed || killed) return;
+    if (programStatusRecords.dropLiveRecords()) {
       applyProgramStatusActivity();
+    } else {
+      const activity = activityTracker.getSnapshot();
+      if (activity.state === "working" || activity.attentionReason === "needs_input") {
+        activityTracker.clear();
+      }
     }
+    stopActivityProcessWatch();
   }
 
   const disposeCommandLifecycleSubscription = terminal.parser.registerOscHandler(633, (data) => {
@@ -968,6 +1075,7 @@ export async function createTerminal(
       dropLiveProgramStatus();
     } else if (data === "C") {
       commandRunning = true;
+      stopActivityProcessWatch();
     }
     const commandFinished = parseCommandFinishedOsc(data);
     if (!commandFinished) {
@@ -1067,6 +1175,11 @@ export async function createTerminal(
   });
 
   activityTracker.onChange((snapshot, previousSnapshot) => {
+    if (snapshot.state === "working" || snapshot.attentionReason === "needs_input") {
+      watchActivityProcess();
+    } else {
+      stopActivityProcessWatch();
+    }
     if (disposed || killed) {
       return;
     }
