@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.15.2-ltlly.1 - 2026-11-05
+
+### Added
+
+- Added background agents for plugin helpers that stay hidden from default tabs, tracks and notifications ([#8683](https://github.com/getpaseo/paseo/pull/8683))
+- Added customizable hardware-keyboard shortcuts across mobile and desktop layouts ([#8625](https://github.com/getpaseo/paseo/pull/8625) by [@jeroenfrenken](https://github.com/jeroenfrenken))
+- Linked issue and pull request references in chat, including cross-repository references ([#8636](https://github.com/getpaseo/paseo/pull/8636))
+
+### Improved
+
+- Increased control sizes on iPad and other touch screens ([#8748](https://github.com/getpaseo/paseo/pull/8748))
+- Kept workspace headers and tabs usable in narrow columns ([#8740](https://github.com/getpaseo/paseo/pull/8740) by [@zeyugao](https://github.com/zeyugao))
+- Added a touch overlay for collapsed navigation on wide layouts ([#8739](https://github.com/getpaseo/paseo/pull/8739) by [@zeyugao](https://github.com/zeyugao))
+- Preserved the tapped line's position when expanding or collapsing chat content ([#8717](https://github.com/getpaseo/paseo/pull/8717))
+- Opened plugin settings from a cog with a tab for each settings screen ([#8675](https://github.com/getpaseo/paseo/pull/8675))
+- Showed progress while plugin screens load ([#8123](https://github.com/getpaseo/paseo/pull/8123) by [@vs-tahir](https://github.com/vs-tahir))
+- Reduced archived-history reads during workspace updates ([#8735](https://github.com/getpaseo/paseo/pull/8735))
+
+### Fixed
+
+- Fixed live terminal agents disappearing from the sidebar after a hook subprocess exits ([75ec5a1a](https://github.com/ltlly/paseo/commit/75ec5a1a257d23245979ad275da789e57139da96) by [@ltlly](https://github.com/ltlly))
+- Fixed the daemon failing to start when its terminal worker cannot read its process identity ([#8810](https://github.com/getpaseo/paseo/pull/8810))
+- Fixed Pi restoring incomplete saved history after compaction ([#8523](https://github.com/getpaseo/paseo/pull/8523))
+- Fixed Pi accepting work after its native process exits by requiring Reload ([#8718](https://github.com/getpaseo/paseo/pull/8718))
+- Fixed missing effort controls for Claude models discovered from settings ([#8699](https://github.com/getpaseo/paseo/pull/8699) by [@ragokan](https://github.com/ragokan), [@yahao123](https://github.com/yahao123))
+- Preserved enabled Claude restart recovery during graceful shutdown ([#8686](https://github.com/getpaseo/paseo/pull/8686) by [@babo-jeonguk](https://github.com/babo-jeonguk))
+- Fixed reopened running OpenCode conversations becoming impossible to interrupt ([#8698](https://github.com/getpaseo/paseo/pull/8698))
+- Fixed prompts hanging when an ACP agent disconnects ([#8406](https://github.com/getpaseo/paseo/pull/8406) by [@DAnaeto](https://github.com/DAnaeto))
+- Fixed registry plugin installation through npm mirrors ([#8756](https://github.com/getpaseo/paseo/pull/8756) by [@tlipoca9](https://github.com/tlipoca9))
+- Fixed reading saved agent history after its working directory is removed ([#8737](https://github.com/getpaseo/paseo/pull/8737))
+- Fixed duplicate handling of finger scrolling in web terminals ([#8776](https://github.com/getpaseo/paseo/pull/8776) by [@sinomoe](https://github.com/sinomoe))
+- Fixed overflowing mobile navigation making the workspace list unusable ([#8727](https://github.com/getpaseo/paseo/pull/8727) by [@jaredwang](https://github.com/jaredwang))
+- Fixed forking from earlier replies after a plugin card is updated ([#8746](https://github.com/getpaseo/paseo/pull/8746) by [@monarchmaisuriya](https://github.com/monarchmaisuriya))
+- Fixed first launch briefly showing the empty home before setup ([#8824](https://github.com/getpaseo/paseo/pull/8824))
+
+### Notes
+
+- Retained terminal workers keep their loaded code across daemon upgrades; the terminal-agent fix takes effect after those workers exit and are recreated
+
 ## 0.15.0-ltlly.3 - 2026-11-04
 
 ### Added

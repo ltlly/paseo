@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.15.2-ltlly.1 - 2026-11-05
+
+### 新增
+
+- 新增供插件辅助任务使用的后台 Agent，默认隐藏其标签页、子 Agent 轨道和通知 ([#8683](https://github.com/getpaseo/paseo/pull/8683))
+- 在移动端和桌面布局中支持可自定义的硬件键盘快捷键 ([#8625](https://github.com/getpaseo/paseo/pull/8625)，贡献者：[@jeroenfrenken](https://github.com/jeroenfrenken))
+- 将聊天中的 issue 和 pull request 引用转为链接，支持跨仓库引用 ([#8636](https://github.com/getpaseo/paseo/pull/8636))
+
+### 改进
+
+- 增大 iPad 和其他触屏设备上的控件尺寸 ([#8748](https://github.com/getpaseo/paseo/pull/8748))
+- 让工作区标题栏和标签页适应较窄的分栏 ([#8740](https://github.com/getpaseo/paseo/pull/8740)，贡献者：[@zeyugao](https://github.com/zeyugao))
+- 在宽屏布局中为收起的导航栏提供触摸浮层 ([#8739](https://github.com/getpaseo/paseo/pull/8739)，贡献者：[@zeyugao](https://github.com/zeyugao))
+- 展开或折叠聊天内容时保持所点击行的位置 ([#8717](https://github.com/getpaseo/paseo/pull/8717))
+- 通过齿轮按钮打开插件设置，并为每个设置页面提供独立标签页 ([#8675](https://github.com/getpaseo/paseo/pull/8675))
+- 在插件页面加载期间显示进度 ([#8123](https://github.com/getpaseo/paseo/pull/8123)，贡献者：[@vs-tahir](https://github.com/vs-tahir))
+- 减少工作区更新时对已归档历史记录的读取 ([#8735](https://github.com/getpaseo/paseo/pull/8735))
+
+### 修复
+
+- 修复 Hook 子进程退出后，仍在运行的终端 Agent 从侧栏消失的问题 ([75ec5a1a](https://github.com/ltlly/paseo/commit/75ec5a1a257d23245979ad275da789e57139da96)，贡献者：[@ltlly](https://github.com/ltlly))
+- 修复终端 worker 无法读取自身进程标识时 daemon 无法启动的问题 ([#8810](https://github.com/getpaseo/paseo/pull/8810))
+- 修复 Pi 压缩上下文后恢复的历史记录不完整的问题 ([#8523](https://github.com/getpaseo/paseo/pull/8523))
+- 修复 Pi 原生进程退出后仍接受任务的问题，此时要求先点击 Reload ([#8718](https://github.com/getpaseo/paseo/pull/8718))
+- 修复从设置中发现的 Claude 模型缺少推理强度控件的问题 ([#8699](https://github.com/getpaseo/paseo/pull/8699)，贡献者：[@ragokan](https://github.com/ragokan), [@yahao123](https://github.com/yahao123))
+- 在平滑关闭期间保留已启用的 Claude 重启恢复 ([#8686](https://github.com/getpaseo/paseo/pull/8686)，贡献者：[@babo-jeonguk](https://github.com/babo-jeonguk))
+- 修复重新打开运行中的 OpenCode 会话后无法中断的问题 ([#8698](https://github.com/getpaseo/paseo/pull/8698))
+- 修复 ACP Agent 断开连接后提示词请求一直等待的问题 ([#8406](https://github.com/getpaseo/paseo/pull/8406)，贡献者：[@DAnaeto](https://github.com/DAnaeto))
+- 修复通过 npm 镜像安装注册表插件的问题 ([#8756](https://github.com/getpaseo/paseo/pull/8756)，贡献者：[@tlipoca9](https://github.com/tlipoca9))
+- 修复工作目录删除后无法读取 Agent 已保存历史记录的问题 ([#8737](https://github.com/getpaseo/paseo/pull/8737))
+- 修复网页终端重复处理手指滚动的问题 ([#8776](https://github.com/getpaseo/paseo/pull/8776)，贡献者：[@sinomoe](https://github.com/sinomoe))
+- 修复移动端导航内容溢出后工作区列表无法使用的问题 ([#8727](https://github.com/getpaseo/paseo/pull/8727)，贡献者：[@jaredwang](https://github.com/jaredwang))
+- 修复插件卡片更新后无法从更早的回复创建分支会话的问题 ([#8746](https://github.com/getpaseo/paseo/pull/8746)，贡献者：[@monarchmaisuriya](https://github.com/monarchmaisuriya))
+- 修复首次启动时在引导前短暂显示空白主页的问题 ([#8824](https://github.com/getpaseo/paseo/pull/8824))
+
+### 说明
+
+- daemon 升级后，保留的终端 worker 会继续运行已加载的代码；终端 Agent 修复会在这些 worker 退出并重新创建后生效
+
 ## 0.15.0-ltlly.3 - 2026-11-04
 
 ### 新增
