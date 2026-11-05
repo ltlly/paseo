@@ -1,0 +1,10 @@
+Added
+- Added background agents for plugin helpers that stay hidden from default tabs, tracks and notifications
+- Added customizable hardware-keyboard shortcuts across mobile and desktop layouts
+- Linked issue and pull request references in chat, including cross-repository references
+
+Improved
+- Increased control sizes on iPad and other touch screens
+- Kept workspace headers and tabs usable in narrow columns
+
+Full notes: https://paseo.sh/changelog
