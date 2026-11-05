@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test, expect, type Page } from "../support/fixtures";
@@ -7,13 +8,40 @@ import { getServerId } from "../support/helpers/server-id";
 type HookActivityState = "running" | "idle" | "needs-input";
 type TabStatusBucket = "running" | "needs_input" | "attention" | "none";
 
+const TERMINAL_ACTIVITY_HOOK_SCRIPT = `
+const state = process.argv[1];
+const provider = process.argv[2];
+(async () => {
+  const response = await fetch(process.env.PASEO_TERMINAL_ACTIVITY_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      terminalId: process.env.PASEO_TERMINAL_ID,
+      token: process.env.PASEO_ACTIVITY_TOKEN,
+      state,
+      ...(provider ? { provider, event: state === "running" ? "UserPromptSubmit" : "Stop", sessionId: provider + "-conversation", title: provider + " terminal conversation", prompt: state === "running" ? "Investigate " + provider + " status" : undefined } : {}),
+    }),
+  });
+  if (!response.ok) throw new Error("Activity report failed: " + response.status);
+  await new Promise((resolve) => setTimeout(resolve, 500));
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
+`;
+
 const TERMINAL_ACTIVITY_REPORTER_SCRIPT = `
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawn } = require("node:child_process");
+const { createInterface } = require("node:readline");
 
 const triggerDir = process.argv[1];
 const provider = process.argv[2];
 const states = ["running", "idle", "needs-input"];
+createInterface({ input: process.stdin }).on("line", (line) => {
+  if (states.includes(line.trim())) fs.writeFileSync(path.join(triggerDir, line.trim()), "");
+});
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -27,19 +55,16 @@ async function waitForTrigger(state) {
 }
 
 async function reportActivity(state) {
-  const response = await fetch(process.env.PASEO_TERMINAL_ACTIVITY_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      terminalId: process.env.PASEO_TERMINAL_ID,
-      token: process.env.PASEO_ACTIVITY_TOKEN,
-      state,
-      ...(provider ? { provider, event: state === "running" ? "UserPromptSubmit" : "Stop", sessionId: provider + "-conversation", title: provider + " terminal conversation", prompt: state === "running" ? "Investigate " + provider + " status" : undefined } : {}),
-    }),
+  const child = spawn(process.execPath, ["-e", ${JSON.stringify(TERMINAL_ACTIVITY_HOOK_SCRIPT)}, state, provider ?? ""], {
+    stdio: ["ignore", "inherit", "inherit"],
   });
-  if (!response.ok) {
-    throw new Error("Activity report failed: " + response.status);
-  }
+  await new Promise((resolve, reject) => {
+    child.on("error", reject);
+    child.on("exit", (code) => code === 0 ? resolve() : reject(new Error("Hook exited: " + code)));
+  });
+  // Cross a process-inspection interval after the hook child exits.
+  await sleep(500);
+  fs.writeFileSync(path.join(triggerDir, state + ".reported"), "");
   process.stdout.write("PASEO_ACTIVITY_REPORTED:" + state + "\\n");
 }
 
@@ -101,10 +126,26 @@ class ControlledActivityTerminal {
 
   async report(state: HookActivityState): Promise<void> {
     await writeFile(join(this.triggerDir, state), "");
+    await this.waitForReport(state, expectedAttentionReason(state));
+  }
+
+  async reportFromTerminal(page: Page, state: HookActivityState): Promise<void> {
+    await this.harness
+      .terminalSurface(page)
+      .filter({ visible: true })
+      .pressSequentially(`${state}\n`);
+    await this.waitForReport(state, null);
+  }
+
+  private async waitForReport(
+    state: HookActivityState,
+    attentionReason: ReturnType<typeof expectedAttentionReason>,
+  ): Promise<void> {
+    await expect.poll(() => existsSync(join(this.triggerDir, `${state}.reported`))).toBe(true);
     await this.harness.waitForTerminalActivity({
       terminalId: this.terminal.id,
       state: internalActivityState(state),
-      attentionReason: expectedAttentionReason(state),
+      attentionReason,
       timeoutMs: 15_000,
     });
   }
@@ -201,7 +242,7 @@ test("sidebar icons include both Pi and Grok terminal sessions and navigate to t
     const grok = await createControlledActivityTerminal(terminalHarness, "grok");
     await terminalHarness.openTerminal(page, { terminalId: grok.terminal.id });
     await pi.report("running");
-    await grok.report("running");
+    await grok.reportFromTerminal(page, "running");
     const entries = (await terminalHarness.client.fetchAgents({ scope: "active" })).entries;
     const piAgent = entries.find(
       (entry) =>
@@ -238,7 +279,19 @@ test("sidebar icons include both Pi and Grok terminal sessions and navigate to t
     await expect(row).toContainText("Investigate grok status");
     await page.mouse.move(1000, 200);
     await expect(page.getByTestId("workspace-hover-card")).toHaveCount(0);
-    await page.screenshot({ path: "/tmp/paseo-sidebar-terminal-agents.png" });
+
+    await page.reload();
+    await expect(page.getByTestId(`sidebar-agent-status-${grokAgent.id}-running`)).toBeVisible();
+    await page.getByTestId(`sidebar-agent-${piAgent.id}`).click();
+    await expect(terminalTab(page, pi.terminal.id)).toHaveAttribute("aria-selected", "true");
+    await page.getByTestId(`sidebar-agent-${grokAgent.id}`).click();
+    await expect(terminalTab(page, grok.terminal.id)).toHaveAttribute("aria-selected", "true");
+    await grok.reportFromTerminal(page, "idle");
+    await expect(page.getByTestId(`sidebar-agent-${grokAgent.id}`)).toBeVisible();
+    await expect(page.getByTestId(`sidebar-agent-status-${grokAgent.id}-running`)).toHaveCount(0);
+    await terminalHarness.killTerminal(grok.terminal.id);
+    await expect(page.getByTestId(`sidebar-agent-${grokAgent.id}`)).toHaveCount(0);
+    await expect(page.getByTestId(`sidebar-agent-${piAgent.id}`)).toBeVisible();
   } finally {
     await terminalHarness.client.patchDaemonConfig({
       metadataGeneration: original.config.metadataGeneration,

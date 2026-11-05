@@ -54,7 +54,7 @@ A new shell prompt drops `working` and `blocked` records, so a program that exit
 
 Paseo's zsh integration marks prompts with OSC 633 `A`. Paseo also treats OSC 133 `A` as a new prompt, with one deviation from the spec: while the integration reports a running command (633 `C` with no prompt since), Paseo ignores 133 `A`. The spec says the shell emits 133 `A`, but TUIs such as OMP draw 133 prompt zones inside their own UI while they keep running. Without the integration the spec rule applies, and an OMP prompt zone drops OMP's own `working` record.
 
-In shells without Paseo's integration, a program that exits or crashes while `working`, without clearing its status, leaves the terminal working until a later 7501 report replaces it, a 133 prompt, a full reset, or the terminal's exit. Hook reports in that terminal stay ignored for as long. The terminal cannot see the foreground program exit on its own.
+Without shell integration, POSIX exit detection follows the terminal's foreground process group and checks the captured process's birth time. A directly launched agent owns the PTY itself; its hook and tool subprocesses can exit throughout the conversation. Those exits and unrelated background jobs must preserve the agent binding. When foreground identity cannot be established, activity waits for the next hook, 7501 report, prompt mark, reset, or terminal exit.
 
 ## Hook reporting
 

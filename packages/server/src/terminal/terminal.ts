@@ -758,10 +758,17 @@ export async function assertTerminalCommandCanStart(
   }
 }
 
-function readLinuxActivityProcessStartTime(pid: number): string | null {
+function readLinuxActivityProcess(pid: number): ProcessTableEntry | null {
   try {
     const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-    return stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19];
+    const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+    return {
+      pid,
+      ppid: Number(fields[1]),
+      sessionId: Number(fields[3]),
+      foregroundProcessGroupId: Number(fields[5]),
+      startedAt: fields[19],
+    };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw error;
@@ -987,27 +994,20 @@ export async function createTerminal(
     activityProgram = null;
   }
 
-  // Poll only active unintegrated shells. A PID and birth time captured while
-  // reporting prevent a reused PID from keeping a crashed agent active.
+  // A directly launched program owns the PTY lifecycle. Only a shell's foreground
+  // job can finish while the PTY stays alive; hook/tool children do not own it.
   function watchActivityProcess(): void {
     if (activityProcessTimer || commandRunning || disposed || killed) return;
+    const isWindowsCommandShell = /^(?:cmd|powershell|pwsh)(?:\.exe)?$/i.test(
+      basename(spawnCommand),
+    );
+    if (process.platform === "win32" && !isWindowsCommandShell) return;
     if (!activityProgram && process.platform === "linux") {
       try {
-        const childPids = readFileSync(
-          `/proc/${ptyProcess.pid}/task/${ptyProcess.pid}/children`,
-          "utf8",
-        )
-          .trim()
-          .split(/\s+/);
-        const pid = Number(childPids[0]);
-        if (pid > 0) {
-          const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
-          activityProgram = {
-            pid,
-            ppid: ptyProcess.pid,
-            sessionId: ptyProcess.pid,
-            startedAt: stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19],
-          };
+        const foregroundPid = readLinuxActivityProcess(ptyProcess.pid)?.foregroundProcessGroupId;
+        if (foregroundPid === ptyProcess.pid) return;
+        if (foregroundPid && foregroundPid > 0) {
+          activityProgram = readLinuxActivityProcess(foregroundPid);
         }
       } catch {
         // A process that vanished before inspection has no confirmed identity.
@@ -1019,13 +1019,24 @@ export async function createTerminal(
         const snapshot = await activityProcessInspector.listProcesses();
         if (generation !== activityProcessGeneration || disposed || killed) return;
         if (!activityProgram) {
-          activityProgram = snapshot.find((entry) => entry.ppid === ptyProcess.pid) ?? null;
+          if (process.platform === "win32") {
+            activityProgram = snapshot.find((entry) => entry.ppid === ptyProcess.pid) ?? null;
+          } else {
+            const foregroundPid = snapshot.find(
+              (entry) => entry.pid === ptyProcess.pid,
+            )?.foregroundProcessGroupId;
+            if (foregroundPid === ptyProcess.pid) {
+              stopActivityProcessWatch();
+              return;
+            }
+            activityProgram = snapshot.find((entry) => entry.pid === foregroundPid) ?? null;
+          }
         } else {
           const watchedProgram = activityProgram;
           let programAlive: boolean;
           if (process.platform === "linux" && /^\d+$/.test(watchedProgram.startedAt)) {
             programAlive =
-              readLinuxActivityProcessStartTime(watchedProgram.pid) === watchedProgram.startedAt;
+              readLinuxActivityProcess(watchedProgram.pid)?.startedAt === watchedProgram.startedAt;
           } else {
             programAlive = snapshot.some(
               (entry) =>

@@ -94,6 +94,7 @@ afterEach(async () => {
 async function createTerminalAgentHarness(
   options: {
     provider?: string;
+    script?: string;
     generateTitle?: (input: {
       cwd: string;
       prompt: string;
@@ -110,7 +111,7 @@ async function createTerminalAgentHarness(
     workspaceId: "workspace-1",
     name: "Grok Build",
     command: process.execPath,
-    args: ["-e", "setInterval(() => {}, 1000)"],
+    args: ["-e", options.script ?? "setInterval(() => {}, 1000)"],
   });
   const storage = new AgentStorage(join(cwd, "agents"), logger);
   const notifyStoredAgentState = vi.fn();
@@ -192,6 +193,51 @@ it("promotes hook sessions into the agent directory with workspace, profile and 
   await vi.waitFor(async () => expect((await h.directory.list())[0].requiresAttention).toBe(false));
   expect(h.notifyStoredAgentState).toHaveBeenCalled();
   expect(await h.storage.list()).toHaveLength(1);
+});
+
+it("keeps a directly launched Grok agent registered after its hook subprocess exits", async () => {
+  const { writeFileSync } = await import("node:fs");
+  const h = await createTerminalAgentHarness({
+    script: `
+      const fs = require("node:fs");
+      const { spawn } = require("node:child_process");
+      const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+        stdio: "ignore",
+      });
+      child.on("spawn", () => fs.writeFileSync("hook-ready", ""));
+      child.on("exit", () => {
+        setTimeout(() => fs.writeFileSync("hook-settled", ""), 1000);
+      });
+      const timer = setInterval(() => {
+        if (!fs.existsSync("finish-hook")) return;
+        clearInterval(timer);
+        child.kill();
+      }, 25);
+      setInterval(() => {}, 1000);
+    `,
+  });
+  await waitForCondition(() => existsSync(join(h.terminal.cwd, "hook-ready")), 5000);
+  const completions: Array<number | null> = [];
+  h.terminal.onCommandFinished(({ exitCode }) => completions.push(exitCode));
+  await h.report("UserPromptSubmit", "running");
+  const [agent] = await h.directory.list();
+  expect(agent.status).toBe("running");
+  // Keep the child alive across a process-inspection interval on macOS as well.
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  writeFileSync(join(h.terminal.cwd, "finish-hook"), "");
+  await waitForCondition(() => existsSync(join(h.terminal.cwd, "hook-settled")), 5000);
+
+  expect(h.terminal.getExitInfo()).toBeNull();
+  expect(await h.directory.list()).toEqual([
+    expect.objectContaining({ id: agent.id, provider: "grok", status: "running" }),
+  ]);
+  expect(completions).toEqual([]);
+  await h.report("Stop", "idle");
+  expect(await h.directory.list()).toEqual([
+    expect.objectContaining({ id: agent.id, provider: "grok", status: "idle" }),
+  ]);
+  await manager!.killTerminalAndWait(h.terminal.id);
+  await vi.waitFor(async () => expect(await h.directory.list()).toEqual([]));
 });
 
 it("rejects stale sessions and retires terminal agents on SessionEnd and terminal exit", async () => {

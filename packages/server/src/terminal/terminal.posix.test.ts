@@ -23,6 +23,7 @@ import {
 } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { createTerminalWorkerProcessInspector } from "./terminal-worker-processes.js";
 import { tmpdir, userInfo } from "node:os";
 
 const hasZsh = existsSync("/bin/zsh");
@@ -107,6 +108,15 @@ async function waitForActivity(
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error("Timeout waiting for terminal activity predicate to match");
+}
+
+function killBackgroundProcess(pid: number): void {
+  try {
+    process.kill(pid, "SIGTERM");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ESRCH") return;
+    throw error;
+  }
 }
 
 async function waitForTitle(
@@ -865,6 +875,106 @@ describe.skipIf(isPlatform("win32"))("terminal POSIX-only", () => {
       },
       240_000,
     );
+
+    it.each([
+      {
+        platform: "linux" as const,
+        output:
+          "100 1 100 200 Thu Nov  5 12:00:00 2026\n200 100 100 200 Thu Nov  5 12:00:01 2026\n300 1 300 -1 Thu Nov  5 12:00:02 2026\n",
+        sessionId: 100,
+        detachedSessionId: 300,
+      },
+      {
+        platform: "darwin" as const,
+        output:
+          "100 1 200 Thu Nov  5 12:00:00 2026\n200 100 200 Thu Nov  5 12:00:01 2026\n300 1 -1 Thu Nov  5 12:00:02 2026\n",
+        sessionId: null,
+        detachedSessionId: null,
+      },
+    ])(
+      "reads foreground groups and birth times from the $platform process table",
+      async ({ platform, output, sessionId, detachedSessionId }) => {
+        const inspector = createTerminalWorkerProcessInspector({
+          platform,
+          commandRunner: {
+            exec: async () => ({ stdout: output, stderr: "" }),
+          },
+        });
+        expect(await inspector.listProcesses()).toEqual([
+          {
+            pid: 100,
+            ppid: 1,
+            sessionId,
+            foregroundProcessGroupId: 200,
+            startedAt: "Thu Nov  5 12:00:00 2026",
+          },
+          {
+            pid: 200,
+            ppid: 100,
+            sessionId,
+            foregroundProcessGroupId: 200,
+            startedAt: "Thu Nov  5 12:00:01 2026",
+          },
+          {
+            pid: 300,
+            ppid: 1,
+            sessionId: detachedSessionId,
+            foregroundProcessGroupId: -1,
+            startedAt: "Thu Nov  5 12:00:02 2026",
+          },
+        ]);
+      },
+    );
+
+    it("keeps foreground activity when an earlier background job exits", async () => {
+      const cwd = mkdtempSync(join(tmpdir(), "terminal-foreground-activity-"));
+      temporaryDirs.push(cwd);
+      const backgroundPidPath = join(cwd, "background.pid");
+      const foregroundPidPath = join(cwd, "foreground.pid");
+      const reporter = join(cwd, "reporter.cjs");
+      writeFileSync(
+        reporter,
+        `
+        require("node:fs").writeFileSync(${JSON.stringify(foregroundPidPath)}, String(process.pid));
+        process.stdout.write("\\x1b]7501;state=working:app=grok\\x07");
+        setInterval(() => {}, 1000);
+      `,
+      );
+      const session = trackSession(
+        await createTerminal({
+          workspaceId: "ws-test",
+          cwd,
+          shell: "/bin/sh",
+          env: { PS1: "$ " },
+        }),
+      );
+      await waitForLines(session, ["$"]);
+      session.send({
+        type: "input",
+        data: `sleep 60 & echo $! > ${JSON.stringify(backgroundPidPath)}; echo BACKGROUND_READY\r`,
+      });
+      await waitForState(session, (state) => getLines(state).includes("BACKGROUND_READY"));
+      const backgroundPid = Number(readFileSync(backgroundPidPath, "utf8"));
+      const completions: Array<number | null> = [];
+      session.onCommandFinished(({ exitCode }) => completions.push(exitCode));
+      try {
+        session.send({
+          type: "input",
+          data: `${JSON.stringify(process.execPath)} ${JSON.stringify(reporter)}\r`,
+        });
+        await waitForActivity(session, (activity) => activity?.state === "working");
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        killBackgroundProcess(backgroundPid);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        expect(session.getActivity()).toMatchObject({ state: "working" });
+        expect(completions).toEqual([]);
+        process.kill(Number(readFileSync(foregroundPidPath, "utf8")), "SIGKILL");
+        await waitForActivity(session, (activity) => activity === null);
+        expect(completions).toEqual([null]);
+      } finally {
+        killBackgroundProcess(backgroundPid);
+      }
+    });
 
     it.each(["working", "blocked"])(
       "clears %s after an externally killed foreground process without shell prompt marks",

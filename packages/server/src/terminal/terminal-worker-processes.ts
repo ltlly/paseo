@@ -22,6 +22,8 @@ export interface ProcessTableEntry {
   startedAt: string;
   // POSIX session id where `ps` reports one (Linux). macOS `ps` has no session column.
   sessionId: number | null;
+  // The controlling terminal's foreground process group; unavailable on Windows.
+  foregroundProcessGroupId: number | null;
 }
 
 export interface TerminalWorkerProcessInspector {
@@ -97,14 +99,16 @@ async function listPosixProcesses(
 ): Promise<ProcessTableEntry[]> {
   const withSession = platform === "linux";
   const columns = withSession
-    ? ["-o", "pid=", "-o", "ppid=", "-o", "sid=", "-o", "lstart="]
-    : ["-o", "pid=", "-o", "ppid=", "-o", "lstart="];
+    ? ["-o", "pid=", "-o", "ppid=", "-o", "sid=", "-o", "tpgid=", "-o", "lstart="]
+    : ["-o", "pid=", "-o", "ppid=", "-o", "tpgid=", "-o", "lstart="];
   const { stdout } = await commandRunner.exec("ps", ["-A", "-ww", ...columns]);
   const entries: ProcessTableEntry[] = [];
-  const leadingInts = withSession ? 3 : 2;
+  const leadingInts = withSession ? 4 : 3;
   for (const line of stdout.split("\n")) {
     const match = line.match(
-      withSession ? /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.+?)\s*$/ : /^\s*(\d+)\s+(\d+)\s+(.+?)\s*$/,
+      withSession
+        ? /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(-?\d+)\s+(.+?)\s*$/
+        : /^\s*(\d+)\s+(\d+)\s+(-?\d+)\s+(.+?)\s*$/,
     );
     if (!match) continue;
     const startedAt = match[leadingInts + 1].slice(0, POSIX_LSTART_WIDTH).trim();
@@ -112,6 +116,7 @@ async function listPosixProcesses(
       pid: Number(match[1]),
       ppid: Number(match[2]),
       sessionId: withSession ? Number(match[3]) : null,
+      foregroundProcessGroupId: Number(match[leadingInts]),
       startedAt,
     });
   }
@@ -142,6 +147,7 @@ async function listWindowsProcesses(
             ppid: row.ParentProcessId ?? 0,
             startedAt: row.CreationDate,
             sessionId: null,
+            foregroundProcessGroupId: null,
           },
         ]
       : [],
