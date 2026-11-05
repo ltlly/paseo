@@ -18,7 +18,7 @@ function getLogger(logger: LoggerLike): LoggerLike {
   return logger.child({ module: "persistence" });
 }
 
-type AgentStoragePersistence = Pick<AgentStorage, "applySnapshot" | "list">;
+type AgentStoragePersistence = Pick<AgentStorage, "applySnapshot">;
 type AgentManagerStateSource = Pick<AgentManager, "subscribe">;
 
 interface BuildSessionConfigOptions {
@@ -143,6 +143,7 @@ export function extractTimestamps(record: StoredAgentRecord): {
   labels?: Record<string, string>;
   workspaceId?: string;
   owner?: StoredAgentRecord["owner"];
+  background?: boolean;
 } {
   return {
     createdAt: new Date(record.createdAt),
@@ -151,6 +152,7 @@ export function extractTimestamps(record: StoredAgentRecord): {
     labels: record.labels,
     workspaceId: record.workspaceId,
     owner: record.owner,
+    background: record.background,
   };
 }
 

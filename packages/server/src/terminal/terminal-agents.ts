@@ -38,7 +38,7 @@ export class TerminalAgents {
 
   async initialize(): Promise<void> {
     this.closed = false;
-    for (const record of await this.deps.storage.list()) {
+    for (const record of await this.deps.storage.listAll()) {
       if (!record.execution) continue;
       if (record.archivedAt) {
         this.retire(record);

@@ -25,7 +25,8 @@ export function createRestartRecovery(deps: Dependencies) {
   return {
     /** Choose candidates before anything else reads or repairs persisted running status. */
     async prepareStartup() {
-      for (const record of await deps.storage.list()) {
+      // Startup recovery repairs persisted running status once before agents are restored.
+      for (const record of await deps.storage.listAll()) {
         if (record.execution) continue;
         const pending =
           deps.settings().enabled &&
@@ -50,7 +51,8 @@ export function createRestartRecovery(deps: Dependencies) {
     },
     async captureRunningAgents() {
       await deps.storage.flush();
-      for (const record of await deps.storage.list()) {
+      // Shutdown recovery captures running state once before the daemon exits.
+      for (const record of await deps.storage.listAll()) {
         if (record.lastStatus === "running" && (await eligible(record)))
           await deps.storage.upsert({ ...record, resumeOnStartup: deps.settings().enabled });
       }

@@ -192,7 +192,7 @@ it("promotes hook sessions into the agent directory with workspace, profile and 
   await manager!.clearTerminalAttention(h.terminal.id);
   await vi.waitFor(async () => expect((await h.directory.list())[0].requiresAttention).toBe(false));
   expect(h.notifyStoredAgentState).toHaveBeenCalled();
-  expect(await h.storage.list()).toHaveLength(1);
+  expect(await h.storage.listAll()).toHaveLength(1);
 });
 
 it("keeps a directly launched Grok agent registered after its hook subprocess exits", async () => {
@@ -355,7 +355,7 @@ it("accepts terminalId and token reports through the route into the tracker", as
     () => undefined,
   );
   expect(promotedResponse.statusCode).toBe(204);
-  expect(await storage.list()).toEqual([
+  expect(await storage.listAll()).toEqual([
     expect.objectContaining({
       provider: "grok",
       lastStatus: "running",
@@ -610,8 +610,10 @@ it("hydrates resumed terminal names and lets manual regeneration use native hist
     transcriptPath: transcript,
     observedAt: 1000,
   });
-  await vi.waitFor(async () => expect((await h.storage.list())[0].title).toBe("Live Pi spinner"));
-  const record = (await h.storage.list())[0];
+  await vi.waitFor(async () =>
+    expect((await h.storage.listAll())[0].title).toBe("Live Pi spinner"),
+  );
+  const record = (await h.storage.listAll())[0];
   expect(record.labels["paseo.terminal-last-prompt"]).toBe("user: Repair the live Pi spinner");
   await h.storage.upsert({ ...record, title: "My manual task name" });
   writeFileSync(

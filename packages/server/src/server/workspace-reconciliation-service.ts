@@ -214,7 +214,7 @@ export class WorkspaceReconciliationService {
     const changes: ReconciliationChange[] = [];
     const [projects, workspaces] = await Promise.all([
       this.projectRegistry.list(),
-      this.workspaceRegistry.list(),
+      this.workspaceRegistry.listActive(),
     ]);
     const workspacesByProject = new Map<string, PersistedWorkspaceRecord[]>();
     const workspaceStates = await mapBounded(
@@ -246,7 +246,7 @@ export class WorkspaceReconciliationService {
     const changes: ReconciliationChange[] = [];
 
     const allProjects = await this.projectRegistry.list();
-    const allWorkspaces = await this.workspaceRegistry.list();
+    const allWorkspaces = await this.workspaceRegistry.listActive();
 
     const activeProjects = allProjects.filter((p) => !p.archivedAt);
     const activeProjectsById = new Map(
@@ -567,7 +567,7 @@ export class WorkspaceReconciliationService {
         if (change.kind === "project_updated") projectIds.add(change.projectId);
       }
       if (projectIds.size > 0) {
-        const workspaces = await this.workspaceRegistry.list();
+        const workspaces = await this.workspaceRegistry.listActive();
         for (const workspaceId of workspaceIdsForProjects(workspaces, projectIds)) {
           workspaceIds.add(workspaceId);
         }
